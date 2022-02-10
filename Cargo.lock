@@ -2732,6 +2732,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "tedge_core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "futures",
+ "serde",
+ "static_assertions",
+ "tedge_api",
+ "thiserror",
+ "tokio",
+ "toml",
+ "tracing",
+]
+
+[[package]]
 name = "tedge_dummy_plugin"
 version = "0.5.2"
 dependencies = [

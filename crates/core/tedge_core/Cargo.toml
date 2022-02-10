@@ -1,0 +1,22 @@
+[package]
+name = "tedge_core"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait = "0.1.52"
+futures = "0.3"
+serde = { version = "1.0.136", features = ["derive"] }
+thiserror = "1.0.30"
+tokio = { version = "1.16.1", features = ["sync", "macros"] }
+toml = "0.5.8"
+tracing = "0.1"
+
+tedge_api = { path = "../tedge_api" }
+
+[dev-dependencies]
+anyhow = "1"
+static_assertions = "1.1.0"
+tokio = { version = "1.16.1", features = ["full"] }
