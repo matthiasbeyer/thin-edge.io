@@ -2758,6 +2758,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "tedge_lib"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "log",
+ "serde",
+ "tedge_api",
+ "thiserror",
+ "tokio",
+ "toml",
+ "uuid",
+]
+
+[[package]]
 name = "tedge_mapper"
 version = "0.5.2"
 dependencies = [
