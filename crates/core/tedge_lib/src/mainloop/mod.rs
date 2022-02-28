@@ -7,6 +7,9 @@ pub use ticking::*;
 mod stopper;
 pub use stopper::*;
 
+mod detach;
+pub use detach::*;
+
 pub struct Mainloop;
 
 impl Mainloop {
@@ -23,6 +26,17 @@ impl Mainloop {
             logging: false,
             stopper: receiver,
             duration,
+        };
+        let stopper = MainloopStopper(sender);
+
+        (stopper, mainloop)
+    }
+
+    pub fn detach<State>(state: State) -> (MainloopStopper, MainloopDetach<State>) {
+        let (sender, receiver) = tokio::sync::oneshot::channel();
+        let mainloop = MainloopDetach {
+            state,
+            stopper: receiver,
         };
         let stopper = MainloopStopper(sender);
 
