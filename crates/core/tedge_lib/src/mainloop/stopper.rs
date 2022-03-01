@@ -5,3 +5,9 @@ impl MainloopStopper {
         self.0.send(()).map_err(|_| ())
     }
 }
+
+impl std::fmt::Debug for MainloopStopper {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.debug_struct("MainloopStopper").finish()
+    }
+}
