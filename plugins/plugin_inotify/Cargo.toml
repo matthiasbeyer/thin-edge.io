@@ -1,0 +1,22 @@
+[package]
+name = "plugin_inotify"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1"
+async-trait = "0.1"
+env_logger = "0.9"
+futures = "0.3"
+humantime-serde = "1"
+inotify = "0.10"
+log = { version = "0.4", features = ["serde"] }
+serde = { version = "1.0.136", features = ["derive"] }
+tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
+tracing = "0.1"
+
+tedge_api = { path = "../../crates/core/tedge_api" }
+tedge_lib = { path = "../../crates/core/tedge_lib" }
+
