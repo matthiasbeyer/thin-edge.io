@@ -1,5 +1,6 @@
 use futures::StreamExt;
 
+use futures::future::FutureExt;
 use tedge_api::Plugin;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
@@ -64,7 +65,9 @@ impl Reactor {
                 .iter()
                 .map(|prep| (prep.name.clone(), prep.task_sender.clone()))
                 .collect();
-            crate::core_task::CoreTask::new(core_msg_recv, plugin_senders).run()
+            crate::core_task::CoreTask::new(core_msg_recv, plugin_senders)
+                .run()
+                .inspect(|res| debug!("Core finished running: {:?}", res))
         };
         debug!("Core task instantiated");
 
@@ -83,7 +86,8 @@ impl Reactor {
             .map(Task::run)
             .map(Box::pin)
             .collect::<futures::stream::FuturesUnordered<_>>() // main loop
-            .collect::<Vec<Result<()>>>();
+            .collect::<Vec<Result<()>>>()
+            .inspect(|res| debug!("All Plugin Tasks finished running: {:?}", res));
         debug!("Plugin tasks instantiated");
 
         debug!("Entering main loop");

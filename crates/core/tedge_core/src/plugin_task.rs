@@ -2,6 +2,7 @@ use tedge_api::message::Message;
 use tedge_api::Plugin;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
+use tracing::info;
 
 use crate::errors::Result;
 use crate::errors::TedgeApplicationError;
@@ -51,7 +52,7 @@ impl PluginTask {
             let stop = tokio::select! {
                 _shutdown = self.task_cancel_token.cancelled() => {
                     debug!("Received shutdown request");
-                    // Shutting down
+                    info!("Going to shut down {}", self.plugin_name);
                     true
                 },
 
@@ -66,11 +67,10 @@ impl PluginTask {
             }
         }
 
-        debug!("Shutting down plugin");
-        self.plugin
-            .shutdown()
-            .await
-            .map_err(TedgeApplicationError::from)
+        debug!("Shutting down {}", self.plugin_name);
+        self.plugin.shutdown().await?;
+        info!("Shutting down {} completed", self.plugin_name);
+        Ok(())
     }
 
     async fn handle_message_from_plugin(&mut self, msg: Message) -> Result<()> {
@@ -89,6 +89,7 @@ impl PluginTask {
                 // handling shutdown. Waiting for current message to be handled and then we are
                 // done here
                 debug!("Received shutdown request");
+                info!("Going to shut down {}", self.plugin_name);
                 handle_msg_fut.await?;
                 Ok(false)
             }
@@ -139,15 +140,15 @@ impl Task for PluginTask {
                     // no communication happened when we got this future returned,
                     // so we're done now
                     debug!("Received shutdown request");
+                    info!("Going to shut down {}", self.plugin_name);
                     break
                 }
             }
         }
 
-        debug!("Shutting down plugin");
-        self.plugin
-            .shutdown()
-            .await
-            .map_err(TedgeApplicationError::from)
+        info!("Shutting down {}", self.plugin_name);
+        self.plugin.shutdown().await?;
+        info!("Shutting down {} completed", self.plugin_name);
+        Ok(())
     }
 }
