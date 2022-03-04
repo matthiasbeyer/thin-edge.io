@@ -1,6 +1,7 @@
 use futures::StreamExt;
 
 use tedge_api::Plugin;
+use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::trace;
 
@@ -35,6 +36,7 @@ struct PluginTaskPrep {
     task_sender: Sender,
     task_recv: Receiver,
     core_msg_sender: Sender,
+    task_cancel_token: CancellationToken,
 }
 
 impl Reactor {
@@ -75,6 +77,7 @@ impl Reactor {
                     prep.plugin_recv,
                     prep.task_recv,
                     prep.core_msg_sender,
+                    prep.task_cancel_token,
                 )
             })
             .map(Task::run)
@@ -146,7 +149,7 @@ impl Reactor {
         let comms = tedge_api::plugin::CoreCommunication::new(
             plugin_name.to_string(),
             plugin_message_sender,
-            self.0.cancellation_token.child_token(),
+            plugin_cancel_token,
         );
 
         trace!(
@@ -165,6 +168,7 @@ impl Reactor {
                 task_sender,
                 task_recv: task_receiver,
                 core_msg_sender,
+                task_cancel_token,
             })
     }
 }

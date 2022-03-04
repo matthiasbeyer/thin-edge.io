@@ -1,5 +1,6 @@
 use tedge_api::message::Message;
 use tedge_api::Plugin;
+use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
 use crate::errors::Result;
@@ -15,6 +16,7 @@ pub struct PluginTask {
     plugin_message_receiver: Receiver,
     tasks_receiver: Receiver,
     core_msg_sender: Sender,
+    task_cancel_token: CancellationToken,
 }
 
 impl std::fmt::Debug for PluginTask {
@@ -32,6 +34,7 @@ impl PluginTask {
         plugin_message_receiver: Receiver,
         tasks_receiver: Receiver,
         core_msg_sender: Sender,
+        task_cancel_token: CancellationToken,
     ) -> Self {
         Self {
             plugin_name,
@@ -39,12 +42,28 @@ impl PluginTask {
             plugin_message_receiver,
             tasks_receiver,
             core_msg_sender,
+            task_cancel_token,
         }
     }
 
     async fn receive_only_from_other_tasks(mut self) -> Result<()> {
-        while let Some(msg) = self.tasks_receiver.recv().await {
-            self.handle_message_to_plugin(msg).await?;
+        loop {
+            let stop = tokio::select! {
+                _shutdown = self.task_cancel_token.cancelled() => {
+                    debug!("Received shutdown request");
+                    // Shutting down
+                    true
+                },
+
+                next_message = self.tasks_receiver.recv() => match next_message {
+                    Some(msg) => !self.handle_message_to_plugin(msg).await?,
+                    None => true
+                },
+            };
+
+            if stop {
+                break;
+            }
         }
 
         debug!("Shutting down plugin");
@@ -62,12 +81,19 @@ impl PluginTask {
             .map_err(TedgeApplicationError::from)
     }
 
-    async fn handle_message_to_plugin(&mut self, msg: Message) -> Result<()> {
+    async fn handle_message_to_plugin(&mut self, msg: Message) -> Result<bool> {
         debug!("Sending message to plugin {}", self.plugin_name);
-        self.plugin
-            .handle_message(msg)
-            .await
-            .map_err(TedgeApplicationError::from)
+        let mut handle_msg_fut = self.plugin.handle_message(msg);
+        tokio::select! {
+            _shutdown = self.task_cancel_token.cancelled() => {
+                // handling shutdown. Waiting for current message to be handled and then we are
+                // done here
+                debug!("Received shutdown request");
+                handle_msg_fut.await?;
+                Ok(false)
+            }
+            res = &mut handle_msg_fut => res.map(|_| true).map_err(TedgeApplicationError::from),
+        }
     }
 }
 
@@ -97,7 +123,10 @@ impl Task for PluginTask {
 
                 message_to_plugin = self.tasks_receiver.recv() => if let Some(msg) = message_to_plugin {
                     debug!("Received message that should be passed to the plugin");
-                    self.handle_message_to_plugin(msg).await?;
+                    let continue_processing = self.handle_message_to_plugin(msg).await?;
+                    if !continue_processing {
+                        break;
+                    }
                 } else {
                     // If the communication _to_ this PluginTask is closed, there _cannot_ be any
                     // more communication _to_ the plugin.
@@ -105,6 +134,13 @@ impl Task for PluginTask {
                     debug!("Communication has been closed by the other PluginTask instances");
                     break
                 },
+
+                _shutdown = self.task_cancel_token.cancelled() => {
+                    // no communication happened when we got this future returned,
+                    // so we're done now
+                    debug!("Received shutdown request");
+                    break
+                }
             }
         }
 
