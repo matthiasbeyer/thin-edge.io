@@ -137,9 +137,16 @@ impl Reactor {
         let (plugin_message_sender, plugin_message_receiver) = tokio::sync::mpsc::channel(buf_size);
         let (task_sender, task_receiver) = tokio::sync::mpsc::channel(buf_size);
 
+        // Retreive task cancel token for cancling a task inside the core
+        let task_cancel_token = self.0.cancellation_token.child_token();
+
+        // ... and from that a plugin cancel token, that can be used to cancel only the plugin
+        let plugin_cancel_token = task_cancel_token.child_token();
+
         let comms = tedge_api::plugin::CoreCommunication::new(
             plugin_name.to_string(),
             plugin_message_sender,
+            self.0.cancellation_token.child_token(),
         );
 
         trace!(

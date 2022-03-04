@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 
 use tedge_api::PluginBuilder;
+use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
 pub mod configuration;
@@ -22,6 +23,7 @@ use crate::errors::TedgeApplicationError;
 /// A TedgeApplication
 pub struct TedgeApplication {
     config: TedgeConfiguration,
+    cancellation_token: CancellationToken,
     plugin_builders: HashMap<String, Box<dyn PluginBuilder>>,
 }
 
@@ -34,6 +36,7 @@ impl std::fmt::Debug for TedgeApplication {
 impl TedgeApplication {
     pub fn builder() -> TedgeApplicationBuilder {
         TedgeApplicationBuilder {
+            cancellation_token: CancellationToken::new(),
             plugin_builders: HashMap::new(),
         }
     }
@@ -93,6 +96,7 @@ impl TedgeApplication {
 }
 
 pub struct TedgeApplicationBuilder {
+    cancellation_token: CancellationToken,
     plugin_builders: HashMap<String, Box<dyn PluginBuilder>>,
 }
 
@@ -109,11 +113,31 @@ impl TedgeApplicationBuilder {
         Ok(self)
     }
 
-    pub fn with_config(self, config: TedgeConfiguration) -> Result<TedgeApplication> {
-        Ok(TedgeApplication {
+    pub fn with_config(
+        self,
+        config: TedgeConfiguration,
+    ) -> Result<(TedgeApplicationCancelSender, TedgeApplication)> {
+        let cancellation = TedgeApplicationCancelSender(self.cancellation_token.clone());
+        let app = TedgeApplication {
             config,
+            cancellation_token: self.cancellation_token,
             plugin_builders: self.plugin_builders,
-        })
+        };
+
+        Ok((cancellation, app))
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct TedgeApplicationCancelSender(CancellationToken);
+
+impl TedgeApplicationCancelSender {
+    pub fn cancel_app(&self) {
+        self.0.cancel()
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.0.is_cancelled()
     }
 }
 
