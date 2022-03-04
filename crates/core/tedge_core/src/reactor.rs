@@ -60,6 +60,10 @@ impl Reactor {
             .collect::<Result<Vec<_>>>()?;
         debug!("Plugins instantiated");
 
+        // Make sure the original Sender is dropped, so that when we run everything, the CoreTask
+        // automatically finishes when all Senders are dropped
+        drop(core_msg_sender);
+
         let running_core = {
             let plugin_senders = instantiated_plugins
                 .iter()
