@@ -5,6 +5,7 @@
 //! 2. Create your plugin struct that implements `Plugin`
 
 use async_trait::async_trait;
+use tokio_util::sync::CancellationToken;
 
 use crate::{error::PluginError, message::Message, Address, MessageKind};
 
@@ -16,6 +17,7 @@ use crate::{error::PluginError, message::Message, Address, MessageKind};
 pub struct CoreCommunication {
     plugin_name: String,
     sender: tokio::sync::mpsc::Sender<Message>,
+    cancellation_token: CancellationToken,
 }
 
 impl std::fmt::Debug for CoreCommunication {
@@ -28,10 +30,15 @@ impl std::fmt::Debug for CoreCommunication {
 
 impl CoreCommunication {
     #[doc(hidden)]
-    pub fn new(plugin_name: String, sender: tokio::sync::mpsc::Sender<Message>) -> Self {
+    pub fn new(
+        plugin_name: String,
+        sender: tokio::sync::mpsc::Sender<Message>,
+        cancellation_token: CancellationToken,
+    ) -> Self {
         Self {
             plugin_name,
             sender,
+            cancellation_token,
         }
     }
 
@@ -47,6 +54,26 @@ impl CoreCommunication {
         self.sender.send(msg.into()).await?;
 
         Ok(())
+    }
+
+    /// Get the cancellation token that can be used to check whether the plugin should cancel its
+    /// current operation
+    ///
+    /// This token can be cloned or used to retreive child tokens, to be able to cancel individual
+    /// parts of a plugin.
+    ///
+    /// # Note
+    ///
+    /// If the thin-edge application is cancelled, this token and all tokens retreived from this
+    /// one will be cancelled.
+    ///
+    pub fn cancellation_token(&self) -> &CancellationToken {
+        &self.cancellation_token
+    }
+
+    /// Convenience helper for `Comms::cancellation_token().cancelled().await`.
+    pub async fn cancelled(&self) {
+        self.cancellation_token.cancelled().await
     }
 }
 
