@@ -46,14 +46,14 @@ impl CoreCommunication {
         &self,
         msg_kind: MessageKind,
         destination: Address,
-    ) -> Result<(), PluginError> {
+    ) -> Result<uuid::Uuid, PluginError> {
         let origin = Address::new(crate::address::EndpointKind::Plugin {
             id: self.plugin_name.clone(),
         });
         let msg = Message::new(origin, destination, msg_kind);
+        let msg_id = msg.id().clone();
         self.sender.send(msg.into()).await?;
-
-        Ok(())
+        Ok(msg_id)
     }
 
     /// Get the cancellation token that can be used to check whether the plugin should cancel its
