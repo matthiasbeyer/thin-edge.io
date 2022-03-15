@@ -4,6 +4,9 @@
 use std::sync::Arc;
 
 use tedge_api::error::PluginError;
+use tracing::debug;
+use tracing::error;
+use tracing::trace;
 
 pub struct Mainloop;
 
@@ -53,37 +56,42 @@ where
         self
     }
 
+    #[tracing::instrument(skip_all)]
     pub async fn run<Func, Fut>(mut self, func: Func) -> Result<(), PluginError>
     where
         Func: Fn(Arc<State>) -> Fut,
         Fut: futures::future::Future<Output = Result<(), PluginError>>,
     {
+        debug!(
+            "Building ticking mainloop with interval = {:?}",
+            self.duration
+        );
         let mut interval = tokio::time::interval(self.duration);
         let state = Arc::new(self.state);
         loop {
             tokio::select! {
                 _tick = interval.tick() => {
                     if self.logging {
-                        log::trace!("Tick");
+                        trace!("Tick");
                     }
 
                     match func(state.clone()).await {
                         Ok(_) if self.logging => log::debug!("Ok(_) from mainloop function"),
                         Err(e) if self.logging => {
-                            log::error!("Error from mainloop function: {:?}", e);
+                            error!("Error from mainloop function: {:?}", e);
                             return Err(e)
                         },
                         _ => {},
                     }
 
                     if self.logging {
-                        log::trace!("func returned");
+                        trace!("func returned");
                     }
                 },
 
                 _ = &mut self.stopper => {
                     if self.logging {
-                        log::trace!("stopping...");
+                        trace!("stopping...");
                     }
 
                     break;
