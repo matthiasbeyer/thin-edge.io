@@ -2047,6 +2047,7 @@ dependencies = [
  "tedge_api",
  "tedge_lib",
  "tokio",
+ "tokio-util 0.7.0",
  "toml",
 ]
 
