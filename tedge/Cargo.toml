@@ -21,7 +21,6 @@ tedge_core = { path = "../crates/core/tedge_core" }
 env_logger = { version = "0.9", optional = true }
 
 plugin_avg = { path = "../plugins/plugin_avg", optional = true }
-plugin_log = { path = "../plugins/plugin_log", optional = true }
 plugin_sysstat = { path = "../plugins/plugin_sysstat", optional = true }
 plugin_inotify = { path = "../plugins/plugin_inotify", optional = true }
 
@@ -30,7 +29,6 @@ plugin_inotify = { path = "../plugins/plugin_inotify", optional = true }
 default = [
     "core_logging",
     "builtin_plugin_avg",
-    "builtin_plugin_log",
     "builtin_plugin_sysstat",
     "builtin_plugin_inotify",
 ]
@@ -38,7 +36,6 @@ default = [
 core_debugging = ["console-subscriber"]
 core_logging = ["tracing-subscriber"]
 builtin_plugin_avg = ["plugin_avg"]
-builtin_plugin_log = ["plugin_log"]
 builtin_plugin_sysstat = ["plugin_sysstat"]
 builtin_plugin_inotify = ["plugin_inotify"]
 

@@ -2011,18 +2011,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "plugin_log"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "log",
- "serde",
- "tedge_api",
- "tracing",
-]
-
-[[package]]
 name = "plugin_sm"
 version = "0.5.2"
 dependencies = [
@@ -2972,7 +2960,6 @@ dependencies = [
  "env_logger 0.9.0",
  "plugin_avg",
  "plugin_inotify",
- "plugin_log",
  "plugin_sysstat",
  "tedge_api",
  "tedge_core",

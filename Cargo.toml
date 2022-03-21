@@ -6,7 +6,6 @@ members = [
     "crates/tests/*",
     "plugins/plugin_avg",
     "plugins/plugin_inotify",
-    "plugins/plugin_log",
     "plugins/plugin_sysstat",
     "plugins/tedge_apt_plugin",
     "plugins/tedge_dummy_plugin",
