@@ -9,29 +9,23 @@ use sysinfo::ProcessExt;
 use sysinfo::SystemExt;
 use tokio::sync::Mutex;
 
-use tedge_api::address::EndpointKind;
-use tedge_api::message::MeasurementValue;
-use tedge_api::plugin::CoreCommunication;
 use tedge_api::Address;
-use tedge_api::Message;
-use tedge_api::MessageKind;
 use tedge_api::PluginError;
 use tedge_lib::iter::IntoSendAll;
-use tedge_lib::iter::MapSendResult;
-use tedge_lib::reply::IntoReplyable;
-use tedge_lib::reply::ReplyableCoreCommunication;
+use tedge_lib::measurement::Measurement;
+use tedge_lib::measurement::MeasurementValue;
 
 use crate::config::AllProcessConfig;
 use crate::config::HasBaseConfig;
 use crate::config::ProcessStatConfig;
 use crate::main::State;
 use crate::main::StateFromConfig;
+use crate::plugin::MeasurementReceiver;
 
 pub struct ProcessState {
     interval: u64,
-    send_to: Vec<String>,
+    send_to: Arc<Vec<Address<MeasurementReceiver>>>,
     sys: sysinfo::System,
-    comms: CoreCommunication,
 
     all_processes: AllProcessConfig,
     by_name: HashMap<String, ProcessStatConfig>,
@@ -46,11 +40,11 @@ impl State for ProcessState {
 impl StateFromConfig for ProcessState {
     fn new_from_config(
         config: &crate::config::SysStatConfig,
-        comms: CoreCommunication,
+        addrs: Arc<Vec<Address<MeasurementReceiver>>>,
     ) -> Option<Self> {
         config.process.as_ref().map(|config| ProcessState {
             interval: config.interval_ms().get(),
-            send_to: config.send_to().to_vec(),
+            send_to: addrs,
             sys: sysinfo::System::new_with_specifics({
                 sysinfo::RefreshKind::new().with_processes({
                     let pr = sysinfo::ProcessRefreshKind::new();
@@ -68,7 +62,6 @@ impl StateFromConfig for ProcessState {
                     pr
                 })
             }),
-            comms,
 
             all_processes: config.all_processes.clone(),
             by_name: config.by_name.clone(),
@@ -94,36 +87,28 @@ pub async fn main_process(state: Arc<Mutex<ProcessState>>) -> Result<(), PluginE
                     .is_some()
         })
         .map(|(_pid, process)| get_measurement(&state, process))
-        .map(|measurement| {
-            state.send_to.iter().map(move |target| {
-                let addr = Address::new(EndpointKind::Plugin { id: target.clone() });
-                let kind = MessageKind::Measurement {
-                    name: "processes".to_string(),
-                    value: measurement.clone(),
-                };
-
-                (kind, addr)
-            })
+        .map(|value| {
+            let measurement = Measurement::new("processes".to_string(), value);
+            std::iter::repeat(measurement).zip(state.send_to.iter())
         })
         .flatten()
         .collect::<Vec<_>>();
 
     messages
         .into_iter()
-        .send_all(lock.deref().comms.clone())
-        .wait_for_reply()
-        .with_timeout(timeout_duration)
+        .send_all()
+        .wait_for_reply(timeout_duration)
         .collect::<futures::stream::FuturesUnordered<_>>()
-        .collect::<Vec<Result<_, PluginError>>>()
+        .collect::<Vec<Result<_, _>>>()
         .await
         .into_iter()
-        .map_send_result(tedge_lib::iter::log_and_ignore_timeout)
-        .collect::<Result<Vec<_>, PluginError>>()
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| PluginError::from(anyhow::anyhow!("Failed to send measurement")))
         .map(|_| ())
 }
 
 fn get_measurement(state: &ProcessState, process: &sysinfo::Process) -> MeasurementValue {
-    let mut measurements = vec![];
+    let mut hm = HashMap::new();
 
     macro_rules! mk_measurement {
         ($all_config:expr, $cfgclosure:expr, $measurement:expr, $measurement_name:expr) => {
@@ -134,8 +119,7 @@ fn get_measurement(state: &ProcessState, process: &sysinfo::Process) -> Measurem
                     .map($cfgclosure)
                     .unwrap_or(false)
             {
-                let m = $measurement;
-                measurements.push(($measurement_name.to_string(), m));
+                hm.insert($measurement_name.to_string(), $measurement);
             }
         };
     }
@@ -143,14 +127,14 @@ fn get_measurement(state: &ProcessState, process: &sysinfo::Process) -> Measurem
     mk_measurement!(
         state.all_processes.config.cmd,
         |cfg| cfg.cmd,
-        { MeasurementValue::Str(process.name().to_string()) },
+        { MeasurementValue::Text(process.name().to_string()) },
         "cmd"
     );
 
     mk_measurement!(
         state.all_processes.config.cwd,
         |cfg| cfg.cwd,
-        { MeasurementValue::Str(process.cwd().display().to_string()) },
+        { MeasurementValue::Text(process.cwd().display().to_string()) },
         "cwd"
     );
 
@@ -166,24 +150,26 @@ fn get_measurement(state: &ProcessState, process: &sysinfo::Process) -> Measurem
         |cfg| cfg.disk_usage,
         {
             let du = process.disk_usage();
-            MeasurementValue::Aggregate(vec![
-                (
+            MeasurementValue::Map({
+                let mut hm = HashMap::new();
+                hm.insert(
                     "total_written_bytes".to_string(),
-                    MeasurementValue::Int(du.total_written_bytes.into()),
-                ),
-                (
+                    MeasurementValue::Float(du.total_written_bytes as f64),
+                );
+                hm.insert(
                     "written_bytes".to_string(),
-                    MeasurementValue::Int(du.written_bytes.into()),
-                ),
-                (
+                    MeasurementValue::Float(du.written_bytes as f64),
+                );
+                hm.insert(
                     "total_read_bytes".to_string(),
-                    MeasurementValue::Int(du.total_read_bytes.into()),
-                ),
-                (
+                    MeasurementValue::Float(du.total_read_bytes as f64),
+                );
+                hm.insert(
                     "read_bytes".to_string(),
-                    MeasurementValue::Int(du.read_bytes.into()),
-                ),
-            ])
+                    MeasurementValue::Float(du.read_bytes as f64),
+                );
+                hm
+            })
         },
         "disk_usage"
     );
@@ -194,7 +180,7 @@ fn get_measurement(state: &ProcessState, process: &sysinfo::Process) -> Measurem
     //     state.all_processes.config.environ,
     //     |cfg| cfg.environ,
     //     { process.environ().into_iter()
-    //         .map(|env| MeasurementValue::Str(env.clone()))
+    //         .map(|env| MeasurementValue::Text(env.clone()))
     //         .collect()
     //     ""
     // );
@@ -202,56 +188,57 @@ fn get_measurement(state: &ProcessState, process: &sysinfo::Process) -> Measurem
     mk_measurement!(
         state.all_processes.config.exe,
         |cfg| cfg.exe,
-        { MeasurementValue::Str(process.exe().display().to_string()) },
+        { MeasurementValue::Text(process.exe().display().to_string()) },
         "exe"
     );
 
     mk_measurement!(
         state.all_processes.config.memory,
         |cfg| cfg.memory,
-        { MeasurementValue::Int(process.memory()) },
+        { MeasurementValue::Float(process.memory() as f64) },
         "memory"
     );
 
     mk_measurement!(
         state.all_processes.config.name,
         |cfg| cfg.name,
-        { MeasurementValue::Str(process.name().to_string()) },
+        { MeasurementValue::Text(process.name().to_string()) },
         "name"
     );
 
     mk_measurement!(
         state.all_processes.config.pid,
         |cfg| cfg.pid,
-        { MeasurementValue::Int(process.pid().as_u32().into()) },
+        { MeasurementValue::Float(process.pid().as_u32() as f64) },
         "pid"
     );
 
     mk_measurement!(
         state.all_processes.config.root,
         |cfg| cfg.root,
-        { MeasurementValue::Str(process.root().display().to_string()) },
+        { MeasurementValue::Text(process.root().display().to_string()) },
         "root"
     );
 
     mk_measurement!(
         state.all_processes.config.run_time,
         |cfg| cfg.run_time,
-        { MeasurementValue::Int(process.run_time()) },
+        { MeasurementValue::Float(process.run_time() as f64) },
         "run_time"
     );
 
     mk_measurement!(
         state.all_processes.config.start_time,
         |cfg| cfg.start_time,
-        { MeasurementValue::Int(process.start_time()) },
+        { MeasurementValue::Float(process.start_time() as f64) },
+
         "start_time"
     );
 
     mk_measurement!(
         state.all_processes.config.vmemory,
         |cfg| cfg.vmemory,
-        { MeasurementValue::Int(process.virtual_memory()) },
+        { MeasurementValue::Float(process.virtual_memory() as f64) },
         "vmemory"
     );
 
@@ -263,10 +250,10 @@ fn get_measurement(state: &ProcessState, process: &sysinfo::Process) -> Measurem
             .unwrap_or(false)
     {
         if let Some(parent_pid) = process.parent() {
-            let m = MeasurementValue::Int(parent_pid.as_u32().into());
-            measurements.push(("parent".to_string(), m));
+            let m = MeasurementValue::Float(parent_pid.as_u32() as f64);
+            hm.insert("parent".to_string(), m);
         }
     }
 
-    MeasurementValue::Aggregate(measurements)
+    MeasurementValue::Map(hm)
 }
