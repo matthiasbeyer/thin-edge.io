@@ -40,10 +40,10 @@ impl MainloopStopper {
 }
 
 pub struct MainloopTick<State: Sized> {
-    state: State,
-    logging: bool,
-    stopper: tokio::sync::oneshot::Receiver<()>,
-    duration: std::time::Duration,
+    pub(crate) state: State,
+    pub(crate) logging: bool,
+    pub(crate) stopper: tokio::sync::oneshot::Receiver<()>,
+    pub(crate) duration: std::time::Duration,
 }
 
 impl<State> MainloopTick<State>

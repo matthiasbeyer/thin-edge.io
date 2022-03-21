@@ -1,127 +1,111 @@
-use std::sync::Arc;
-
 use futures::FutureExt;
 
+use tedge_api::address::ReplyReceiver;
 use tedge_api::address::Address;
-use tedge_api::CoreCommunication;
-use tedge_api::MessageKind;
-use tedge_api::PluginError;
+use tedge_api::address::ReceiverBundle;
+use tedge_api::plugin::Message;
 
-use crate::reply::IntoReplyable;
-use crate::reply::ReplyReceiver;
-use crate::reply::ReplyableCoreCommunication;
-
-pub trait IntoSendAll
+pub trait IntoSendAll<'addr, M: Message, RB: ReceiverBundle>
 where
-    Self: Iterator<Item = (MessageKind, Address)> + Sized,
+    Self: Iterator<Item = (M, &'addr Address<RB>)> + Sized,
+    RB: 'addr,
+    RB: tedge_api::address::Contains<M>,
 {
-    fn send_all(self, comms: CoreCommunication) -> SendAll<Self>;
+    fn send_all(self) -> SendAll<'addr, M, RB, Self>;
 }
 
-impl<I> IntoSendAll for I
+impl<'addr, M, RB, I> IntoSendAll<'addr, M, RB> for I
 where
-    I: Iterator<Item = (MessageKind, Address)> + Sized,
+    Self: Iterator<Item = (M, &'addr Address<RB>)> + Sized,
+    M: Message,
+    RB: 'addr,
+    RB: ReceiverBundle,
+    RB: tedge_api::address::Contains<M>,
 {
-    fn send_all(self, comms: CoreCommunication) -> SendAll<I> {
-        SendAll { inner: self, comms }
+    fn send_all(self) -> SendAll<'addr, M, RB, I> {
+        SendAll { inner: self }
     }
 }
 
-pub struct SendAll<I>
+pub struct SendAll<'addr, M, RB, I>
 where
-    I: Iterator<Item = (MessageKind, Address)> + Sized,
+    I: Iterator<Item = (M, &'addr Address<RB>)> + Sized,
+    M: Message,
+    RB: 'addr,
+    RB: ReceiverBundle,
+    RB: tedge_api::address::Contains<M>,
 {
     inner: I,
-    comms: CoreCommunication,
 }
 
-impl<I> Iterator for SendAll<I>
+impl<'addr, M, RB, I> Iterator for SendAll<'addr, M, RB, I>
 where
-    I: Iterator<Item = (MessageKind, Address)> + Sized,
+    I: Iterator<Item = (M, &'addr Address<RB>)> + Sized,
+    M: Message,
+    RB: 'addr,
+    RB: ReceiverBundle,
+    RB: tedge_api::address::Contains<M>,
 {
     type Item = std::pin::Pin<
-        Box<dyn futures::future::Future<Output = Result<uuid::Uuid, PluginError>> + Send>,
+        Box<dyn futures::future::Future<Output = Result<ReplyReceiver<M::Reply>, M>> + Send + 'addr>,
     >;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let comms = self.comms.clone();
-        self.inner.next().map(move |(message_kind, address)| {
-            async move { comms.send(message_kind, address).await }.boxed()
+        self.inner.next().map(|(msg, address)| {
+            async { address.send(msg).await }.boxed()
         })
     }
 }
 
-impl<I> SendAll<I>
+impl<'addr, M, RB, I> SendAll<'addr, M, RB, I>
 where
-    I: Iterator<Item = (MessageKind, Address)> + Sized,
+    I: Iterator<Item = (M, &'addr Address<RB>)>,
+    M: Message,
+    RB: 'addr,
+    RB: ReceiverBundle,
+    RB: tedge_api::address::Contains<M>,
 {
-    pub fn wait_for_reply(self) -> SendAllWaitForReply<I> {
+    pub fn wait_for_reply(self, to: std::time::Duration) -> SendAllWaitForReply<'addr, M, RB, I> {
         SendAllWaitForReply {
             inner: self.inner,
-            comms: Arc::new(self.comms.with_replies()),
+            timeout: to,
         }
     }
 }
 
-pub struct SendAllWaitForReply<I> {
-    inner: I,
-    comms: Arc<ReplyableCoreCommunication>,
-}
-
-impl<I> Iterator for SendAllWaitForReply<I>
+pub struct SendAllWaitForReply<'addr, M, RB, I>
 where
-    I: Iterator<Item = (MessageKind, Address)> + Sized,
+    I: Iterator<Item = (M, &'addr Address<RB>)>,
+    M: Message,
+    RB: 'addr,
+    RB: ReceiverBundle,
+    RB: tedge_api::address::Contains<M>,
 {
-    type Item = std::pin::Pin<
-        Box<dyn futures::future::Future<Output = Result<ReplyReceiver, PluginError>> + Send>,
-    >;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let comms = self.comms.clone();
-        self.inner.next().map(move |(message_kind, address)| {
-            async move { comms.send_and_wait_for_reply(message_kind, address).await }.boxed()
-        })
-    }
-}
-
-impl<I> SendAllWaitForReply<I>
-where
-    I: Iterator<Item = (MessageKind, Address)> + Sized,
-{
-    pub fn with_timeout(self, timeout: std::time::Duration) -> SendAllWaitForReplyWithTimeout<I> {
-        SendAllWaitForReplyWithTimeout {
-            inner: self.inner,
-            comms: self.comms,
-            timeout,
-        }
-    }
-}
-
-pub struct SendAllWaitForReplyWithTimeout<I> {
     inner: I,
-    comms: Arc<ReplyableCoreCommunication>,
     timeout: std::time::Duration,
 }
 
-impl<I> Iterator for SendAllWaitForReplyWithTimeout<I>
+impl<'addr, M, RB, I> Iterator for SendAllWaitForReply<'addr, M, RB, I>
 where
-    I: Iterator<Item = (MessageKind, Address)> + Sized,
+    I: Iterator<Item = (M, &'addr Address<RB>)>,
+    M: Message,
+    RB: 'addr,
+    RB: ReceiverBundle,
+    RB: tedge_api::address::Contains<M>,
 {
     type Item = std::pin::Pin<
-        Box<dyn futures::future::Future<Output = Result<SendResult, PluginError>> + Send>,
+        Box<dyn futures::future::Future<Output = Result<SendResult<M::Reply>, M>> + Send + 'addr>,
     >;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let comms = self.comms.clone();
         let timeout = self.timeout.clone();
 
-        self.inner.next().map(move |(message_kind, address)| {
+        self.inner.next().map(|(msg, address)| {
             async move {
-                let reply_channel = comms.send_and_wait_for_reply(message_kind, address).await?;
-                match tokio::time::timeout(timeout, reply_channel).await {
-                    Err(_) => Ok(SendResult::Timeout),
-                    Ok(Ok(reply)) => Ok(SendResult::ReplyReceived(reply)),
-                    Ok(Err(err)) => Ok(SendResult::ReceiveError(err)),
+                let reply_recv = address.send(msg).await?.wait_for_reply(timeout);
+                match reply_recv.await {
+                    Err(err) => Ok(SendResult::ReplyError(err)),
+                    Ok(msg) => Ok(SendResult::ReplyReceived(msg)),
                 }
             }
             .boxed()
@@ -130,8 +114,7 @@ where
 }
 
 #[derive(Debug)]
-pub enum SendResult {
-    ReplyReceived(tedge_api::Message),
-    ReceiveError(tokio::sync::oneshot::error::RecvError),
-    Timeout,
+pub enum SendResult<M: Message> {
+    ReplyReceived(M),
+    ReplyError(tedge_api::address::ReplyError),
 }

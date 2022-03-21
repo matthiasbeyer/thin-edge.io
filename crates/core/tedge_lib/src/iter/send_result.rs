@@ -1,41 +1,46 @@
 use tedge_api::PluginError;
+use tedge_api::plugin::Message;
 
 use crate::iter::SendResult;
 
-pub trait MapSendResult
+pub trait MapSendResult<M>
 where
-    Self: Iterator<Item = Result<SendResult, PluginError>> + Sized,
+    M: Message,
+    Self: Iterator<Item = Result<SendResult<M>, PluginError>> + Sized,
 {
-    fn map_send_result<F>(self, f: F) -> MapSendResultIter<Self, F>
+    fn map_send_result<F>(self, f: F) -> MapSendResultIter<M, Self, F>
     where
-        F: Fn(SendResult) -> Result<(), PluginError>;
+        F: Fn(SendResult<M>) -> Result<(), PluginError>;
 }
 
-impl<I> MapSendResult for I
+impl<M, I> MapSendResult<M> for I
 where
-    I: Iterator<Item = Result<SendResult, PluginError>> + Sized,
+    M: Message,
+    I: Iterator<Item = Result<SendResult<M>, PluginError>> + Sized,
 {
-    fn map_send_result<F>(self, f: F) -> MapSendResultIter<Self, F>
+    fn map_send_result<F>(self, f: F) -> MapSendResultIter<M, Self, F>
     where
-        F: Fn(SendResult) -> Result<(), PluginError>,
+        F: Fn(SendResult<M>) -> Result<(), PluginError>,
     {
         MapSendResultIter { inner: self, f }
     }
 }
 
-pub struct MapSendResultIter<I, F>
+pub struct MapSendResultIter<M, I, F>
 where
-    I: Iterator<Item = Result<SendResult, PluginError>> + Sized,
-    F: Fn(SendResult) -> Result<(), PluginError>,
+    M: Message,
+    I: Iterator<Item = Result<SendResult<M>, PluginError>> + Sized,
+    F: Fn(SendResult<M>) -> Result<(), PluginError>,
 {
     inner: I,
     f: F,
 }
 
-impl<I, F> Iterator for MapSendResultIter<I, F>
+impl<M, I, F> Iterator for MapSendResultIter<M, I, F>
 where
-    I: Iterator<Item = Result<SendResult, PluginError>> + Sized,
-    F: Fn(SendResult) -> Result<(), PluginError>,
+    M: Message,
+    I: Iterator<Item = Result<SendResult<M>, PluginError>> + Sized,
+    F: Fn(SendResult<M>) -> Result<(), PluginError>,
 {
     type Item = Result<(), PluginError>;
 
@@ -48,13 +53,9 @@ where
     }
 }
 
-pub fn log_and_ignore_timeout(sr: SendResult) -> Result<(), PluginError> {
+pub fn log_and_ignore_timeout<M: Message>(sr: SendResult<M>) -> Result<(), PluginError> {
     match sr {
-        SendResult::Timeout => {
-            log::warn!("Timeout while waiting for reply");
-            Ok(())
-        }
-        SendResult::ReceiveError(e) => {
+        SendResult::ReplyError(e) => {
             Err(anyhow::anyhow!("Error while receiving reply: {}", e).into())
         }
         SendResult::ReplyReceived(_) => Ok(()),
