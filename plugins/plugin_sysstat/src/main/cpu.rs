@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::sync::Arc;
@@ -5,31 +6,25 @@ use std::sync::Arc;
 use futures::FutureExt;
 use futures::StreamExt;
 use sysinfo::SystemExt;
+use tedge_lib::measurement::Measurement;
+use tedge_lib::measurement::MeasurementValue;
 use tokio::sync::Mutex;
 
-use tedge_api::address::EndpointKind;
-use tedge_api::message::MeasurementValue;
-use tedge_api::plugin::CoreCommunication;
 use tedge_api::Address;
-use tedge_api::Message;
-use tedge_api::MessageKind;
 use tedge_api::PluginError;
 use tedge_lib::iter::IntoSendAll;
-use tedge_lib::iter::MapSendResult;
-use tedge_lib::reply::IntoReplyable;
-use tedge_lib::reply::ReplyableCoreCommunication;
 
 use crate::config::HasBaseConfig;
 use crate::config::PhysicalCoreCountConfig;
 use crate::config::ProcessorInfoConfig;
 use crate::main::State;
 use crate::main::StateFromConfig;
+use crate::plugin::MeasurementReceiver;
 
 pub struct CPUState {
     interval: u64,
-    send_to: Vec<String>,
     sys: sysinfo::System,
-    comms: CoreCommunication,
+    addrs: Arc<Vec<Address<MeasurementReceiver>>>,
 
     report_global_processor_info: ProcessorInfoConfig,
     global_processor_info_name: String,
@@ -50,15 +45,14 @@ impl State for CPUState {
 impl StateFromConfig for CPUState {
     fn new_from_config(
         config: &crate::config::SysStatConfig,
-        comms: CoreCommunication,
+        addrs: Arc<Vec<Address<MeasurementReceiver>>>,
     ) -> Option<Self> {
         config.cpu.as_ref().map(|config| CPUState {
             interval: config.interval_ms().get(),
-            send_to: config.send_to().to_vec(),
 
             sys: sysinfo::System::new_with_specifics({ sysinfo::RefreshKind::new().with_cpu() }),
 
-            comms,
+            addrs,
 
             report_global_processor_info: config.report_global_processor_info.clone(),
             global_processor_info_name: config.global_processor_info_name.clone(),
@@ -76,7 +70,7 @@ pub async fn main_cpu(state: Arc<Mutex<CPUState>>) -> Result<(), PluginError> {
     let mut lock = state.lock().await;
     let mut state = lock.deref();
 
-    let mut messages = Vec::new();
+    let mut sending = Vec::new();
 
     if state.report_global_processor_info.enable {
         let info = state.sys.global_processor_info();
@@ -94,14 +88,13 @@ pub async fn main_cpu(state: Arc<Mutex<CPUState>>) -> Result<(), PluginError> {
             &state.report_global_processor_info.brand_name,
         );
 
-        for target in state.send_to.iter() {
-            let addr = Address::new(EndpointKind::Plugin { id: target.clone() });
-            let kind = MessageKind::Measurement {
-                name: state.global_processor_info_name.to_string(),
-                value: measurement.clone(),
-            };
+        for addr in state.addrs.iter() {
+            let measurement = Measurement::new(
+                state.global_processor_info_name.to_string(),
+                measurement.clone(),
+            );
 
-            messages.push((kind, addr));
+            sending.push((measurement, addr));
         }
     }
 
@@ -125,40 +118,30 @@ pub async fn main_cpu(state: Arc<Mutex<CPUState>>) -> Result<(), PluginError> {
                     &state.report_processor_info.brand_name,
                 );
 
-                state.send_to.iter().map(move |target| {
-                    let addr = Address::new(EndpointKind::Plugin { id: target.clone() });
-                    let kind = MessageKind::Measurement {
-                        name: state.global_processor_info_name.to_string(),
-                        value: measurement.clone(),
-                    };
+                state.addrs.iter().map(move |addr| {
+                    let measurement = Measurement::new(
+                        state.global_processor_info_name.to_string(),
+                        measurement.clone(),
+                    );
 
-                    (kind, addr)
+                    (measurement, addr)
                 })
             })
             .flatten();
 
-        messages.extend(iter);
+        sending.extend(iter);
     }
 
     if state.report_physical_core_count.enable {
         if let Some(core_count) = state.sys.physical_core_count() {
-            match core_count.try_into() {
-                Err(_) => {
-                    // TODO usize is bigger than u64
-                    // not going to handle this for now
-                }
-                Ok(core_count) => {
-                    let measurement = MeasurementValue::Int(core_count);
-                    for target in state.send_to.iter() {
-                        let addr = Address::new(EndpointKind::Plugin { id: target.clone() });
-                        let kind = MessageKind::Measurement {
-                            name: state.physical_core_count_name.to_string(),
-                            value: measurement.clone(),
-                        };
+            let measurement = MeasurementValue::Float(core_count as f64);
+            for addr in state.addrs.iter() {
+                let measurement = Measurement::new(
+                    state.physical_core_count_name.to_string(),
+                    measurement.clone(),
+                );
 
-                        messages.push((kind, addr));
-                    }
-                }
+                sending.push((measurement, addr));
             }
         } else {
             // TODO cannot get core count
@@ -167,17 +150,15 @@ pub async fn main_cpu(state: Arc<Mutex<CPUState>>) -> Result<(), PluginError> {
 
     let timeout_duration = std::time::Duration::from_millis(state.interval);
 
-    messages
+    sending
         .into_iter()
-        .send_all(state.comms.clone())
-        .wait_for_reply()
-        .with_timeout(timeout_duration)
+        .send_all()
         .collect::<futures::stream::FuturesUnordered<_>>()
-        .collect::<Vec<Result<tedge_lib::iter::SendResult, PluginError>>>()
+        .collect::<Vec<Result<_, _>>>()
         .await
         .into_iter()
-        .map_send_result(tedge_lib::iter::log_and_ignore_timeout)
-        .collect::<Result<Vec<_>, PluginError>>()
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| PluginError::from(anyhow::anyhow!("Failed to send measurement")))
         .map(|_| ())
 }
 
@@ -196,42 +177,42 @@ fn get_processor_info_measurements(
 ) -> MeasurementValue {
     use sysinfo::ProcessorExt;
 
-    let mut aggregate = Vec::new();
+    let mut aggregate = HashMap::new();
 
     if frequency {
-        aggregate.push((
+        aggregate.insert(
             frequency_name.to_string(),
-            MeasurementValue::Int(info.frequency()),
-        ));
+            MeasurementValue::Float(info.frequency() as f64),
+        );
     }
 
     if cpu_usage {
-        aggregate.push((
+        aggregate.insert(
             cpu_usage_name.to_string(),
             MeasurementValue::Float(info.cpu_usage().into()),
-        ));
+        );
     }
 
     if name {
-        aggregate.push((
+        aggregate.insert(
             name_name.to_string(),
-            MeasurementValue::Str(info.name().to_string()),
-        ));
+            MeasurementValue::Text(info.name().to_string()),
+        );
     }
 
     if vendor_id {
-        aggregate.push((
+        aggregate.insert(
             vendor_id_name.to_string(),
-            MeasurementValue::Str(info.vendor_id().to_string()),
-        ));
+            MeasurementValue::Text(info.vendor_id().to_string()),
+        );
     }
 
     if brand {
-        aggregate.push((
+        aggregate.insert(
             brand_name.to_string(),
-            MeasurementValue::Str(info.brand().to_string()),
-        ));
+            MeasurementValue::Text(info.brand().to_string()),
+        );
     }
 
-    MeasurementValue::Aggregate(aggregate)
+    MeasurementValue::Map(aggregate)
 }
