@@ -2,18 +2,20 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use async_trait::async_trait;
+use tokio_util::sync::CancellationToken;
 
-use tedge_api::address::EndpointKind;
-use tedge_api::message::MeasurementValue;
 use tedge_api::Address;
-use tedge_api::CoreCommunication;
-use tedge_api::Message;
-use tedge_api::MessageKind;
 use tedge_api::Plugin;
 use tedge_api::PluginBuilder;
 use tedge_api::PluginConfiguration;
+use tedge_api::PluginDirectory;
 use tedge_api::PluginError;
+use tedge_api::plugin::BuiltPlugin;
+use tedge_api::plugin::HandleTypes;
+use tedge_api::plugin::PluginExt;
 use tedge_lib::mainloop::MainloopStopper;
+use tedge_lib::measurement::Measurement;
+use tedge_lib::measurement::MeasurementValue;
 use tracing::debug;
 use tracing::trace;
 
@@ -22,10 +24,19 @@ use config::*;
 
 pub struct InotifyPluginBuilder;
 
+tedge_api::make_receiver_bundle!(pub struct MeasurementReceiver(Measurement));
+
 #[async_trait]
-impl PluginBuilder for InotifyPluginBuilder {
-    fn kind_name(&self) -> &'static str {
+impl<PD: PluginDirectory> PluginBuilder<PD> for InotifyPluginBuilder {
+    fn kind_name() -> &'static str {
         "inotify"
+    }
+
+    fn kind_message_types() -> HandleTypes
+    where
+        Self: Sized,
+    {
+        HandleTypes::empty()
     }
 
     async fn verify_configuration(
@@ -44,27 +55,30 @@ impl PluginBuilder for InotifyPluginBuilder {
     async fn instantiate(
         &self,
         config: PluginConfiguration,
-        comms: CoreCommunication,
-    ) -> Result<Box<dyn Plugin>, PluginError> {
+        _cancellation_token: CancellationToken,
+        plugin_dir: &PD,
+    ) -> Result<BuiltPlugin, PluginError> {
         let config = config
             .into_inner()
-            .try_into()
+            .try_into::<InotifyConfig>()
             .map_err(|_| anyhow::anyhow!("Failed to parse inotify configuration"))?;
 
-        Ok(Box::new(InotifyPlugin::new(comms, config)))
+        let addr = plugin_dir.get_address_for(&config.target)?;
+        Ok(InotifyPlugin::new(addr, config).into_untyped::<()>())
     }
 }
 
+
 struct InotifyPlugin {
-    comms: CoreCommunication,
+    addr: Address<MeasurementReceiver>,
     config: InotifyConfig,
     stopper: Option<MainloopStopper>,
 }
 
 impl InotifyPlugin {
-    fn new(comms: CoreCommunication, config: InotifyConfig) -> Self {
+    fn new(addr: Address<MeasurementReceiver>, config: InotifyConfig) -> Self {
         Self {
-            comms,
+            addr,
             config,
             stopper: None,
         }
@@ -72,8 +86,7 @@ impl InotifyPlugin {
 }
 
 struct State {
-    target: Address,
-    comms: CoreCommunication,
+    addr: Address<MeasurementReceiver>,
     fail_on_err: bool,
     inotify: inotify::Inotify,
     watches: HashMap<inotify::WatchDescriptor, PathBuf>,
@@ -95,10 +108,7 @@ impl Plugin for InotifyPlugin {
         }
 
         let state = State {
-            target: Address::new(EndpointKind::Plugin {
-                id: self.config.target.clone(),
-            }),
-            comms: self.comms.clone(),
+            addr: self.addr.clone(),
             fail_on_err: self.config.fail_on_err,
             watches,
             inotify,
@@ -109,12 +119,6 @@ impl Plugin for InotifyPlugin {
 
         let _ = tokio::spawn(mainloop.run(main_inotify));
         trace!("Mainloop spawned");
-        Ok(())
-    }
-
-    async fn handle_message(&self, _message: Message) -> Result<(), PluginError> {
-        // ignore all messages
-        trace!("Ignoring message");
         Ok(())
     }
 
@@ -147,15 +151,10 @@ async fn main_inotify(
                     Some(Ok(event)) => {
                         debug!("Received inotify event = {:?}", event);
                         if let Some(path) = state.watches.get(&event.wd) {
-                            let value = MeasurementValue::Str(path.display().to_string());
-                            let measurement = MessageKind::Measurement {
-                                name: mask_to_string(event.mask).to_string(),
-                                value
-                            };
+                            let value = MeasurementValue::Text(path.display().to_string());
+                            let measurement = Measurement::new(mask_to_string(event.mask).to_string(), value);
 
-                            state.comms
-                                .send(measurement, state.target.clone())
-                                .await?;
+                            let _ = state.addr.send(measurement).await;
                         } else {
                             // what happened? Got a descriptor for a file that we don't watch?
                         }
