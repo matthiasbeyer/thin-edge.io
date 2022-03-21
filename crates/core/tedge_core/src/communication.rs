@@ -73,7 +73,7 @@ impl ApiPluginDirectory for PluginDirectory {
         }
     }
 
-    fn get_address_for_core(&self) -> Result<Address<tedge_api::CoreMessages>, PluginError> {
+    fn get_address_for_core(&self) -> Address<tedge_api::CoreMessages> {
         todo!()
     }
 }
