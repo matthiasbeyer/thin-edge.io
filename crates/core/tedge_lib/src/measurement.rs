@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Measurement {
     name: String,
     value: MeasurementValue,
@@ -29,7 +29,7 @@ impl tedge_api::plugin::Message for Measurement {
     type Reply = tedge_api::message::NoReply;
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[non_exhaustive]
 pub enum MeasurementValue {
     Bool(bool),
