@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::sync::Arc;
@@ -6,26 +7,21 @@ use futures::StreamExt;
 use sysinfo::SystemExt;
 use tokio::sync::Mutex;
 
-use tedge_api::address::EndpointKind;
-use tedge_api::message::MeasurementValue;
-use tedge_api::plugin::CoreCommunication;
 use tedge_api::Address;
-use tedge_api::Message;
-use tedge_api::MessageKind;
 use tedge_api::PluginError;
 use tedge_lib::iter::IntoSendAll;
-use tedge_lib::iter::MapSendResult;
-use tedge_lib::reply::IntoReplyable;
+use tedge_lib::measurement::Measurement;
+use tedge_lib::measurement::MeasurementValue;
 
 use crate::config::HasBaseConfig;
 use crate::main::State;
 use crate::main::StateFromConfig;
+use crate::plugin::MeasurementReceiver;
 
 pub struct LoadState {
     interval: u64,
-    send_to: Vec<String>,
+    send_to: Arc<Vec<Address<MeasurementReceiver>>>,
     sys: sysinfo::System,
-    comms: CoreCommunication,
 }
 
 impl State for LoadState {
@@ -37,13 +33,12 @@ impl State for LoadState {
 impl StateFromConfig for LoadState {
     fn new_from_config(
         config: &crate::config::SysStatConfig,
-        comms: CoreCommunication,
+        addrs: Arc<Vec<Address<MeasurementReceiver>>>,
     ) -> Option<Self> {
         config.load.as_ref().map(|config| LoadState {
             interval: config.interval_ms().get(),
-            send_to: config.send_to().to_vec(),
+            send_to: addrs,
             sys: sysinfo::System::new(),
-            comms,
         })
     }
 }
@@ -54,35 +49,25 @@ pub async fn main_load(state: Arc<Mutex<LoadState>>) -> Result<(), PluginError> 
     let timeout_duration = std::time::Duration::from_millis(state.interval);
     let load = state.sys.load_average();
 
-    let value = MeasurementValue::Aggregate(vec![
-        (String::from("one"), MeasurementValue::Float(load.one)),
-        (String::from("five"), MeasurementValue::Float(load.five)),
-        (
-            String::from("fifteen"),
-            MeasurementValue::Float(load.fifteen),
-        ),
-    ]);
+    let mut hm = HashMap::new();
+    hm.insert(String::from("one"), MeasurementValue::Float(load.one));
+    hm.insert(String::from("five"), MeasurementValue::Float(load.five));
+    hm.insert(String::from("fifteen"), MeasurementValue::Float(load.fifteen));
+    let value = MeasurementValue::Map(hm);
+    let message = Measurement::new("load".to_string(), value.clone());
 
-    state
-        .send_to
-        .iter()
-        .map(|target| {
-            let addr = Address::new(EndpointKind::Plugin { id: target.clone() });
-            let kind = MessageKind::Measurement {
-                name: "load".to_string(),
-                value: value.clone(),
-            };
-
-            (kind, addr)
-        })
-        .send_all(state.comms.clone())
-        .wait_for_reply()
-        .with_timeout(timeout_duration)
+    std::iter::repeat(message)
+        .zip(state.send_to.iter())
+        .send_all()
+        .wait_for_reply(timeout_duration)
         .collect::<futures::stream::FuturesUnordered<_>>()
-        .collect::<Vec<Result<tedge_lib::iter::SendResult, PluginError>>>()
+        .collect::<Vec<Result<tedge_lib::iter::SendResult<_>, _>>>()
         .await
         .into_iter()
-        .map_send_result(tedge_lib::iter::log_and_ignore_timeout)
+        .map(|res| {
+            res.map_err(|_| PluginError::from(anyhow::anyhow!("Failed to send measurement")))
+                .map(|_| ())
+        })
         .collect::<Result<Vec<_>, PluginError>>()
         .map(|_| ())
 }
