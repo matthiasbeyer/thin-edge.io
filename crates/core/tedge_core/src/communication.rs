@@ -2,6 +2,7 @@ use std::any::TypeId;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+use tedge_api::error::DirectoryError;
 use tedge_api::error::PluginError;
 use tedge_api::plugin::PluginDirectory as ApiPluginDirectory;
 use tedge_api::Address;
@@ -56,26 +57,17 @@ impl ApiPluginDirectory for PluginDirectory {
     fn get_address_for<MB: tedge_api::address::ReceiverBundle>(
         &self,
         name: &str,
-    ) -> Result<Address<MB>, PluginError> {
+    ) -> Result<Address<MB>, DirectoryError> {
         let types = MB::get_ids().into_iter().collect();
 
-        let plug = self.plugins.get(name).unwrap_or_else(|| {
-            // This is an example, so we panic!() here.
-            // In real-world, we would do some reporting and return an error
-            panic!(
-                "Didn't find plugin with name {}, got: {:?}",
-                name,
-                self.plugins.keys().collect::<Vec<_>>()
-            )
-        });
+        let plug = self
+            .plugins
+            .get(name)
+            .ok_or_else(|| DirectoryError::PluginNameNotFound(name.to_string()))?;
 
         if !plug.types.is_superset(&types) {
-            // This is an example, so we panic!() here
-            // In real-world, we would do some reporting and return an error
-            panic!(
-                "Asked for {:#?} but plugin {} only has types {:#?}",
-                types, name, plug.types,
-            );
+            let unsupported_types = types.difference(&plug.types).map(|tpl| tpl.0).collect();
+            Err(DirectoryError::PluginDoesNotSupport(name.to_string(), unsupported_types))
         } else {
             Ok(Address::new(plug.sender.clone()))
         }
