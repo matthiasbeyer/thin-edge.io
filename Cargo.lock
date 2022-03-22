@@ -2980,6 +2980,7 @@ dependencies = [
  "plugin_sysstat",
  "tedge_api",
  "tedge_core",
+ "tedge_lib",
  "tokio",
  "toml",
  "tracing",

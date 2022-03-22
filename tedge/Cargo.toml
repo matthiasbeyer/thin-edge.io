@@ -17,6 +17,7 @@ console-subscriber = { version = "0.1", optional = true }
 
 tedge_api = { path = "../crates/core/tedge_api" }
 tedge_core = { path = "../crates/core/tedge_core" }
+tedge_lib = { path = "../crates/core/tedge_lib" }
 
 env_logger = { version = "0.9", optional = true }
 
