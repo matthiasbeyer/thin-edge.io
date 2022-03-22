@@ -2021,6 +2021,7 @@ dependencies = [
  "log",
  "serde",
  "tedge_api",
+ "tokio-util 0.7.0",
  "tracing",
 ]
 
