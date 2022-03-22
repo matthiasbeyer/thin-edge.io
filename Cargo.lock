@@ -1994,6 +1994,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "plugin_httpstop"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "hyper",
+ "log",
+ "serde",
+ "tedge_api",
+ "tokio",
+ "tokio-util 0.7.0",
+ "tracing",
+]
+
+[[package]]
 name = "plugin_inotify"
 version = "0.1.0"
 dependencies = [
