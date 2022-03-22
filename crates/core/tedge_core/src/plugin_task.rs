@@ -4,6 +4,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::info;
 use tracing::warn;
+use tracing::trace;
 
 use crate::errors::Result;
 use crate::task::Task;
@@ -43,9 +44,12 @@ impl PluginTask {
 impl Task for PluginTask {
     #[tracing::instrument]
     async fn run(mut self) -> Result<()> {
+        trace!("Setup for plugin '{}'", self.plugin_name);
         self.plugin.plugin_mut().setup().await?;
+        trace!("Setup for plugin '{}' finished", self.plugin_name);
         let mut receiver_closed = false;
 
+        trace!("Mainloop for plugin '{}'", self.plugin_name);
         loop {
             tokio::select! {
                 next_message = self.plugin_msg_receiver.recv(), if !receiver_closed => {
@@ -71,6 +75,7 @@ impl Task for PluginTask {
                 }
             }
         }
+        trace!("Mainloop for plugin '{}' finished", self.plugin_name);
 
         info!("Shutting down {}", self.plugin_name);
         self.plugin.plugin_mut().shutdown().await?;
