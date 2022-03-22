@@ -2,25 +2,30 @@ use std::any::TypeId;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+use tedge_api::address::MessageSender;
 use tedge_api::error::DirectoryError;
 use tedge_api::plugin::PluginDirectory as ApiPluginDirectory;
 use tedge_api::Address;
 
+use crate::errors::TedgeApplicationError;
+
 pub struct PluginDirectory {
     plugins: HashMap<String, PluginInfo>,
+    sender: MessageSender,
 }
 
 impl PluginDirectory {
+    pub(crate) fn collect_from<I>(iter: I, sender: MessageSender) -> Result<Self, TedgeApplicationError>
+        where I: std::iter::IntoIterator<Item = Result<(String, PluginInfo), TedgeApplicationError>>
+    {
+        Ok(PluginDirectory {
+            plugins: iter.into_iter().collect::<Result<HashMap<_, _>, _>>()?,
+            sender,
+        })
+    }
+
     pub(crate) fn get_mut<S: AsRef<str>>(&mut self, name: S) -> Option<&mut PluginInfo> {
         self.plugins.get_mut(name.as_ref())
-    }
-}
-
-impl std::iter::FromIterator<(String, PluginInfo)> for PluginDirectory {
-    fn from_iter<T: IntoIterator<Item = (String, PluginInfo)>>(iter: T) -> Self {
-        PluginDirectory {
-            plugins: iter.into_iter().collect(),
-        }
     }
 }
 
@@ -73,6 +78,6 @@ impl ApiPluginDirectory for PluginDirectory {
     }
 
     fn get_address_for_core(&self) -> Address<tedge_api::CoreMessages> {
-        todo!()
+        Address::new(self.sender.clone())
     }
 }

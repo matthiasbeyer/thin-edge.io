@@ -43,7 +43,7 @@ impl Reactor {
     pub async fn run(self) -> Result<()> {
         let channel_size = self.0.config().communication_buffer_size().get();
 
-        let mut directory = self.0
+        let directory_iter = self.0
             .config()
             .plugins()
             .iter()
@@ -62,8 +62,9 @@ impl Reactor {
                     })?;
 
                     Ok((pname.to_string(), PluginInfo::new(handle_types, channel_size)))
-            })
-            .collect::<Result<PluginDirectory>>()?;
+            });
+        let (core_sender, core_receiver) = tokio::sync::mpsc::channel(channel_size);
+        let mut directory = PluginDirectory::collect_from(directory_iter, core_sender)?;
 
         let instantiated_plugins = self
             .0
@@ -91,7 +92,10 @@ impl Reactor {
         debug!("Plugins instantiated");
 
         let running_core = {
-            crate::core_task::CoreTask::new(self.0.cancellation_token().child_token()).run()
+            // we clone the cancellation_token here, because the core must be able to use the
+            // "root" token to stop all plugins
+            let core_cancel_token = self.0.cancellation_token().clone();
+            crate::core_task::CoreTask::new(core_cancel_token, core_receiver).run()
         };
         debug!("Core task instantiated");
 
