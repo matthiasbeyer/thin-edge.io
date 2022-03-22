@@ -63,6 +63,11 @@ async fn main() -> anyhow::Result<()> {
     );
     let application = register_plugin!(
         application,
+        "builtin_plugin_log",
+        plugin_log::LogPluginBuilder
+    );
+    let application = register_plugin!(
+        application,
         "builtin_plugin_sysstat",
         plugin_sysstat::SysStatPluginBuilder
     );
