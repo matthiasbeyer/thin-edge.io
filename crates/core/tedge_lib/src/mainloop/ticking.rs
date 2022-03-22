@@ -8,37 +8,6 @@ use tracing::debug;
 use tracing::error;
 use tracing::trace;
 
-pub struct Mainloop;
-
-impl Mainloop {
-    pub fn ticking_every<State>(
-        duration: std::time::Duration,
-        state: State,
-    ) -> (MainloopStopper, MainloopTick<State>)
-    where
-        State: Sized,
-    {
-        let (sender, receiver) = tokio::sync::oneshot::channel();
-        let mainloop = MainloopTick {
-            state,
-            logging: false,
-            stopper: receiver,
-            duration,
-        };
-        let stopper = MainloopStopper(sender);
-
-        (stopper, mainloop)
-    }
-}
-
-pub struct MainloopStopper(tokio::sync::oneshot::Sender<()>);
-
-impl MainloopStopper {
-    pub fn stop(self) -> Result<(), ()> {
-        self.0.send(()).map_err(|_| ())
-    }
-}
-
 pub struct MainloopTick<State: Sized> {
     pub(crate) state: State,
     pub(crate) logging: bool,
