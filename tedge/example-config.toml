@@ -51,3 +51,10 @@ fail_on_err = false
 [plugins.watchcargotoml.configuration.pathes]
 "Cargo.toml" = [ "ALL_EVENTS" ]
 
+
+[plugins.httpstopper]
+kind = "httpstop"
+
+[plugins.httpstopper.configuration]
+bind = "127.0.0.1:9090"
+

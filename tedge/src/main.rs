@@ -81,6 +81,12 @@ async fn main() -> anyhow::Result<()> {
         plugin_inotify::InotifyPluginBuilder,
         plugin_inotify::InotifyPluginBuilder
     );
+    let application = register_plugin!(
+        application,
+        "builtin_plugin_httpstop",
+        plugin_httpstop::HttpStopPluginBuilder,
+        plugin_httpstop::HttpStopPluginBuilder
+    );
 
     let (cancel_sender, application) = application.with_config(config)?;
     info!("Application built");
