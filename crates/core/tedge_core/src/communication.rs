@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 use tedge_api::error::DirectoryError;
-use tedge_api::error::PluginError;
 use tedge_api::plugin::PluginDirectory as ApiPluginDirectory;
 use tedge_api::Address;
 
