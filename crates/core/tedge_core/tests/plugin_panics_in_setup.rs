@@ -12,6 +12,18 @@ use tedge_core::configuration::TedgeConfiguration;
 
 pub struct PanicPluginBuilder;
 
+#[derive(Debug, serde::Deserialize)]
+struct PanicPluginConf {
+    panic_location: PanicLocation,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum PanicLocation {
+    Setup,
+    Shutdown,
+}
+
 #[async_trait::async_trait]
 impl<PD: PluginDirectory> PluginBuilder<PD> for PanicPluginBuilder {
     fn kind_name() -> &'static str {
@@ -20,18 +32,29 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for PanicPluginBuilder {
 
     async fn verify_configuration(
         &self,
-        _config: &PluginConfiguration,
+        config: &PluginConfiguration,
     ) -> Result<(), tedge_api::error::PluginError> {
+        config.get_ref()
+            .clone()
+            .try_into::<PanicPluginConf>()
+            .map_err(tedge_api::error::PluginError::from)?;
         Ok(())
     }
 
     async fn instantiate(
         &self,
-        _config: PluginConfiguration,
+        config: PluginConfiguration,
         _cancellation_token: tedge_api::CancellationToken,
         _plugin_dir: &PD,
     ) -> Result<tedge_api::plugin::BuiltPlugin, PluginError> {
-        Ok(PanicPlugin {}.into_untyped::<()>())
+        let config = config.get_ref()
+            .clone()
+            .try_into::<PanicPluginConf>()
+            .map_err(tedge_api::error::PluginError::from)?;
+
+        tracing::info!("Config = {:?}", config);
+
+        Ok(PanicPlugin { panic_loc: config.panic_location }.into_untyped::<()>())
     }
 
     fn kind_message_types() -> HandleTypes
@@ -41,20 +64,27 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for PanicPluginBuilder {
     }
 }
 
-struct PanicPlugin;
+struct PanicPlugin {
+    panic_loc: PanicLocation,
+}
 
 #[async_trait]
 impl Plugin for PanicPlugin {
     #[allow(unreachable_code)]
     async fn setup(&mut self) -> Result<(), PluginError> {
         tracing::info!("Setup called");
-        panic!("Oh noez...");
+        if let PanicLocation::Setup = self.panic_loc {
+            panic!("Oh noez...");
+        }
         Ok(())
     }
 
 
     async fn shutdown(&mut self) -> Result<(), PluginError> {
         tracing::info!("Shutdown called");
+        if let PanicLocation::Shutdown = self.panic_loc {
+            panic!("Oh noez...");
+        }
         Ok(())
     }
 }
@@ -75,9 +105,16 @@ fn test_setup_panic_plugin() -> Result<(), Box<(dyn std::error::Error + 'static)
             plugin_shutdown_timeout_ms = 2000
 
             [plugins]
-            [plugins.panic_at_the_disco]
+
+            [plugins.panic_at_the_disco_setup]
             kind = "panicplugin"
-            [plugins.panic_at_the_disco.configuration]
+            [plugins.panic_at_the_disco_setup.configuration]
+            panic_location = "setup"
+
+            [plugins.panic_at_the_disco_shutdown]
+            kind = "panicplugin"
+            [plugins.panic_at_the_disco_shutdown.configuration]
+            panic_location = "shutdown"
         "#;
 
         let config: TedgeConfiguration = toml::de::from_str(CONF)?;
@@ -114,10 +151,16 @@ fn test_setup_panic_plugin() -> Result<(), Box<(dyn std::error::Error + 'static)
                     anyhow::bail!("Timeout reached, shutdown did not happen")
                 },
 
-                _ = &mut run_fut => {
+                app_res = &mut run_fut => {
                     tracing::info!("application.run() returned");
-                    assert!(cancelled, "Application returned but cancel did not happen yet");
+                    match app_res {
+                        Err(e) => {
+                            anyhow::bail!("Application errored: {:?}", e);
+                        }
+                        Ok(_) => assert!(cancelled, "Application returned but cancel did not happen yet"),
+                    }
                     // cancel happened... everything fine.
+                    tracing::info!("Application shutdown clean");
                     break;
                 },
 
