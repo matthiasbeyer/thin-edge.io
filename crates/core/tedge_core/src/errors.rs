@@ -3,6 +3,9 @@ pub enum TedgeApplicationError {
     #[error("Plugin error")]
     Plugin(#[from] tedge_api::error::PluginError),
 
+    #[error("Config verification failed")]
+    PluginConfigVerificationFailed(tedge_api::error::PluginError),
+
     #[error("Plugin kind exists already: {0}")]
     PluginKindExists(String),
 

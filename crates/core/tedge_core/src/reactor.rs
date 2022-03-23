@@ -7,6 +7,7 @@ use futures::future::FutureExt;
 use tedge_api::plugin::BuiltPlugin;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
+use tracing::error;
 use tracing::trace;
 
 use crate::configuration::PluginInstanceConfiguration;
@@ -168,6 +169,11 @@ impl Reactor {
             let pname = plugin_name.to_string();
             TedgeApplicationError::PluginConfigMissing(pname)
         })?;
+
+        if let Err(e) = builder.verify_configuration(&config).await {
+            error!("Verification of configuration failed for plugin '{}'", plugin_name);
+            return Err(TedgeApplicationError::PluginConfigVerificationFailed(e))
+        }
 
         let cancel_token = self.0.cancellation_token.child_token();
 

@@ -62,7 +62,8 @@ impl TedgeApplication {
     ///
     /// # Note
     ///
-    /// Make sure to run TedgeApplication::verify_configuration() before this
+    /// This function makes sure that the configuration is verified before the plugins are started.
+    /// So there is no need to call [TedgeApplication::verify_configuration] before this.
     pub async fn run(self) -> Result<()> {
         crate::reactor::Reactor(self).run().await
     }
