@@ -14,6 +14,12 @@ pub enum TedgeApplicationError {
 
     #[error("Unknown Plugin kind: {0}")]
     UnknownPluginKind(String),
+
+    #[error("Plugin '{0}' shutdown timeouted")]
+    PluginShutdownTimeout(String),
+
+    #[error("Plugin '{0}' shutdown errored")]
+    PluginShutdownError(String),
 }
 
 pub type Result<T> = std::result::Result<T, TedgeApplicationError>;

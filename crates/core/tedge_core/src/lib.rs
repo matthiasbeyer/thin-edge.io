@@ -209,6 +209,7 @@ mod tests {
 
     const CONFIGURATION: &str = r#"
         communication_buffer_size = 1
+        plugin_shutdown_timeout_ms = 1000
         [plugins]
         [plugins.testplug]
         kind = "dummy_plugin"

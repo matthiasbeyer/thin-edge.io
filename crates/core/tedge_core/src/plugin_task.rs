@@ -2,11 +2,13 @@ use tedge_api::address::MessageReceiver;
 use tedge_api::plugin::BuiltPlugin;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
+use tracing::error;
 use tracing::info;
-use tracing::warn;
 use tracing::trace;
+use tracing::warn;
 
 use crate::errors::Result;
+use crate::errors::TedgeApplicationError;
 use crate::task::Task;
 
 pub struct PluginTask {
@@ -14,6 +16,7 @@ pub struct PluginTask {
     plugin: BuiltPlugin,
     plugin_msg_receiver: MessageReceiver,
     task_cancel_token: CancellationToken,
+    shutdown_timeout: std::time::Duration,
 }
 
 impl std::fmt::Debug for PluginTask {
@@ -30,12 +33,14 @@ impl PluginTask {
         plugin: BuiltPlugin,
         plugin_msg_receiver: MessageReceiver,
         task_cancel_token: CancellationToken,
+        shutdown_timeout: std::time::Duration,
     ) -> Self {
         Self {
             plugin_name,
             plugin,
             plugin_msg_receiver,
             task_cancel_token,
+            shutdown_timeout,
         }
     }
 }
@@ -78,8 +83,28 @@ impl Task for PluginTask {
         trace!("Mainloop for plugin '{}' finished", self.plugin_name);
 
         info!("Shutting down {}", self.plugin_name);
-        self.plugin.plugin_mut().shutdown().await?;
-        info!("Shutting down {} completed", self.plugin_name);
-        Ok(())
+        let shutdown_fut = tokio::spawn(async move { self.plugin.plugin_mut().shutdown().await });
+
+        match tokio::time::timeout(self.shutdown_timeout, shutdown_fut).await {
+            Err(_timeout) => {
+                error!("Shutting down {} timeouted", self.plugin_name);
+                Err(TedgeApplicationError::PluginShutdownTimeout(
+                    self.plugin_name,
+                ))
+            }
+            Ok(Err(e)) => {
+                error!("Waiting for plugin {} shutdown failed", self.plugin_name);
+                if e.is_panic() {
+                    error!("Shutdown of {} paniced", self.plugin_name);
+                } else if e.is_cancelled() {
+                    error!("Shutdown of {} cancelled", self.plugin_name);
+                }
+                Err(TedgeApplicationError::PluginShutdownError(self.plugin_name))
+            }
+            Ok(Ok(res)) => {
+                info!("Shutting down {} completed", self.plugin_name);
+                res.map_err(TedgeApplicationError::from)
+            }
+        }
     }
 }

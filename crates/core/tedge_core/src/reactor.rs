@@ -107,6 +107,7 @@ impl Reactor {
                     prep.plugin,
                     prep.plugin_msg_receiver,
                     prep.cancellation_token,
+                    self.0.config().plugin_shutdown_timeout(),
                 )
             })
             .map(Task::run)

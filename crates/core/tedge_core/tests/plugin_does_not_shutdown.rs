@@ -71,6 +71,8 @@ fn test_no_shutdown_plugin() -> Result<(), Box<(dyn std::error::Error + 'static)
         const CONF: &'static str = r#"
             communication_buffer_size = 10
 
+            plugin_shutdown_timeout_ms = 2000
+
             [plugins]
             [plugins.noshut]
             kind = "noshutdown"
