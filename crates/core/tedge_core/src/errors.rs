@@ -20,6 +20,9 @@ pub enum TedgeApplicationError {
 
     #[error("Plugin '{0}' shutdown errored")]
     PluginShutdownError(String),
+
+    #[error("Plugin '{0}' setup paniced")]
+    PluginSetupPaniced(String),
 }
 
 pub type Result<T> = std::result::Result<T, TedgeApplicationError>;

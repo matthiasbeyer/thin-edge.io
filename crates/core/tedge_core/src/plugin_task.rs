@@ -1,3 +1,4 @@
+use futures::FutureExt;
 use tedge_api::address::MessageReceiver;
 use tedge_api::plugin::BuiltPlugin;
 use tokio_util::sync::CancellationToken;
@@ -50,7 +51,19 @@ impl Task for PluginTask {
     #[tracing::instrument]
     async fn run(mut self) -> Result<()> {
         trace!("Setup for plugin '{}'", self.plugin_name);
-        self.plugin.plugin_mut().setup().await?;
+
+        // we can use AssertUnwindSafe here because we're _not_ using the plugin after a panic has
+        // happened.
+        match std::panic::AssertUnwindSafe(self.plugin.plugin_mut().setup()).catch_unwind().await {
+            Err(_) => {
+                // don't make use of the plugin for unwind safety reasons, and the plugin
+                // will be dropped
+
+                error!("Plugin {} paniced in setup", self.plugin_name);
+                return Err(TedgeApplicationError::PluginSetupPaniced(self.plugin_name))
+            }
+            Ok(res) => res?,
+        }
         trace!("Setup for plugin '{}' finished", self.plugin_name);
         let mut receiver_closed = false;
 
