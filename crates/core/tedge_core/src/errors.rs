@@ -26,6 +26,9 @@ pub enum TedgeApplicationError {
 
     #[error("Plugin '{0}' setup paniced")]
     PluginSetupPaniced(String),
+
+    #[error("Plugin '{0}' paniced in message handler")]
+    PluginMessageHandlerPaniced(String),
 }
 
 pub type Result<T> = std::result::Result<T, TedgeApplicationError>;

@@ -72,9 +72,15 @@ impl Task for PluginTask {
             tokio::select! {
                 next_message = self.plugin_msg_receiver.recv(), if !receiver_closed => {
                     match next_message {
-                        Some(msg) => match self.plugin.handle_message(msg).await {
-                            Ok(_) => debug!("Plugin handled message successfully"),
-                            Err(e) => warn!("Plugin failed to handle message: {:?}", e),
+                        Some(msg) => match std::panic::AssertUnwindSafe(self.plugin.handle_message(msg)).catch_unwind().await {
+                            Err(_) => {
+                                // panic happened in handle_message() implementation
+
+                                error!("Plugin {} paniced in message handler", self.plugin_name);
+                                return Err(TedgeApplicationError::PluginMessageHandlerPaniced(self.plugin_name));
+                            },
+                            Ok(Ok(_)) => debug!("Plugin handled message successfully"),
+                            Ok(Err(e)) => warn!("Plugin failed to handle message: {:?}", e),
                         },
 
                         None => {
