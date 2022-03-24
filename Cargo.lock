@@ -3105,6 +3105,7 @@ dependencies = [
  "serde",
  "static_assertions",
  "tedge_api",
+ "test-log",
  "thiserror",
  "tokio",
  "tokio-util 0.7.0",
@@ -3239,6 +3240,17 @@ dependencies = [
  "quote 1.0.10",
  "syn 1.0.82",
  "version_check",
+]
+
+[[package]]
+name = "test-log"
+version = "0.2.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4235dbf7ea878b3ef12dea20a59c134b405a66aafc4fc2c7b9935916e289e735"
+dependencies = [
+ "proc-macro2 1.0.32",
+ "quote 1.0.10",
+ "syn 1.0.82",
 ]
 
 [[package]]
