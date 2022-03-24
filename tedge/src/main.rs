@@ -93,11 +93,7 @@ async fn main() -> anyhow::Result<()> {
 
     match args.command {
         cli::CliCommand::Run { .. } => {
-            debug!("Going to validate the configuration and run the application");
-
-            validate_config(&application).await?;
-            info!("Configuration validated");
-
+            debug!("Going to run the application");
             run(cancel_sender, application).await
         }
         cli::CliCommand::ValidateConfig { .. } => {
