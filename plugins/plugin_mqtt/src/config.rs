@@ -43,6 +43,10 @@ pub struct MqttConfig {
     /// Default: `1024 * 1024`.
     #[serde(default = "max_packet_size_default")]
     pub max_packet_size: usize,
+
+    pub topic: String,
+    pub qos: QoS,
+    pub retain: bool,
 }
 
 fn default_host() -> String {
@@ -92,5 +96,15 @@ pub enum QoS {
 
     #[serde(rename = "exactly_once")]
     ExactlyOnce,
+}
+
+impl Into<rumqttc::QoS> for QoS {
+    fn into(self) -> rumqttc::QoS {
+        match self {
+            QoS::AtMostOnce => rumqttc::QoS::AtMostOnce,
+            QoS::AtLeastOnce => rumqttc::QoS::AtLeastOnce,
+            QoS::ExactlyOnce => rumqttc::QoS::ExactlyOnce,
+        }
+    }
 }
 

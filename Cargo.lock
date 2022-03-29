@@ -2046,8 +2046,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "fastrand",
  "log",
+ "rumqttc",
  "serde",
+ "serde_json",
  "tedge_api",
  "tedge_lib",
  "tokio-util 0.7.0",
