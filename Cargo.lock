@@ -210,6 +210,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "backoff"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b62ddb9cb1ec0a098ad4bbf9344d0713fa193ae1a80af55febcff2627b6a00c1"
+dependencies = [
+ "futures-core",
+ "getrandom",
+ "instant",
+ "pin-project-lite",
+ "rand",
+ "tokio",
+]
+
+[[package]]
 name = "backtrace"
 version = "0.3.63"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -416,6 +430,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "cfg_table"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "78518bef4e5cc70a69a0bd1905594f8033b2f7492c9d7c0f173208c0945c30a2"
+
+[[package]]
 name = "chrono"
 version = "0.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -482,6 +502,15 @@ dependencies = [
  "mockall",
  "serde",
  "time 0.3.5",
+]
+
+[[package]]
+name = "cmake"
+version = "0.1.45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb6210b637171dfba4cda12e579ac6dc73f5165ad56133e5d72ef3131f320855"
+dependencies = [
+ "cc",
 ]
 
 [[package]]
@@ -824,7 +853,7 @@ name = "download"
 version = "0.5.2"
 dependencies = [
  "anyhow",
- "backoff",
+ "backoff 0.3.0",
  "log",
  "mockito",
  "nix",
@@ -1897,6 +1926,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
+name = "openssl-sys"
+version = "0.9.72"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e46109c383602735fa0a2e48dd2b7c892b048e1bf69e5c3b1d804b7d9c203cb"
+dependencies = [
+ "autocfg",
+ "cc",
+ "libc",
+ "pkg-config",
+ "vcpkg",
+]
+
+[[package]]
 name = "os_str_bytes"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1919,6 +1961,32 @@ name = "owo-colors"
 version = "3.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5e72e30578e0d0993c8ae20823dd9cff2bc5517d2f586a8aef462a581e8a03eb"
+
+[[package]]
+name = "paho-mqtt"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aee23a0d2c2eddc5441d4b26ef70cfe6002ff94b0adcbfa8e6be1ccc2f4cbd26"
+dependencies = [
+ "async-channel",
+ "crossbeam-channel",
+ "futures",
+ "futures-timer",
+ "libc",
+ "log",
+ "paho-mqtt-sys",
+ "thiserror",
+]
+
+[[package]]
+name = "paho-mqtt-sys"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38dcc5de4d40eb7ddf7f806eb14dae88f3e534dc3ae1ca83481af18551ce339c"
+dependencies = [
+ "cmake",
+ "openssl-sys",
+]
 
 [[package]]
 name = "parking_lot"
@@ -2137,6 +2205,45 @@ dependencies = [
  "tokio",
  "tokio-util 0.7.0",
  "toml",
+ "tracing",
+]
+
+[[package]]
+name = "plugin_mqtt"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "backoff 0.4.0",
+ "fastrand",
+ "futures",
+ "log",
+ "miette",
+ "paho-mqtt",
+ "serde",
+ "serde_json",
+ "tedge_api",
+ "tedge_lib",
+ "tokio",
+ "tokio-util 0.7.0",
+ "tracing",
+]
+
+[[package]]
+name = "plugin_mqtt_measurement_bridge"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "fastrand",
+ "log",
+ "miette",
+ "plugin_mqtt",
+ "rumqttc",
+ "serde",
+ "serde_json",
+ "tedge_api",
+ "tedge_lib",
+ "tokio",
+ "tokio-util 0.7.0",
  "tracing",
 ]
 
@@ -3148,6 +3255,7 @@ name = "tedge-cli"
 version = "0.1.0"
 dependencies = [
  "cfg-if 1.0.0",
+ "cfg_table",
  "clap 3.1.6",
  "console-subscriber",
  "env_logger 0.9.0",
@@ -4016,6 +4124,12 @@ dependencies = [
  "ctor",
  "version_check",
 ]
+
+[[package]]
+name = "vcpkg"
+version = "0.2.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "vec_map"
