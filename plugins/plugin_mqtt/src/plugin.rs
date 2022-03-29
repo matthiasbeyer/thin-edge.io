@@ -1,4 +1,5 @@
 use std::marker::PhantomData;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 
@@ -9,6 +10,7 @@ use tedge_api::plugin::MessageBundle;
 use tedge_api::Plugin;
 use tedge_api::PluginError;
 use tracing::debug;
+use tracing::error;
 
 use crate::config::MqttConfig;
 
@@ -17,6 +19,7 @@ pub struct MqttPlugin<MB> {
     config: MqttConfig,
 
     client: Option<rumqttc::AsyncClient>,
+    stopper: Option<tedge_lib::mainloop::MainloopStopper>,
 }
 
 impl<MB> MqttPlugin<MB>
@@ -29,6 +32,7 @@ where
             config,
 
             client: None,
+            stopper: None,
         }
     }
 }
@@ -41,22 +45,98 @@ where
     async fn setup(&mut self) -> Result<(), PluginError> {
         debug!("Setting up mqtt plugin!");
         let mqtt_options = mqtt_options(&self.config);
-        let (mqtt_client, _event_loop) =
+        let (mqtt_client, event_loop) =
             rumqttc::AsyncClient::new(mqtt_options, self.config.queue_capacity);
         self.client = Some(mqtt_client);
-        unimplemented!()
+
+        let state = State { event_loop };
+
+        let (stopper, mainloop) = tedge_lib::mainloop::Mainloop::detach(state);
+        self.stopper = Some(stopper);
+        let _ = tokio::spawn(mainloop.run(mqtt_main));
+
+        Ok(())
     }
 
     async fn shutdown(&mut self) -> Result<(), PluginError> {
         debug!("Shutting down mqtt plugin!");
-        if let Some(client) = self.client.take() {
+
+        // try to shutdown internal mainloop
+        let stop_err = if let Some(stopper) = self.stopper.take() {
+            stopper
+                .stop()
+                .map_err(|e| anyhow::anyhow!("Failed to stop MQTT mainloop: {:?}", e))
+        } else {
+            Ok(())
+        };
+
+        // try to shutdown mqtt client
+        let client_shutdown_err = if let Some(client) = self.client.take() {
             client
                 .disconnect()
                 .await
-                .map_err(|e| anyhow::anyhow!("Failed to disconnect MQTT client: {:?}", e))?;
+                .map_err(|e| anyhow::anyhow!("Failed to disconnect MQTT client: {:?}", e))
+        } else {
+            Ok(())
+        };
+
+        match (client_shutdown_err, stop_err) {
+            (Err(e), _) => Err(e).map_err(PluginError::from),
+            (_, Err(e)) => Err(e).map_err(PluginError::from),
+            _ => Ok(()),
         }
-        unimplemented!()
     }
+}
+
+struct State {
+    event_loop: rumqttc::EventLoop,
+}
+
+async fn mqtt_main(
+    mut state: State,
+    mut stopper: tokio::sync::oneshot::Receiver<()>,
+) -> Result<(), PluginError> {
+    use rumqttc::Event;
+    use rumqttc::Incoming;
+    use rumqttc::Outgoing;
+    use rumqttc::Packet;
+
+    loop {
+        tokio::select! {
+            next_event = state.event_loop.poll() => {
+                match next_event {
+                    Ok(Event::Incoming(Packet::Publish(msg))) => {
+                        let _message = serde_json::from_slice(&msg.payload)
+                            .map_err(|e| anyhow::anyhow!("Could not deserialize message '{:?}': {}", msg, e))?;
+
+                        // Now send the message to another plugin
+                        unimplemented!()
+                    }
+
+                    Ok(Event::Incoming(Incoming::Disconnect)) | Ok(Event::Outgoing(Outgoing::Disconnect)) => {
+                        // The connection has been closed
+                        break;
+                    }
+
+                    Err(e) => {
+                        error!("Error received: {:?}", e);
+                        // what to do on error?
+                        unimplemented!()
+                    }
+
+                    _ => {
+                        // ignore other events
+                    }
+                }
+            }
+
+            _cancel = &mut stopper => {
+                break
+            }
+        }
+    }
+
+    Ok(())
 }
 
 fn mqtt_options(config: &MqttConfig) -> rumqttc::MqttOptions {
