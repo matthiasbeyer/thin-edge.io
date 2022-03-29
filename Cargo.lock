@@ -2041,6 +2041,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "plugin_mqtt"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "log",
+ "serde",
+ "tedge_api",
+ "tedge_lib",
+ "tokio-util 0.7.0",
+ "tracing",
+]
+
+[[package]]
 name = "plugin_sm"
 version = "0.5.2"
 dependencies = [
