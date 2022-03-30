@@ -114,11 +114,19 @@ async fn mqtt_main(
             next_event = state.event_loop.poll() => {
                 match next_event {
                     Ok(Event::Incoming(Packet::Publish(msg))) => {
-                        let _message = serde_json::from_slice(&msg.payload)
+                        let message = serde_json::from_slice(&msg.payload)
                             .map_err(|e| anyhow::anyhow!("Could not deserialize message '{:?}': {}", msg, e))?;
 
-                        // Now send the message to another plugin
-                        unimplemented!()
+                        let message = crate::message::IncomingMessage {
+                            dup: msg.dup,
+                            payload: message,
+                            pkid: msg.pkid,
+                            qos: msg.qos,
+                            retain: msg.retain,
+                            topic: msg.topic,
+                        };
+
+                        let _ = state.target_addr.send(message).await;
                     }
 
                     Ok(Event::Incoming(Incoming::Disconnect)) | Ok(Event::Outgoing(Outgoing::Disconnect)) => {
