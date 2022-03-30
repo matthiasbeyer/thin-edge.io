@@ -44,10 +44,6 @@ pub struct MqttConfig {
     #[serde(default = "max_packet_size_default")]
     pub max_packet_size: usize,
 
-    pub topic: String,
-    pub qos: QoS,
-    pub retain: bool,
-
     /// Name of the plugin to send messages to
     pub target: String,
 }

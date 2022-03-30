@@ -1,38 +1,29 @@
-use std::marker::PhantomData;
-
 use async_trait::async_trait;
 use tedge_api::PluginError;
-use tedge_api::plugin::MessageBundle;
 use tedge_api::PluginBuilder;
 use tedge_api::PluginConfiguration;
 use tedge_api::PluginDirectory;
 use tokio_util::sync::CancellationToken;
 use tedge_api::plugin::BuiltPlugin;
-use tedge_api::plugin::DoesHandle;
 use tedge_api::plugin::HandleTypes;
 use tedge_api::plugin::PluginExt;
 
-use crate::plugin::MqttPlugin;
 use crate::config::MqttConfig;
+use crate::message::OutgoingMessage;
+use crate::plugin::MqttPlugin;
 
-pub struct MqttPluginBuilder<MB: MessageBundle> {
-    _pd: PhantomData<MB>,
-}
+pub struct MqttPluginBuilder;
 
-impl<MB: MessageBundle> MqttPluginBuilder<MB> {
+impl MqttPluginBuilder {
     pub fn new() -> Self {
-        MqttPluginBuilder {
-            _pd: PhantomData,
-        }
+        MqttPluginBuilder
     }
 }
 
 #[async_trait]
-impl<PD, MB> PluginBuilder<PD> for MqttPluginBuilder<MB>
+impl<PD> PluginBuilder<PD> for MqttPluginBuilder
 where
     PD: PluginDirectory,
-    MB: MessageBundle + Sync + Send + 'static,
-    MqttPlugin<MB>: DoesHandle<MB>,
 {
     fn kind_name() -> &'static str {
         "mqtt"
@@ -42,7 +33,7 @@ where
     where
         Self: Sized,
     {
-        HandleTypes::declare_handlers_for::<MB, MqttPlugin<MB>>()
+        HandleTypes::declare_handlers_for::<(OutgoingMessage,), MqttPlugin>()
     }
 
     async fn verify_configuration(
@@ -70,7 +61,7 @@ where
             .map_err(|_| anyhow::anyhow!("Failed to parse mqtt configuration"))?;
 
         let addr = plugin_dir.get_address_for(&config.target)?;
-        Ok(MqttPlugin::<MB>::new(config, addr).into_untyped::<MB>())
+        Ok(MqttPlugin::new(config, addr).into_untyped::<(OutgoingMessage,)>())
     }
 }
 

@@ -1,13 +1,9 @@
-use std::marker::PhantomData;
-use std::sync::Arc;
-
 use async_trait::async_trait;
 
 use tedge_api::address::Address;
 use tedge_api::address::ReplySender;
 use tedge_api::plugin::Handle;
 use tedge_api::plugin::Message;
-use tedge_api::plugin::MessageBundle;
 use tedge_api::Plugin;
 use tedge_api::PluginError;
 use tracing::debug;
@@ -15,9 +11,9 @@ use tracing::error;
 
 use crate::config::MqttConfig;
 use crate::message::MqttMessageReceiver;
+use crate::message::OutgoingMessage;
 
-pub struct MqttPlugin<MB> {
-    _pd: PhantomData<MB>,
+pub struct MqttPlugin {
     config: MqttConfig,
 
     client: Option<rumqttc::AsyncClient>,
@@ -25,13 +21,9 @@ pub struct MqttPlugin<MB> {
     target_addr: Address<MqttMessageReceiver>,
 }
 
-impl<MB> MqttPlugin<MB>
-where
-    MB: MessageBundle + Sync + Send + 'static,
-{
+impl MqttPlugin {
     pub(crate) fn new(config: MqttConfig, target_addr: Address<MqttMessageReceiver>) -> Self {
         Self {
-            _pd: PhantomData,
             config,
 
             client: None,
@@ -42,10 +34,7 @@ where
 }
 
 #[async_trait]
-impl<MB> Plugin for MqttPlugin<MB>
-where
-    MB: MessageBundle + Sync + Send + 'static,
-{
+impl Plugin for MqttPlugin {
     async fn setup(&mut self) -> Result<(), PluginError> {
         debug!("Setting up mqtt plugin!");
         let mqtt_options = mqtt_options(&self.config);
@@ -170,27 +159,22 @@ fn mqtt_options(config: &MqttConfig) -> rumqttc::MqttOptions {
 }
 
 #[async_trait]
-impl<M, MB> Handle<M> for MqttPlugin<MB>
-where
-    M: Message + serde::Serialize + std::fmt::Debug,
-    M::Reply: serde::de::DeserializeOwned,
-    MB: MessageBundle + Sync + Send + 'static,
-{
+impl Handle<OutgoingMessage> for MqttPlugin {
     async fn handle_message(
         &self,
-        message: M,
-        _sender: ReplySender<M::Reply>,
+        message: OutgoingMessage,
+        _sender: ReplySender<<OutgoingMessage as Message>::Reply>,
     ) -> Result<(), PluginError> {
         if let Some(client) = self.client.as_ref() {
-            let payload = serde_json::to_vec(&message).map_err(|e| {
+            let payload = serde_json::to_vec(&message.payload).map_err(|e| {
                 anyhow::anyhow!("Failed to serialize message '{:?}': {}", message, e)
             })?;
 
             client
                 .publish(
-                    &self.config.topic,
-                    self.config.qos.into(),
-                    self.config.retain,
+                    &message.topic,
+                    message.qos,
+                    message.retain,
                     payload,
                 )
                 .await
@@ -201,3 +185,4 @@ where
         }
     }
 }
+
