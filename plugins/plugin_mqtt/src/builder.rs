@@ -62,14 +62,15 @@ where
         &self,
         config: PluginConfiguration,
         _cancellation_token: CancellationToken,
-        _plugin_dir: &PD,
+        plugin_dir: &PD,
     ) -> Result<BuiltPlugin, PluginError> {
         let config = config
             .into_inner()
             .try_into::<MqttConfig>()
             .map_err(|_| anyhow::anyhow!("Failed to parse mqtt configuration"))?;
 
-        Ok(MqttPlugin::<MB>::new(config).into_untyped::<MB>())
+        let addr = plugin_dir.get_address_for(&config.target)?;
+        Ok(MqttPlugin::<MB>::new(config, addr).into_untyped::<MB>())
     }
 }
 

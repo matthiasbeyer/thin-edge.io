@@ -47,6 +47,9 @@ pub struct MqttConfig {
     pub topic: String,
     pub qos: QoS,
     pub retain: bool,
+
+    /// Name of the plugin to send messages to
+    pub target: String,
 }
 
 fn default_host() -> String {

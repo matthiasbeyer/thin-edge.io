@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
+use tedge_api::address::Address;
 use tedge_api::address::ReplySender;
 use tedge_api::plugin::Handle;
 use tedge_api::plugin::Message;
@@ -13,6 +14,7 @@ use tracing::debug;
 use tracing::error;
 
 use crate::config::MqttConfig;
+use crate::message::MqttMessageReceiver;
 
 pub struct MqttPlugin<MB> {
     _pd: PhantomData<MB>,
@@ -20,19 +22,21 @@ pub struct MqttPlugin<MB> {
 
     client: Option<rumqttc::AsyncClient>,
     stopper: Option<tedge_lib::mainloop::MainloopStopper>,
+    target_addr: Address<MqttMessageReceiver>,
 }
 
 impl<MB> MqttPlugin<MB>
 where
     MB: MessageBundle + Sync + Send + 'static,
 {
-    pub(crate) fn new(config: MqttConfig) -> Self {
+    pub(crate) fn new(config: MqttConfig, target_addr: Address<MqttMessageReceiver>) -> Self {
         Self {
             _pd: PhantomData,
             config,
 
             client: None,
             stopper: None,
+            target_addr,
         }
     }
 }
@@ -49,7 +53,10 @@ where
             rumqttc::AsyncClient::new(mqtt_options, self.config.queue_capacity);
         self.client = Some(mqtt_client);
 
-        let state = State { event_loop };
+        let state = State {
+            event_loop,
+            target_addr: self.target_addr.clone(),
+        };
 
         let (stopper, mainloop) = tedge_lib::mainloop::Mainloop::detach(state);
         self.stopper = Some(stopper);
@@ -90,6 +97,7 @@ where
 
 struct State {
     event_loop: rumqttc::EventLoop,
+    target_addr: Address<MqttMessageReceiver>,
 }
 
 async fn mqtt_main(
