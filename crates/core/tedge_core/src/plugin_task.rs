@@ -62,9 +62,14 @@ impl Task for PluginTask {
                 error!("Plugin {} paniced in setup", self.plugin_name);
                 return Err(TedgeApplicationError::PluginSetupPaniced(self.plugin_name))
             }
-            Ok(res) => res?,
+            Ok(Ok(())) => {
+                trace!("Setup for plugin '{}' finished successfully", self.plugin_name);
+            }
+            Ok(Err(e)) => {
+                trace!("Setup for plugin '{}' finished with error: {:?}", self.plugin_name, e);
+                return Err(TedgeApplicationError::from(e))
+            }
         }
-        trace!("Setup for plugin '{}' finished", self.plugin_name);
         let mut receiver_closed = false;
 
         trace!("Mainloop for plugin '{}'", self.plugin_name);
