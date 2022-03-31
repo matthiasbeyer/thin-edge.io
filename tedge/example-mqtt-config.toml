@@ -1,0 +1,62 @@
+communication_buffer_size = 10
+
+plugin_shutdown_timeout_ms = 10000
+
+[plugins]
+
+[plugins.logging]
+kind = "log"
+
+[plugins.logging.configuration]
+name = "logging"
+level = "trace"
+acknowledge = false
+setup_logger = false
+
+
+[plugins.plugmqtt]
+kind = "mqtt"
+
+[plugins.plugmqtt.configuration]
+host = "tcp://localhost:1883"
+target = "logging"
+
+[[plugins.plugmqtt.configuration.subscriptions]]
+topic = "subs"
+qos = "at_most_once"
+
+
+
+[plugins.mqttbridge]
+kind = "mqtt_measurement_bridge"
+[plugins.mqttbridge.configuration]
+mqtt_plugin_name = "plugmqtt"
+topic = "pubs"
+
+
+[plugins.syscpu]
+kind = "sysinfo"
+
+[plugins.syscpu.configuration.cpu]
+send_to = ["mqttbridge"]
+interval_ms = 1000
+
+
+[plugins.syscpu.configuration.cpu.report_global_processor_info]
+enable = true
+frequency = true
+cpu_usage = true
+name = true
+vendor_id = true
+brand = true
+
+[plugins.syscpu.configuration.cpu.report_processor_info]
+enable = false
+frequency = false
+cpu_usage = false
+name = false
+vendor_id = false
+brand = false
+
+[plugins.syscpu.configuration.cpu.report_physical_core_count]
+enable = false

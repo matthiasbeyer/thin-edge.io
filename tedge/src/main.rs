@@ -10,6 +10,7 @@ use tedge_lib::measurement::Measurement;
 use tracing::debug;
 use tracing::error;
 use tracing::info;
+use tracing::trace;
 
 mod cli;
 mod logging;
@@ -57,17 +58,29 @@ async fn main() -> anyhow::Result<()> {
         }}
     }
 
+    let application = {
+        cfg_table::cfg_table! {
+            [not(feature = "mqtt")] => register_plugin!(
+                application,
+                "builtin_plugin_log",
+                plugin_log::LogPluginBuilder<(Measurement,)>,
+                plugin_log::LogPluginBuilder::<(Measurement,)>::new()
+            ),
+
+            [feature = "mqtt"] => register_plugin!(
+                application,
+                "builtin_plugin_log",
+                plugin_log::LogPluginBuilder<(Measurement, plugin_mqtt::IncomingMessage)>,
+                plugin_log::LogPluginBuilder::<(Measurement, plugin_mqtt::IncomingMessage)>::new()
+            ),
+        }
+    };
+
     let application = register_plugin!(
         application,
         "builtin_plugin_avg",
         plugin_avg::AvgPluginBuilder,
         plugin_avg::AvgPluginBuilder
-    );
-    let application = register_plugin!(
-        application,
-        "builtin_plugin_log",
-        plugin_log::LogPluginBuilder<(Measurement,)>,
-        plugin_log::LogPluginBuilder::<(Measurement,)>::new()
     );
     let application = register_plugin!(
         application,
@@ -86,6 +99,18 @@ async fn main() -> anyhow::Result<()> {
         "builtin_plugin_httpstop",
         plugin_httpstop::HttpStopPluginBuilder,
         plugin_httpstop::HttpStopPluginBuilder
+    );
+    let application = register_plugin!(
+        application,
+        "mqtt",
+        plugin_mqtt::MqttPluginBuilder,
+        plugin_mqtt::MqttPluginBuilder::new()
+    );
+    let application = register_plugin!(
+        application,
+        "mqtt",
+        plugin_mqtt_measurement_bridge::MqttMeasurementBridgePluginBuilder,
+        plugin_mqtt_measurement_bridge::MqttMeasurementBridgePluginBuilder::new()
     );
 
     let (cancel_sender, application) = application.with_config(config)?;

@@ -416,6 +416,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "cfg_table"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "78518bef4e5cc70a69a0bd1905594f8033b2f7492c9d7c0f173208c0945c30a2"
+
+[[package]]
 name = "chrono"
 version = "0.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3023,6 +3029,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cfg-if 1.0.0",
+ "cfg_table",
  "clap 3.1.6",
  "console-subscriber",
  "env_logger 0.9.0",
@@ -3030,6 +3037,8 @@ dependencies = [
  "plugin_httpstop",
  "plugin_inotify",
  "plugin_log",
+ "plugin_mqtt",
+ "plugin_mqtt_measurement_bridge",
  "plugin_sysstat",
  "tedge_api",
  "tedge_core",
