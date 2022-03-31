@@ -13,6 +13,7 @@ use tedge_api::plugin::Message;
 use tedge_api::plugin::PluginExt;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
+use tracing::trace;
 
 pub struct MqttMeasurementBridgePluginBuilder;
 
@@ -110,7 +111,10 @@ impl Handle<tedge_lib::measurement::Measurement> for MqttMeasurementBridgePlugin
         _sender: ReplySender<<tedge_lib::measurement::Measurement as Message>::Reply>,
     ) -> Result<(), PluginError> {
         let outgoing = plugin_mqtt::OutgoingMessage::for_payload(&message, self.topic.clone())?;
-        let _ = self.mqtt_plugin_addr.send(outgoing).await;
+        match self.mqtt_plugin_addr.send(outgoing).await {
+            Ok(_) => trace!("Message forwarded to MQTT plugin"),
+            Err(_) => trace!("Message not send"),
+        }
         Ok(())
     }
 }

@@ -2,87 +2,28 @@
 pub struct MqttConfig {
     /// MQTT host to connect to
     ///
-    /// Default: "localhost"
+    /// Default: "tpc://localhost:1883"
     #[serde(default = "default_host")]
     pub host: String,
-
-    /// MQTT port to connect to
-    ///
-    /// Default: 1883
-    #[serde(default = "default_port")]
-    pub port: u16,
-
-    /// The session name to be use on connect
-    ///
-    /// If no session name is provided, a random one will be created on connect.
-    ///
-    /// Default: None
-    pub session_name: Option<String>,
 
     /// The list of topics to subscribe to on connect
     ///
     /// Default: An empty topic list
-    #[serde(default)]
-    pub subscriptions: TopicFilter,
-
-    /// Clean the MQTT session upon connect if set to `true`.
-    ///
-    /// Default: `false`.
-    #[serde(default = "clean_session_default")]
-    pub clean_session: bool,
-
-    /// Capacity of the internal message queues
-    ///
-    /// Default: `1024`.
-    ///
-    #[serde(default = "queue_capacity_default")]
-    pub queue_capacity: usize,
-
-    /// Maximum size for a message payload
-    ///
-    /// Default: `1024 * 1024`.
-    #[serde(default = "max_packet_size_default")]
-    pub max_packet_size: usize,
+    pub subscriptions: Vec<Subscription>,
 
     /// Name of the plugin to send messages to
     pub target: String,
 }
 
 fn default_host() -> String {
-    "localhost".to_string()
-}
-
-fn default_port() -> u16 {
-    1883
-}
-
-fn clean_session_default() -> bool {
-    false
-}
-
-fn queue_capacity_default() -> usize {
-    1024
-}
-
-fn max_packet_size_default() -> usize {
-    1024 * 1024
+    "tcp://localhost:1883".to_string()
 }
 
 
-/// An MQTT topic filter
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize)]
-pub struct TopicFilter {
-    pub patterns: Vec<String>,
-    pub qos: QoS,
-}
-
-impl Default for TopicFilter {
-    fn default() -> Self {
-        Self {
-            patterns: Vec::new(),
-            qos: QoS::AtMostOnce,
-        }
-    }
+#[derive(Debug, serde::Deserialize)]
+pub struct Subscription {
+    pub(crate) topic: String,
+    pub(crate) qos: QoS,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, serde::Deserialize)]
@@ -97,12 +38,25 @@ pub enum QoS {
     ExactlyOnce,
 }
 
-impl Into<rumqttc::QoS> for QoS {
-    fn into(self) -> rumqttc::QoS {
+impl Into<i32> for QoS {
+    fn into(self) -> i32 {
         match self {
-            QoS::AtMostOnce => rumqttc::QoS::AtMostOnce,
-            QoS::AtLeastOnce => rumqttc::QoS::AtLeastOnce,
-            QoS::ExactlyOnce => rumqttc::QoS::ExactlyOnce,
+            QoS::AtMostOnce => paho_mqtt::QOS_0,
+            QoS::AtLeastOnce => paho_mqtt::QOS_1,
+            QoS::ExactlyOnce => paho_mqtt::QOS_2,
+        }
+    }
+}
+
+impl TryFrom<i32> for QoS {
+    type Error = tedge_api::PluginError;
+
+    fn try_from(i: i32) -> Result<Self, Self::Error> {
+        match i {
+            paho_mqtt::QOS_0 => Ok(QoS::AtMostOnce),
+            paho_mqtt::QOS_1 => Ok(QoS::AtLeastOnce),
+            paho_mqtt::QOS_2 => Ok(QoS::ExactlyOnce),
+            _ => Err(tedge_api::PluginError::from(anyhow::anyhow!("Failed to interpret '{}' as QOS", i)))
         }
     }
 }

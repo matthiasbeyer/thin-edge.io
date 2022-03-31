@@ -5,19 +5,13 @@ use tedge_api::PluginError;
 // A message that was received over MQTT by this plugin and is to be send to another plugin
 #[derive(Debug)]
 pub struct IncomingMessage {
-    pub(crate) dup: bool,
     pub(crate) payload: serde_json::Value,
-    pub(crate) pkid: u16,
-    pub(crate) qos: rumqttc::QoS,
+    pub(crate) qos: i32,
     pub(crate) retain: bool,
     pub(crate) topic: String,
 }
 
 impl IncomingMessage {
-    pub fn dup(&self) -> bool {
-        self.dup
-    }
-
     pub fn payload(&self) -> &serde_json::Value {
         &self.payload
     }
@@ -26,12 +20,8 @@ impl IncomingMessage {
         self.payload
     }
 
-    pub fn pkid(&self) -> u16 {
-        self.pkid
-    }
-
-    pub fn qos(&self) -> rumqttc::QoS {
-        self.qos
+    pub fn qos(&self) -> Result<crate::config::QoS, PluginError> {
+        crate::config::QoS::try_from(self.qos)
     }
 
     pub fn retain(&self) -> bool {
@@ -54,8 +44,7 @@ tedge_api::make_receiver_bundle!(pub struct MqttMessageReceiver(IncomingMessage)
 pub struct OutgoingMessage {
     pub(crate) payload: serde_json::Value,
     pub(crate) topic: String,
-    pub(crate) qos: rumqttc::QoS,
-    pub(crate) retain: bool,
+    pub(crate) qos: crate::config::QoS,
 }
 
 impl OutgoingMessage {
@@ -69,19 +58,13 @@ impl OutgoingMessage {
             OutgoingMessage {
                 payload,
                 topic,
-                qos: rumqttc::QoS::AtMostOnce,
-                retain: false,
+                qos: crate::config::QoS::AtLeastOnce,
             }
         })
     }
 
-    pub fn with_qos(mut self, qos: rumqttc::QoS) -> Self {
+    pub fn with_qos(mut self, qos: crate::config::QoS) -> Self {
         self.qos = qos;
-        self
-    }
-
-    pub fn with_retain(mut self, retain: bool) -> Self {
-        self.retain = retain;
         self
     }
 }

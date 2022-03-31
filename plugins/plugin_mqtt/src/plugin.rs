@@ -16,7 +16,7 @@ use crate::message::OutgoingMessage;
 pub struct MqttPlugin {
     config: MqttConfig,
 
-    client: Option<rumqttc::AsyncClient>,
+    client: Option<paho_mqtt::AsyncClient>,
     stopper: Option<tedge_lib::mainloop::MainloopStopper>,
     target_addr: Address<MqttMessageReceiver>,
 }
@@ -37,20 +37,36 @@ impl MqttPlugin {
 impl Plugin for MqttPlugin {
     async fn setup(&mut self) -> Result<(), PluginError> {
         debug!("Setting up mqtt plugin!");
-        let mqtt_options = mqtt_options(&self.config);
-        let (mqtt_client, event_loop) =
-            rumqttc::AsyncClient::new(mqtt_options, self.config.queue_capacity);
-        self.client = Some(mqtt_client);
+        let mut client = paho_mqtt::AsyncClient::new(self.config.host.clone())
+            .map_err(|e| anyhow::anyhow!("Error creating the client: {}", e))?;
 
         let state = State {
-            event_loop,
+            client: client.clone(),         // cheap, as this is internally just an Arc<_>
+            stream: client.get_stream(100), // TODO: Specify buffer size in config
             target_addr: self.target_addr.clone(),
         };
 
+        debug!("Starting mqtt plugin mainloop!");
         let (stopper, mainloop) = tedge_lib::mainloop::Mainloop::detach(state);
         self.stopper = Some(stopper);
         let _ = tokio::spawn(mainloop.run(mqtt_main));
 
+        let connect_opts = Some({
+            paho_mqtt::connect_options::ConnectOptionsBuilder::new()
+                .connect_timeout(std::time::Duration::from_secs(10))
+                .server_uris(&[&self.config.host])
+                .finalize()
+        });
+        client
+            .connect(connect_opts)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed connecting the client: {}", e))?;
+
+        self.config.subscriptions.iter().for_each(|s| {
+            let _ = client.subscribe(s.topic.clone(), s.qos.into());
+        });
+
+        self.client = Some(client);
         Ok(())
     }
 
@@ -69,9 +85,10 @@ impl Plugin for MqttPlugin {
         // try to shutdown mqtt client
         let client_shutdown_err = if let Some(client) = self.client.take() {
             client
-                .disconnect()
+                .disconnect(None)
                 .await
                 .map_err(|e| anyhow::anyhow!("Failed to disconnect MQTT client: {:?}", e))
+                .map(|_| ())
         } else {
             Ok(())
         };
@@ -85,7 +102,8 @@ impl Plugin for MqttPlugin {
 }
 
 struct State {
-    event_loop: rumqttc::EventLoop,
+    client: paho_mqtt::AsyncClient,
+    stream: paho_mqtt::AsyncReceiver<Option<paho_mqtt::message::Message>>,
     target_addr: Address<MqttMessageReceiver>,
 }
 
@@ -93,44 +111,31 @@ async fn mqtt_main(
     mut state: State,
     mut stopper: tokio::sync::oneshot::Receiver<()>,
 ) -> Result<(), PluginError> {
-    use rumqttc::Event;
-    use rumqttc::Incoming;
-    use rumqttc::Outgoing;
-    use rumqttc::Packet;
+    use futures::stream::StreamExt;
 
     loop {
         tokio::select! {
-            next_event = state.event_loop.poll() => {
+            next_event = state.stream.next() => {
                 match next_event {
-                    Ok(Event::Incoming(Packet::Publish(msg))) => {
-                        let message = serde_json::from_slice(&msg.payload)
-                            .map_err(|e| anyhow::anyhow!("Could not deserialize message '{:?}': {}", msg, e))?;
-
-                        let message = crate::message::IncomingMessage {
-                            dup: msg.dup,
-                            payload: message,
-                            pkid: msg.pkid,
-                            qos: msg.qos,
-                            retain: msg.retain,
-                            topic: msg.topic,
-                        };
-
-                        let _ = state.target_addr.send(message).await;
+                    Some(Some(message)) => {
+                        match handle_incoming_message(&state, message).await {
+                            Err(e) => error!("Handling message failed: {:?}", e),
+                            Ok(_) => debug!("Handling message succeded"),
+                        }
                     }
 
-                    Ok(Event::Incoming(Incoming::Disconnect)) | Ok(Event::Outgoing(Outgoing::Disconnect)) => {
-                        // The connection has been closed
-                        break;
+                    Some(None) => {
+                        // client disconnected, connect again
+                        debug!("Client disconnected, reconnecting...");
+                        while let Err(e) = state.client.reconnect().await {
+                            error!("Reconnecting failed: {}", e);
+
+                            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                        }
                     }
 
-                    Err(e) => {
-                        error!("Error received: {:?}", e);
-                        // what to do on error?
-                        unimplemented!()
-                    }
-
-                    _ => {
-                        // ignore other events
+                    None => {
+                        // What now?
                     }
                 }
             }
@@ -144,18 +149,23 @@ async fn mqtt_main(
     Ok(())
 }
 
-fn mqtt_options(config: &MqttConfig) -> rumqttc::MqttOptions {
-    let id = config.session_name.as_ref().cloned().unwrap_or_else(|| {
-        std::iter::repeat_with(fastrand::lowercase)
-            .take(10)
-            .collect()
-    });
+async fn handle_incoming_message(state: &State, message: paho_mqtt::Message) -> Result<(), PluginError> {
+    debug!("Received MQTT message");
+    let payload = serde_json::from_str(&message.payload_str())
+        .map_err(|e| {
+            anyhow::anyhow!("Failed to deserialize message: {}: '{}'", e, message.payload_str())
+        })?;
 
-    let mut mqtt_options = rumqttc::MqttOptions::new(id, &config.host, config.port);
-    mqtt_options.set_clean_session(config.clean_session);
-    mqtt_options.set_max_packet_size(config.max_packet_size, config.max_packet_size);
+    let incoming = crate::message::IncomingMessage {
+        payload,
+        qos: message.qos(),
+        retain: message.retained(),
+        topic: message.topic().to_string(),
+    };
 
-    mqtt_options
+    debug!("Sending incoming message to target plugin");
+    let _ = state.target_addr.send(incoming).await;
+    Ok(())
 }
 
 #[async_trait]
@@ -165,24 +175,22 @@ impl Handle<OutgoingMessage> for MqttPlugin {
         message: OutgoingMessage,
         _sender: ReplySender<<OutgoingMessage as Message>::Reply>,
     ) -> Result<(), PluginError> {
+        debug!("Received outgoing message");
         if let Some(client) = self.client.as_ref() {
+            debug!("Parsing payload into JSON");
             let payload = serde_json::to_vec(&message.payload).map_err(|e| {
-                anyhow::anyhow!("Failed to serialize message '{:?}': {}", message, e)
+                anyhow::anyhow!("Failed to deserialize message: '{:?}': {:?}", message, e)
             })?;
 
-            client
-                .publish(
-                    &message.topic,
-                    message.qos,
-                    message.retain,
-                    payload,
-                )
-                .await
-                .map_err(|e| anyhow::anyhow!("Failed to send message '{:?}': {}", message, e))
-                .map_err(PluginError::from)
+            let msg = paho_mqtt::Message::new(&message.topic, payload, message.qos.into());
+            debug!("Publishing message on {}", message.topic);
+            client.publish(msg).await.map_err(|e| {
+                anyhow::anyhow!("Failed to publish message: '{:?}': {:?}", message, e)
+            })?;
+            debug!("Publishing message succeeded");
+            Ok(())
         } else {
             Err(anyhow::anyhow!("No client, cannot send messages"))?
         }
     }
 }
-
