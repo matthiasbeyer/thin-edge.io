@@ -80,7 +80,9 @@ impl StateFromConfig for MemoryState {
 }
 
 pub async fn main_memory(state: Arc<Mutex<MemoryState>>) -> Result<(), PluginError> {
-    let lock = state.lock().await;
+    let mut lock = state.lock().await;
+    let mut state = lock.deref_mut();
+    state.sys.refresh_memory();
     let state = lock.deref();
     let timeout_duration = std::time::Duration::from_millis(state.interval);
     let mut hm = HashMap::new();

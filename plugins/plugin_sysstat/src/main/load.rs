@@ -44,7 +44,9 @@ impl StateFromConfig for LoadState {
 }
 
 pub async fn main_load(state: Arc<Mutex<LoadState>>) -> Result<(), PluginError> {
-    let lock = state.lock().await;
+    let mut lock = state.lock().await;
+    let mut state = lock.deref_mut();
+    state.sys.refresh_cpu(); // assuming that this is the required refresh call
     let state = lock.deref();
     let timeout_duration = std::time::Duration::from_millis(state.interval);
     let load = state.sys.load_average();
