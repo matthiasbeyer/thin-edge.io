@@ -48,6 +48,10 @@ impl StateFromConfig for DiskUsageState {
 
 pub async fn main_disk_usage(state: Arc<Mutex<DiskUsageState>>) -> Result<(), PluginError> {
     let mut lock = state.lock().await;
+    {
+        let mut state = lock.deref_mut();
+        state.sys.refresh_disks_list();
+    }
 
     let timeout_duration = std::time::Duration::from_millis(lock.deref().interval);
     lock.deref_mut().sys.refresh_disks();

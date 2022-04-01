@@ -68,7 +68,9 @@ impl StateFromConfig for CPUState {
 
 pub async fn main_cpu(state: Arc<Mutex<CPUState>>) -> Result<(), PluginError> {
     let mut lock = state.lock().await;
-    let mut state = lock.deref();
+    let mut state = lock.deref_mut();
+    state.sys.refresh_cpu();
+    let state = lock.deref();
 
     let mut sending = Vec::new();
 
