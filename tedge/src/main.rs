@@ -7,6 +7,7 @@ use tedge_api::PluginBuilder;
 use tedge_core::TedgeApplication;
 use tedge_core::TedgeApplicationCancelSender;
 use tedge_lib::measurement::Measurement;
+use tedge_lib::notification::Notification;
 use tracing::debug;
 use tracing::error;
 use tracing::info;
@@ -53,15 +54,15 @@ async fn main() -> miette::Result<()> {
             [not(feature = "mqtt")] => register_plugin!(
                 application,
                 "builtin_plugin_log",
-                plugin_log::LogPluginBuilder<(Measurement,)>,
-                plugin_log::LogPluginBuilder::<(Measurement,)>::new()
+                plugin_log::LogPluginBuilder<(Measurement, Notification)>,
+                plugin_log::LogPluginBuilder::<(Measurement, Notification)>::new()
             ),
 
             [feature = "mqtt"] => register_plugin!(
                 application,
                 "builtin_plugin_log",
-                plugin_log::LogPluginBuilder<(Measurement, plugin_mqtt::IncomingMessage)>,
-                plugin_log::LogPluginBuilder::<(Measurement, plugin_mqtt::IncomingMessage)>::new()
+                plugin_log::LogPluginBuilder<(Measurement, Notification, plugin_mqtt::IncomingMessage)>,
+                plugin_log::LogPluginBuilder::<(Measurement, Notification, plugin_mqtt::IncomingMessage)>::new()
             ),
         }
     };
