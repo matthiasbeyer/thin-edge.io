@@ -8,6 +8,7 @@ members = [
     "plugins/plugin_httpstop",
     "plugins/plugin_inotify",
     "plugins/plugin_log",
+    "plugins/plugin_measurement_filter",
     "plugins/plugin_sysstat",
     "plugins/tedge_apt_plugin",
     "plugins/tedge_dummy_plugin",
