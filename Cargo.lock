@@ -2217,20 +2217,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "plugin_measurement_threshold"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "log",
- "serde",
- "tedge_api",
- "tedge_lib",
- "tokio-util 0.7.0",
- "tracing",
-]
-
-[[package]]
 name = "plugin_mqtt"
 version = "0.1.0"
 dependencies = [
@@ -2264,6 +2250,24 @@ dependencies = [
  "tedge_lib",
  "thiserror",
  "tokio",
+ "tokio-util 0.7.0",
+ "toml",
+ "tracing",
+]
+
+[[package]]
+name = "plugin_notification"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "float-cmp 0.9.0",
+ "log",
+ "miette",
+ "nom",
+ "serde",
+ "serde_with",
+ "tedge_api",
+ "tedge_lib",
  "tokio-util 0.7.0",
  "toml",
  "tracing",

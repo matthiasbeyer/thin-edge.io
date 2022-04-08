@@ -11,6 +11,7 @@ members = [
     "plugins/plugin_measurement_filter",
     "plugins/plugin_mqtt",
     "plugins/plugin_mqtt_measurement_bridge",
+    "plugins/plugin_notification",
     "plugins/plugin_sysstat",
     "plugins/tedge_apt_plugin",
     "plugins/tedge_dummy_plugin",
