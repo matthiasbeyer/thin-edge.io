@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use async_trait::async_trait;
 
+use tedge_api::address::ReceiverBundle;
 use tedge_api::address::ReplySender;
 use tedge_api::plugin::BuiltPlugin;
 use tedge_api::plugin::DoesHandle;
@@ -10,6 +11,7 @@ use tedge_api::plugin::HandleTypes;
 use tedge_api::plugin::Message;
 use tedge_api::plugin::MessageBundle;
 use tedge_api::plugin::PluginExt;
+use tedge_api::Address;
 use tedge_api::Plugin;
 use tedge_api::PluginBuilder;
 use tedge_api::PluginConfiguration;
@@ -19,15 +21,16 @@ use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::event;
 
-pub struct LogPluginBuilder<MB: MessageBundle> {
+pub struct LogPluginBuilder<MB>
+where
+    MB: MessageBundle + ReceiverBundle,
+{
     _pd: PhantomData<MB>,
 }
 
-impl<MB: MessageBundle> LogPluginBuilder<MB> {
+impl<MB: MessageBundle + ReceiverBundle> LogPluginBuilder<MB> {
     pub fn new() -> Self {
-        LogPluginBuilder {
-            _pd: PhantomData,
-        }
+        LogPluginBuilder { _pd: PhantomData }
     }
 }
 
@@ -35,13 +38,14 @@ impl<MB: MessageBundle> LogPluginBuilder<MB> {
 struct LogConfig {
     level: log::Level,
     acknowledge: bool,
+    forward_to: Option<String>,
 }
 
 #[async_trait]
 impl<PD, MB> PluginBuilder<PD> for LogPluginBuilder<MB>
 where
     PD: PluginDirectory,
-    MB: MessageBundle + Sync + Send + 'static,
+    MB: MessageBundle + ReceiverBundle + Sync + Send + 'static,
     LogPlugin<MB>: DoesHandle<MB>,
 {
     fn kind_name() -> &'static str {
@@ -72,35 +76,48 @@ where
         &self,
         config: PluginConfiguration,
         _cancellation_token: CancellationToken,
-        _plugin_dir: &PD,
+        plugin_dir: &PD,
     ) -> Result<BuiltPlugin, PluginError> {
         let config = config
             .into_inner()
             .try_into::<LogConfig>()
             .map_err(|_| anyhow::anyhow!("Failed to parse log configuration"))?;
 
-        Ok(LogPlugin::<MB>::new(config).into_untyped::<MB>())
+        let forward_to = config.forward_to
+            .as_ref()
+            .map(|addr| plugin_dir.get_address_for(addr))
+            .transpose()?;
+
+        Ok(LogPlugin::<MB>::new(config, forward_to).into_untyped::<MB>())
     }
 }
 
-struct LogPlugin<MB> {
+struct LogPlugin<MB>
+where
+    MB: MessageBundle + ReceiverBundle + Sync + Send + 'static,
+{
     _pd: PhantomData<MB>,
     config: LogConfig,
+    forward_to: Option<Address<MB>>,
 }
 
 impl<MB> LogPlugin<MB>
 where
-    MB: MessageBundle + Sync + Send + 'static,
+    MB: MessageBundle + ReceiverBundle + Sync + Send + 'static,
 {
-    fn new(config: LogConfig) -> Self {
-        Self { _pd: PhantomData, config }
+    fn new(config: LogConfig, forward_to: Option<Address<MB>>) -> Self {
+        Self {
+            _pd: PhantomData,
+            config,
+            forward_to,
+        }
     }
 }
 
 #[async_trait]
 impl<MB> Plugin for LogPlugin<MB>
 where
-    MB: MessageBundle + Sync + Send + 'static,
+    MB: MessageBundle + ReceiverBundle + Sync + Send + 'static,
 {
     async fn setup(&mut self) -> Result<(), PluginError> {
         debug!(
@@ -121,7 +138,8 @@ where
 impl<M, MB> Handle<M> for LogPlugin<MB>
 where
     M: Message + std::fmt::Debug,
-    MB: MessageBundle + Sync + Send + 'static,
+    MB: MessageBundle + ReceiverBundle + Sync + Send + 'static,
+    MB: tedge_api::address::Contains<M>,
 {
     async fn handle_message(
         &self,
@@ -142,7 +160,10 @@ where
             }
         }
 
+        if let Some(fwd) = self.forward_to.as_ref() {
+            let _ = fwd.send(message).await;
+        }
+
         Ok(())
     }
 }
-
