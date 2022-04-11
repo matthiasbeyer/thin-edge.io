@@ -147,19 +147,7 @@ where
         message: M,
         mut sender: ReplySender<M::Reply>,
     ) -> Result<(), PluginError> {
-        match self.config.level {
-            log::Level::Trace => {
-                event!(tracing::Level::TRACE, "Received Message: {:?}", message);
-            }
-            log::Level::Debug => {
-                event!(tracing::Level::DEBUG, "Received Message: {:?}", message);
-            }
-            log::Level::Info => event!(tracing::Level::INFO, "Received Message: {:?}", message),
-            log::Level::Warn => event!(tracing::Level::WARN, "Received Message: {:?}", message),
-            log::Level::Error => {
-                event!(tracing::Level::ERROR, "Received Message: {:?}", message)
-            }
-        }
+        log_message(self.config.level, &message, "Message");
 
         if let Some(fwd) = self.forward_to.as_ref() {
             match fwd.send(message).await {
@@ -168,6 +156,7 @@ where
                         reply = reply_recv.wait_for_reply(std::time::Duration::MAX) => {
                             match reply {
                                 Ok(m) => {
+                                    log_message(self.config.level, &m, "Reply Message");
                                     let _ = sender.reply(m);
                                 },
 
@@ -197,5 +186,21 @@ where
         }
 
         Ok(())
+    }
+}
+
+fn log_message<M: Message + std::fmt::Debug>(level: log::Level, message: &M, annotation: &'static str) {
+    match level {
+        log::Level::Trace => {
+            event!(tracing::Level::TRACE, "Received {anno}: {:?}", message, anno = annotation);
+        }
+        log::Level::Debug => {
+            event!(tracing::Level::DEBUG, "Received {anno}: {:?}", message, anno = annotation);
+        }
+        log::Level::Info => event!(tracing::Level::INFO, "Received {anno}: {:?}", message, anno = annotation),
+        log::Level::Warn => event!(tracing::Level::WARN, "Received {anno}: {:?}", message, anno = annotation),
+        log::Level::Error => {
+            event!(tracing::Level::ERROR, "Received {anno}: {:?}", message, anno = annotation)
+        }
     }
 }
