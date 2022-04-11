@@ -1,5 +1,6 @@
 use std::any::TypeId;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use futures::StreamExt;
 
@@ -17,6 +18,7 @@ use crate::errors::TedgeApplicationError;
 use crate::plugin_task::PluginTask;
 use crate::task::Task;
 use crate::TedgeApplication;
+use crate::communication::CorePluginDirectory;
 use crate::communication::PluginDirectory;
 use crate::communication::PluginInfo;
 
@@ -65,9 +67,10 @@ impl Reactor {
                     Ok((pname.to_string(), PluginInfo::new(handle_types, channel_size)))
             });
         let (core_sender, core_receiver) = tokio::sync::mpsc::channel(channel_size);
-        let mut directory = PluginDirectory::collect_from(directory_iter, core_sender)?;
 
-        let instantiated_plugins = self
+        let mut directory = CorePluginDirectory::collect_from(directory_iter, core_sender)?;
+
+        let plugin_instantiation_prep = self
             .0
             .config()
             .plugins()
@@ -80,10 +83,14 @@ impl Reactor {
 
                 (pname, pconfig, receiver)
             })
-            .collect::<Vec<_>>()
+            .collect::<Vec<_>>();
+
+        let directory = Arc::new(directory);
+
+        let instantiated_plugins = plugin_instantiation_prep
             .into_iter()
             .map(|(pname, pconfig, receiver)| {
-                self.instantiate_plugin(pname, pconfig, &directory, receiver, self.0.cancellation_token().child_token())
+                self.instantiate_plugin(pname, pconfig, directory.clone(), receiver, self.0.cancellation_token().child_token())
             })
             .collect::<futures::stream::FuturesUnordered<_>>()
             .collect::<Vec<Result<_>>>()
@@ -154,7 +161,7 @@ impl Reactor {
         &self,
         plugin_name: &str,
         plugin_config: &PluginInstanceConfiguration,
-        directory: &PluginDirectory,
+        directory: Arc<CorePluginDirectory>,
         plugin_msg_receiver: tedge_api::address::MessageReceiver,
         cancellation_token: CancellationToken,
     ) -> Result<PluginTaskPrep> {
@@ -183,7 +190,7 @@ impl Reactor {
             plugin_config.kind().as_ref()
         );
         builder
-            .instantiate(config.clone(), cancel_token, directory)
+            .instantiate(config.clone(), cancel_token, &directory.for_plugin_named(plugin_name))
             .await
             .map_err(TedgeApplicationError::from)
             .map(|plugin| PluginTaskPrep {
