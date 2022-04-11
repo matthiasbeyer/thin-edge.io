@@ -47,6 +47,12 @@ pub trait PluginDirectory: Send + Sync {
     /// Request an `Address` to the core itself. It will only accept messages from the
     /// [`CoreMessages`] bundle.
     fn get_address_for_core(&self) -> Address<CoreMessages>;
+
+    /// Request an `Address` to the plugin that calls this function.
+    ///
+    /// This function can be used by plugin authors to get the address for their plugin within
+    /// their plugin. That `Address` can then be used to send messages from a plugin to itself.
+    fn get_address_for_self<RB: ReceiverBundle>(&self) -> Result<Address<RB>, DirectoryError>;
 }
 
 /// The plugin configuration as a `toml::Spanned` table.
