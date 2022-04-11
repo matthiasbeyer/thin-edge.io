@@ -10,6 +10,7 @@ use tracing::debug;
 use tracing::error;
 use tracing::trace;
 
+use crate::configuration::InstanceConfiguration;
 use crate::configuration::PluginInstanceConfiguration;
 use crate::configuration::PluginKind;
 use crate::errors::TedgeApplicationError;
@@ -135,7 +136,7 @@ impl Reactor {
     fn get_config_for_plugin<'a>(
         &'a self,
         plugin_name: &str,
-    ) -> Option<&'a tedge_api::PluginConfiguration> {
+    ) -> Option<&'a InstanceConfiguration> {
         trace!("Searching config for plugin: {}", plugin_name);
         self.0
             .config()
@@ -175,10 +176,13 @@ impl Reactor {
             TedgeApplicationError::PluginConfigMissing(pname)
         })?;
 
-        if let Err(e) = builder.verify_configuration(&config).await {
-            error!("Verification of configuration failed for plugin '{}'", plugin_name);
-            return Err(TedgeApplicationError::PluginConfigVerificationFailed(e))
-        }
+        let config = match config.verify_with_builder(builder).await {
+            Err(e) => {
+                error!("Verification of configuration failed for plugin '{}'", plugin_name);
+                return Err(e)
+            },
+            Ok(cfg) => cfg,
+        };
 
         let cancel_token = self.0.cancellation_token.child_token();
 

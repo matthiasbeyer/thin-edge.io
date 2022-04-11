@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 #[derive(Debug, miette::Diagnostic, thiserror::Error)]
 pub enum TedgeApplicationError {
     #[error("Plugin instantiation failed")]
@@ -8,6 +10,12 @@ pub enum TedgeApplicationError {
 
     #[error("Config verification failed")]
     PluginConfigVerificationFailed(tedge_api::error::PluginError),
+
+    #[error("Failed to deserialize configuration")]
+    PluginConfigurationDeserializationFailed(#[from] toml::de::Error),
+
+    #[error("Failed to read configuration file: {0}")]
+    PluginConfigReadFailed(PathBuf),
 
     #[error("Plugin kind exists already: {0}")]
     PluginKindExists(String),

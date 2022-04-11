@@ -1,4 +1,9 @@
-use std::{collections::HashMap, num::{NonZeroUsize, NonZeroU64}};
+use std::{collections::HashMap, num::{NonZeroUsize, NonZeroU64}, path::{PathBuf, Path}};
+
+use tedge_api::PluginBuilder;
+
+use crate::communication::PluginDirectory;
+use crate::errors::TedgeApplicationError;
 
 #[derive(serde::Deserialize, Debug)]
 pub struct TedgeConfiguration {
@@ -10,7 +15,7 @@ pub struct TedgeConfiguration {
 #[derive(serde::Deserialize, Debug)]
 pub struct PluginInstanceConfiguration {
     kind: PluginKind,
-    configuration: tedge_api::PluginConfiguration,
+    configuration: InstanceConfiguration,
 }
 
 impl PluginInstanceConfiguration {
@@ -18,7 +23,7 @@ impl PluginInstanceConfiguration {
         &self.kind
     }
 
-    pub fn configuration(&self) -> &tedge_api::PluginConfiguration {
+    pub fn configuration(&self) -> &InstanceConfiguration {
         &self.configuration
     }
 }
@@ -45,5 +50,42 @@ impl TedgeConfiguration {
 
     pub fn plugins(&self) -> &HashMap<String, PluginInstanceConfiguration> {
         &self.plugins
+    }
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(untagged)]
+pub enum InstanceConfiguration {
+    ConfigFilePath(PathBuf),
+    Config(tedge_api::PluginConfiguration),
+}
+
+impl InstanceConfiguration {
+    pub async fn verify_with_builder(&self, builder: &Box<dyn PluginBuilder<PluginDirectory>>) -> crate::errors::Result<toml::Spanned<toml::Value>> {
+        match self {
+            InstanceConfiguration::Config(cfg) => {
+                builder
+                    .verify_configuration(&cfg)
+                    .await
+                    .map_err(TedgeApplicationError::from)
+                    .map(|_| cfg.to_owned())
+            },
+            InstanceConfiguration::ConfigFilePath(path) => {
+                async fn inner(builder: &Box<dyn PluginBuilder<PluginDirectory>>, path: &Path) -> crate::errors::Result<toml::Spanned<toml::Value>> {
+                    let file_contents = tokio::fs::read_to_string(path).await
+                        .map_err(|_| TedgeApplicationError::PluginConfigReadFailed(path.to_path_buf()))?;
+
+                    let cfg = toml::from_str(&file_contents)?;
+
+                    builder
+                        .verify_configuration(&cfg)
+                        .await
+                        .map_err(TedgeApplicationError::from)
+                        .map(|_| cfg)
+                }
+
+                inner(builder, &path).await
+            }
+        }
     }
 }

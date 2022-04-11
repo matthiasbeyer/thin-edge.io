@@ -75,11 +75,12 @@ impl TedgeApplication {
             .map(|(plugin_name, plugin_cfg): (&String, &PluginInstanceConfiguration)| async {
                     if let Some((_, builder)) = self.plugin_builders().get(plugin_cfg.kind().as_ref()) {
                         debug!("Verifying {}", plugin_cfg.kind().as_ref());
-                        let res = builder
-                            .verify_configuration(plugin_cfg.configuration())
+                        let res = plugin_cfg
+                            .configuration()
+                            .verify_with_builder(builder)
                             .await
-                            .map_err(TedgeApplicationError::PluginConfigVerificationFailed);
-
+                            .map_err(TedgeApplicationError::PluginConfigVerificationFailed)
+                            .map(|_| ());
                         (plugin_name.to_string(), res)
                     } else {
                         (
