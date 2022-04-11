@@ -5,3 +5,4 @@ mod plugin;
 
 pub use crate::builder::SysStatPluginBuilder;
 pub use crate::plugin::SysStatPlugin;
+pub use crate::plugin::MeasurementReceiver;

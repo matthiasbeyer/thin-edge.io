@@ -2,13 +2,13 @@
 //!
 
 mod ticking;
-pub use ticking::*;
+pub use ticking::MainloopTick;
 
 mod stopper;
-pub use stopper::*;
+pub use stopper::MainloopStopper;
 
 mod detach;
-pub use detach::*;
+pub use detach::MainloopDetach;
 
 pub struct Mainloop;
 

@@ -5,6 +5,7 @@ members = [
     "crates/core/*",
     "crates/tests/*",
     "plugins/plugin_avg",
+    "plugins/plugin_httpstop",
     "plugins/plugin_inotify",
     "plugins/plugin_log",
     "plugins/plugin_sysstat",

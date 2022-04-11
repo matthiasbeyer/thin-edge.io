@@ -3,13 +3,13 @@ use std::collections::HashSet;
 use clap::Parser;
 
 use tedge_api::PluginBuilder;
-use tedge_core::configuration::TedgeConfiguration;
 use tedge_core::TedgeApplication;
 use tedge_core::TedgeApplicationCancelSender;
+use tedge_core::configuration::TedgeConfiguration;
+use tedge_lib::measurement::Measurement;
 use tracing::debug;
 use tracing::error;
 use tracing::info;
-use tracing::trace;
 
 mod cli;
 mod logging;
@@ -40,14 +40,15 @@ async fn main() -> anyhow::Result<()> {
     info!("Building application");
 
     macro_rules! register_plugin {
-        ($app:ident, $cfg:tt, $pluginbuilder:expr) => {{
+        ($app:ident, $cfg:tt, $pluginbuilder:ty, $pbinstance:expr) => {{
             cfg_if::cfg_if! {
                 if #[cfg(feature = $cfg)] {
-                    info!("Registering plugin builder for plugins of type {}", $pluginbuilder.kind_name());
-                    if !plugin_kinds.insert($pluginbuilder.kind_name()) {
-                        anyhow::bail!("Plugin kind '{}' was already registered, cannot register!", $pluginbuilder.kind_name())
+                    let kind_name: &'static str = <$pluginbuilder as PluginBuilder<tedge_core::PluginDirectory>>::kind_name();
+                    info!("Registering plugin builder for plugins of type {}", kind_name);
+                    if !plugin_kinds.insert(kind_name) {
+                        anyhow::bail!("Plugin kind '{}' was already registered, cannot register!", kind_name)
                     }
-                    $app.with_plugin_builder(Box::new($pluginbuilder))?
+                    $app.with_plugin_builder($pbinstance)?
                 } else {
                     trace!("Not supporting plugins of type {}", std::stringify!($pluginbuilder));
                     $app
@@ -59,22 +60,32 @@ async fn main() -> anyhow::Result<()> {
     let application = register_plugin!(
         application,
         "builtin_plugin_avg",
+        plugin_avg::AvgPluginBuilder,
         plugin_avg::AvgPluginBuilder
     );
     let application = register_plugin!(
         application,
         "builtin_plugin_log",
-        plugin_log::LogPluginBuilder
+        plugin_log::LogPluginBuilder<(Measurement,)>,
+        plugin_log::LogPluginBuilder::<(Measurement,)>::new()
     );
     let application = register_plugin!(
         application,
         "builtin_plugin_sysstat",
+        plugin_sysstat::SysStatPluginBuilder,
         plugin_sysstat::SysStatPluginBuilder
     );
     let application = register_plugin!(
         application,
         "builtin_plugin_inotify",
+        plugin_inotify::InotifyPluginBuilder,
         plugin_inotify::InotifyPluginBuilder
+    );
+    let application = register_plugin!(
+        application,
+        "builtin_plugin_httpstop",
+        plugin_httpstop::HttpStopPluginBuilder,
+        plugin_httpstop::HttpStopPluginBuilder
     );
 
     let (cancel_sender, application) = application.with_config(config)?;
@@ -82,11 +93,7 @@ async fn main() -> anyhow::Result<()> {
 
     match args.command {
         cli::CliCommand::Run { .. } => {
-            debug!("Going to validate the configuration and run the application");
-
-            validate_config(&application).await?;
-            info!("Configuration validated");
-
+            debug!("Going to run the application");
             run(cancel_sender, application).await
         }
         cli::CliCommand::ValidateConfig { .. } => {

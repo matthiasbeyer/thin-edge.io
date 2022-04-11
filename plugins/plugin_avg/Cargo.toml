@@ -13,6 +13,7 @@ humantime-serde = "1"
 log = { version = "0.4", features = ["serde"] }
 serde = { version = "1.0.136", features = ["derive"] }
 tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
+tokio-util = "0.7.0"
 
 tedge_api = { path = "../../crates/core/tedge_api" }
 tedge_lib = { path = "../../crates/core/tedge_lib" }

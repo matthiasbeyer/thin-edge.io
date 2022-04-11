@@ -1,5 +1,5 @@
 [package]
-name = "plugin_inotify"
+name = "plugin_httpstop"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,16 +8,11 @@ edition = "2021"
 [dependencies]
 anyhow = "1"
 async-trait = "0.1"
-env_logger = "0.9"
-futures = "0.3"
-humantime-serde = "1"
-inotify = "0.10"
 log = { version = "0.4", features = ["serde"] }
 serde = { version = "1.0.136", features = ["derive"] }
-tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
-tokio-util = "0.7.0"
 tracing = "0.1"
+tokio = { version = "1", features = ["rt"] }
+tokio-util = "0.7.0"
+hyper = { version = "0.14", features = ["server", "tcp", "http1"] }
 
 tedge_api = { path = "../../crates/core/tedge_api" }
-tedge_lib = { path = "../../crates/core/tedge_lib" }
-

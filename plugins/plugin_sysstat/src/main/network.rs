@@ -5,30 +5,25 @@ use std::sync::Arc;
 
 use futures::StreamExt;
 use sysinfo::SystemExt;
+use tedge_lib::measurement::Measurement;
+use tedge_lib::measurement::MeasurementValue;
 use tokio::sync::Mutex;
 
-use tedge_api::address::EndpointKind;
-use tedge_api::message::MeasurementValue;
-use tedge_api::plugin::CoreCommunication;
 use tedge_api::Address;
-use tedge_api::Message;
-use tedge_api::MessageKind;
 use tedge_api::PluginError;
 use tedge_lib::iter::IntoSendAll;
-use tedge_lib::iter::MapSendResult;
-use tedge_lib::reply::IntoReplyable;
 
 use crate::config::AllNetworkStatConfig;
 use crate::config::HasBaseConfig;
 use crate::config::NetworkStatConfig;
 use crate::main::State;
 use crate::main::StateFromConfig;
+use crate::plugin::MeasurementReceiver;
 
 pub struct NetworkState {
     interval: u64,
-    send_to: Vec<String>,
+    send_to: Arc<Vec<Address<MeasurementReceiver>>>,
     sys: sysinfo::System,
-    comms: CoreCommunication,
 
     all_networks: AllNetworkStatConfig,
     by_name: HashMap<String, NetworkStatConfig>,
@@ -43,15 +38,14 @@ impl State for NetworkState {
 impl StateFromConfig for NetworkState {
     fn new_from_config(
         config: &crate::config::SysStatConfig,
-        comms: CoreCommunication,
+        addrs: Arc<Vec<Address<MeasurementReceiver>>>,
     ) -> Option<Self> {
         config.network.as_ref().map(|config| NetworkState {
             interval: config.interval_ms().get(),
-            send_to: config.send_to().to_vec(),
+            send_to: addrs,
             sys: sysinfo::System::new_with_specifics({
                 sysinfo::RefreshKind::new().with_networks()
             }),
-            comms,
 
             all_networks: config.all_networks.clone(),
             by_name: config.by_name.clone(),
@@ -80,35 +74,23 @@ pub async fn main_network(state: Arc<Mutex<NetworkState>>) -> Result<(), PluginE
                 state.by_name.get(name).unwrap() // TODO this cannot fail because of above filtering. Make me nice.
             };
 
-            let measurement = get_network_info_measurements(network, config);
+            let value = get_network_info_measurements(network, config);
+            let measurement = Measurement::new(name.to_string(), value);
 
-            (name, measurement)
-        })
-        .map(|(name, measurement)| {
-            state.send_to.iter().map(move |target| {
-                let addr = Address::new(EndpointKind::Plugin { id: target.clone() });
-                let kind = MessageKind::Measurement {
-                    name: name.to_string(),
-                    value: measurement.clone(),
-                };
-
-                (kind, addr)
-            })
+            std::iter::repeat(measurement).zip(state.send_to.iter())
         })
         .flatten()
         .collect::<Vec<_>>();
 
-    messages
-        .into_iter()
-        .send_all(state.comms.clone())
-        .wait_for_reply()
-        .with_timeout(timeout_duration)
+    messages.into_iter()
+        .send_all()
+        .wait_for_reply(timeout_duration)
         .collect::<futures::stream::FuturesUnordered<_>>()
-        .collect::<Vec<Result<tedge_lib::iter::SendResult, PluginError>>>()
+        .collect::<Vec<Result<tedge_lib::iter::SendResult<_>, _>>>()
         .await
         .into_iter()
-        .map_send_result(tedge_lib::iter::log_and_ignore_timeout)
-        .collect::<Result<Vec<_>, PluginError>>()
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| PluginError::from(anyhow::anyhow!("Failed to send measurement")))
         .map(|_| ())
 }
 
@@ -118,64 +100,68 @@ fn get_network_info_measurements(
 ) -> MeasurementValue {
     use sysinfo::NetworkExt;
 
-    let mut aggregate = Vec::new();
+    let mut hm = HashMap::new();
 
     macro_rules! measure {
         ($config:expr, $name:expr, $value:expr) => {
             if $config {
                 let name = $name.to_string();
-                let value = MeasurementValue::Int($value);
-                aggregate.push((name, value));
+                let value = MeasurementValue::Float($value);
+                hm.insert(name, value);
             }
         };
     }
 
-    measure!(config.received, config.received_name, info.received());
+    measure!(
+        config.received,
+        config.received_name,
+        info.received() as f64
+    );
     measure!(
         config.total_received,
         config.total_received_name,
-        info.total_received()
+        info.total_received() as f64
     );
     measure!(
         config.transmitted,
         config.transmitted_name,
-        info.transmitted()
+        info.transmitted() as f64
     );
     measure!(
         config.total_transmitted,
         config.total_transmitted_name,
-        info.total_transmitted()
+        info.total_transmitted() as f64
     );
     measure!(
         config.packets_received,
         config.packets_received_name,
-        info.packets_received()
+        info.packets_received() as f64
     );
     measure!(
         config.total_packets_received,
         config.total_packets_received_name,
-        info.total_packets_received()
+        info.total_packets_received() as f64
     );
     measure!(
         config.packets_transmitted,
         config.packets_transmitted_name,
-        info.packets_transmitted()
+        info.packets_transmitted() as f64
     );
     measure!(
         config.total_packets_transmitted,
         config.total_packets_transmitted_name,
-        info.total_packets_transmitted()
+        info.total_packets_transmitted() as f64
     );
     measure!(
         config.errors_on_received,
         config.errors_on_received_name,
-        info.errors_on_received()
+        info.errors_on_received() as f64
     );
     measure!(
         config.total_errors_on_received,
         config.total_errors_on_received_name,
-        info.total_errors_on_received()
+        info.total_errors_on_received() as f64
     );
 
-    MeasurementValue::Aggregate(aggregate)
+    MeasurementValue::Map(hm)
 }

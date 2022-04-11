@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::sync::Arc;
@@ -6,26 +7,21 @@ use futures::StreamExt;
 use sysinfo::SystemExt;
 use tokio::sync::Mutex;
 
-use tedge_api::address::EndpointKind;
-use tedge_api::message::MeasurementValue;
-use tedge_api::plugin::CoreCommunication;
 use tedge_api::Address;
-use tedge_api::Message;
-use tedge_api::MessageKind;
 use tedge_api::PluginError;
 use tedge_lib::iter::IntoSendAll;
-use tedge_lib::iter::MapSendResult;
-use tedge_lib::reply::IntoReplyable;
+use tedge_lib::measurement::Measurement;
+use tedge_lib::measurement::MeasurementValue;
 
 use crate::config::HasBaseConfig;
 use crate::main::State;
 use crate::main::StateFromConfig;
+use crate::plugin::MeasurementReceiver;
 
 pub struct MemoryState {
     interval: u64,
-    send_to: Vec<String>,
+    send_to: Arc<Vec<Address<MeasurementReceiver>>>,
     sys: sysinfo::System,
-    comms: CoreCommunication,
 
     total_memory: bool,
     total_memory_name: String,
@@ -55,13 +51,12 @@ impl State for MemoryState {
 impl StateFromConfig for MemoryState {
     fn new_from_config(
         config: &crate::config::SysStatConfig,
-        comms: CoreCommunication,
+        addrs: Arc<Vec<Address<MeasurementReceiver>>>,
     ) -> Option<Self> {
         config.memory.as_ref().map(|config| MemoryState {
             interval: config.interval_ms().get(),
-            send_to: config.send_to().to_vec(),
+            send_to: addrs,
             sys: sysinfo::System::new_with_specifics({ sysinfo::RefreshKind::new().with_memory() }),
-            comms,
 
             total_memory: config.total_memory,
             total_memory_name: config.total_memory_name.clone(),
@@ -88,14 +83,14 @@ pub async fn main_memory(state: Arc<Mutex<MemoryState>>) -> Result<(), PluginErr
     let lock = state.lock().await;
     let state = lock.deref();
     let timeout_duration = std::time::Duration::from_millis(state.interval);
-    let mut aggregate = Vec::new();
+    let mut hm = HashMap::new();
 
     macro_rules! measure {
         ($config:expr, $name:expr, $value:expr) => {
             if $config {
                 let name = $name.to_string();
-                let value = MeasurementValue::Int($value);
-                aggregate.push((name, value));
+                let value = MeasurementValue::Float($value);
+                hm.insert(name, value);
             }
         };
     }
@@ -103,48 +98,49 @@ pub async fn main_memory(state: Arc<Mutex<MemoryState>>) -> Result<(), PluginErr
     measure!(
         state.total_memory,
         state.total_memory_name,
-        state.sys.total_memory()
+        state.sys.total_memory() as f64
     );
     measure!(
         state.free_memory,
         state.free_memory_name,
-        state.sys.free_memory()
+        state.sys.free_memory() as f64
     );
     measure!(
         state.available_memory,
         state.available_memory_name,
-        state.sys.available_memory()
+        state.sys.available_memory() as f64
     );
     measure!(
         state.used_memory,
         state.used_memory_name,
-        state.sys.used_memory()
+        state.sys.used_memory() as f64
     );
-    measure!(state.free_swap, state.free_swap_name, state.sys.free_swap());
-    measure!(state.used_swap, state.used_swap_name, state.sys.used_swap());
+    measure!(
+        state.free_swap,
+        state.free_swap_name,
+        state.sys.free_swap() as f64
+    );
+    measure!(
+        state.used_swap,
+        state.used_swap_name,
+        state.sys.used_swap() as f64
+    );
 
-    let value = MeasurementValue::Aggregate(aggregate);
+    let value = MeasurementValue::Map(hm);
+    let measurement = Measurement::new("memory".to_string(), value);
 
-    state
-        .send_to
-        .iter()
-        .map(|target| {
-            let addr = Address::new(EndpointKind::Plugin { id: target.clone() });
-            let kind = MessageKind::Measurement {
-                name: "memory".to_string(),
-                value: value.clone(),
-            };
-
-            (kind, addr)
-        })
-        .send_all(state.comms.clone())
-        .wait_for_reply()
-        .with_timeout(timeout_duration)
+    std::iter::repeat(measurement)
+        .zip(state.send_to.iter())
+        .send_all()
+        .wait_for_reply(timeout_duration)
         .collect::<futures::stream::FuturesUnordered<_>>()
-        .collect::<Vec<Result<tedge_lib::iter::SendResult, PluginError>>>()
+        .collect::<Vec<Result<tedge_lib::iter::SendResult<_>, _>>>()
         .await
         .into_iter()
-        .map_send_result(tedge_lib::iter::log_and_ignore_timeout)
-        .collect::<Result<Vec<_>, PluginError>>()
+        .map(|res| {
+            res.map_err(|_| PluginError::from(anyhow::anyhow!("Failed to send measurement")))
+                .map(|_| ())
+        })
+        .collect::<Result<Vec<()>, PluginError>>()
         .map(|_| ())
 }

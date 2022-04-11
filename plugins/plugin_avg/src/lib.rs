@@ -1,13 +1,16 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use tedge_api::plugin::PluginExt;
+use tokio_util::sync::CancellationToken;
 
-use tedge_api::address::EndpointKind;
-use tedge_api::message::MeasurementValue;
+use tedge_lib::measurement::Measurement;
+use tedge_lib::measurement::MeasurementValue;
 use tedge_api::Address;
-use tedge_api::CoreCommunication;
-use tedge_api::Message;
-use tedge_api::MessageKind;
+use tedge_api::plugin::Handle;
+use tedge_api::PluginDirectory;
+use tedge_api::address::ReplySender;
+use tedge_api::message::NoReply;
 use tedge_api::Plugin;
 use tedge_api::PluginBuilder;
 use tedge_api::PluginConfiguration;
@@ -34,8 +37,8 @@ struct AvgConfig {
 }
 
 #[async_trait]
-impl PluginBuilder for AvgPluginBuilder {
-    fn kind_name(&self) -> &'static str {
+impl<PD: PluginDirectory> PluginBuilder<PD> for AvgPluginBuilder {
+    fn kind_name() -> &'static str {
         "avg"
     }
 
@@ -55,28 +58,39 @@ impl PluginBuilder for AvgPluginBuilder {
     async fn instantiate(
         &self,
         config: PluginConfiguration,
-        comms: tedge_api::plugin::CoreCommunication,
-    ) -> Result<Box<dyn Plugin>, PluginError> {
+        _cancellation_token: CancellationToken,
+        plugin_dir: &PD,
+    ) -> Result<tedge_api::plugin::BuiltPlugin, PluginError> {
         let config = config
             .into_inner()
-            .try_into()
+            .try_into::<AvgConfig>()
             .map_err(|_| anyhow::anyhow!("Failed to parse log configuration"))?;
 
-        Ok(Box::new(AvgPlugin::new(comms, config)))
+        let address = plugin_dir.get_address_for::<MeasurementReceiver>(&config.target)?;
+        Ok(AvgPlugin::new(address, config).into_untyped::<(Measurement,)>())
     }
+
+    fn kind_message_types() -> tedge_api::plugin::HandleTypes
+        where Self:Sized
+    {
+        tedge_api::plugin::HandleTypes::declare_handlers_for::<(Measurement,), AvgPlugin>()
+    }
+
 }
 
+tedge_api::make_receiver_bundle!(struct MeasurementReceiver(Measurement));
+
 struct AvgPlugin {
-    comms: tedge_api::plugin::CoreCommunication,
+    addr: Address<MeasurementReceiver>,
     config: AvgConfig,
-    values: Arc<RwLock<Vec<u64>>>,
+    values: Arc<RwLock<Vec<f64>>>,
     stopper: Option<MainloopStopper>,
 }
 
 impl AvgPlugin {
-    fn new(comms: tedge_api::plugin::CoreCommunication, config: AvgConfig) -> Self {
+    fn new(addr: Address<MeasurementReceiver>, config: AvgConfig) -> Self {
         Self {
-            comms,
+            addr,
             config,
             values: Arc::new(RwLock::new(Vec::new())),
             stopper: None,
@@ -85,23 +99,19 @@ impl AvgPlugin {
 }
 
 struct State {
-    target: Address,
+    target: Address<MeasurementReceiver>,
     report_zero: bool,
     int_to_float_avg: bool,
-    comms: CoreCommunication,
-    values: Arc<RwLock<Vec<u64>>>,
+    values: Arc<RwLock<Vec<f64>>>,
 }
 
 #[async_trait]
 impl Plugin for AvgPlugin {
     async fn setup(&mut self) -> Result<(), PluginError> {
         let state = State {
-            target: Address::new(EndpointKind::Plugin {
-                id: self.config.target.clone(),
-            }),
+            target: self.addr.clone(),
             report_zero: self.config.report_on_zero_elements,
             int_to_float_avg: self.config.int_to_float_avg,
-            comms: self.comms.clone(),
             values: self.values.clone(),
         };
         let (stopper, mainloop) =
@@ -112,31 +122,6 @@ impl Plugin for AvgPlugin {
         Ok(())
     }
 
-    async fn handle_message(&self, message: Message) -> Result<(), PluginError> {
-        let value = match message.kind() {
-            MessageKind::Measurement { name, value } => match value {
-                MeasurementValue::Int(i) => Some(i),
-                other => {
-                    log::error!(
-                        "Received measurement that I cannot handle: {} = {}",
-                        name,
-                        measurement_to_str(other)
-                    );
-                    None
-                }
-            },
-            _ => {
-                log::error!("Received message kind that I cannot handle");
-                None
-            }
-        };
-
-        if let Some(value) = value {
-            self.values.write().await.push(*value);
-        }
-
-        Ok(())
-    }
 
     async fn shutdown(&mut self) -> Result<(), PluginError> {
         if let Some(stopper) = self.stopper.take() {
@@ -148,18 +133,38 @@ impl Plugin for AvgPlugin {
     }
 }
 
+#[async_trait]
+impl Handle<Measurement> for AvgPlugin {
+    async fn handle_message(&self, message: Measurement, _reply: ReplySender<NoReply>) -> Result<(), PluginError> {
+        let value = match message.value() {
+            MeasurementValue::Float(f) => Some(f),
+            other => {
+                log::error!(
+                    "Received measurement that I cannot handle: {} = {}",
+                    message.name(),
+                    measurement_to_str(other)
+                );
+                None
+            }
+        };
+
+        if let Some(value) = value {
+            self.values.write().await.push(*value);
+        }
+
+        Ok(())
+    }
+}
+
 async fn main_avg(state: Arc<State>) -> Result<(), PluginError> {
     let mut values = state.values.write().await;
 
     let count = values.len() as u64; // TODO: Here be dragons
     if count > 0 || state.report_zero {
-        let sum = values.drain(0..).sum::<u64>();
-        let value = MeasurementValue::Int(sum / count);
-        let measurement = MessageKind::Measurement {
-            name: "avg".to_string(),
-            value,
-        };
-        let _ = state.comms.send(measurement, state.target.clone()).await?;
+        let sum = values.drain(0..).sum::<f64>();
+        let value = MeasurementValue::Float(sum / (count as f64));
+        let measurement = Measurement::new("avg".to_string(), value);
+        let _ = state.target.send(measurement).await;
     }
 
     Ok(())
@@ -168,10 +173,10 @@ async fn main_avg(state: Arc<State>) -> Result<(), PluginError> {
 fn measurement_to_str(val: &MeasurementValue) -> &'static str {
     match val {
         MeasurementValue::Bool(_) => "Bool",
-        MeasurementValue::Int(_) => "Int",
         MeasurementValue::Float(_) => "Float",
-        MeasurementValue::Str(_) => "Str",
-        MeasurementValue::Aggregate(_) => "Aggregate",
+        MeasurementValue::Text(_) => "Str",
+        MeasurementValue::List(_) => "List",
+        MeasurementValue::Map(_) => "Map",
         _ => "Unknown",
     }
 }

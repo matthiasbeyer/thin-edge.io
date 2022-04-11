@@ -1,9 +1,13 @@
+use std::any::TypeId;
+use std::collections::HashSet;
+
 use futures::StreamExt;
 
 use futures::future::FutureExt;
-use tedge_api::Plugin;
+use tedge_api::plugin::BuiltPlugin;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
+use tracing::error;
 use tracing::trace;
 
 use crate::configuration::PluginInstanceConfiguration;
@@ -13,6 +17,8 @@ use crate::errors::TedgeApplicationError;
 use crate::plugin_task::PluginTask;
 use crate::task::Task;
 use crate::TedgeApplication;
+use crate::communication::PluginDirectory;
+use crate::communication::PluginInfo;
 
 /// Helper type for running a TedgeApplication
 ///
@@ -26,24 +32,40 @@ impl std::fmt::Debug for Reactor {
     }
 }
 
-type Receiver = tokio::sync::mpsc::Receiver<tedge_api::message::Message>;
-type Sender = tokio::sync::mpsc::Sender<tedge_api::message::Message>;
-
 /// Helper type for preparing a PluginTask
 struct PluginTaskPrep {
     name: String,
-    plugin: Box<dyn Plugin>,
-    plugin_recv: Receiver,
-    task_sender: Sender,
-    task_recv: Receiver,
-    core_msg_sender: Sender,
-    task_cancel_token: CancellationToken,
+    plugin: BuiltPlugin,
+    plugin_msg_receiver: tedge_api::address::MessageReceiver,
+    cancellation_token: CancellationToken,
 }
 
 impl Reactor {
     pub async fn run(self) -> Result<()> {
-        let buf_size = self.0.config().communication_buffer_size().get();
-        let (core_msg_sender, core_msg_recv) = tokio::sync::mpsc::channel(buf_size);
+        let channel_size = self.0.config().communication_buffer_size().get();
+
+        let directory_iter = self.0
+            .config()
+            .plugins()
+            .iter()
+            .map(|(pname, pconfig)| {
+                let handle_types = self.0
+                    .plugin_builders()
+                    .get(pconfig.kind().as_ref())
+                    .map(|(handle_types, _)| {
+                        handle_types.get_types()
+                            .into_iter()
+                            .cloned()
+                            .collect::<HashSet<(&'static str, TypeId)>>()
+                    })
+                    .ok_or_else(|| {
+                        TedgeApplicationError::UnknownPluginKind(pconfig.kind().as_ref().to_string())
+                    })?;
+
+                    Ok((pname.to_string(), PluginInfo::new(handle_types, channel_size)))
+            });
+        let (core_sender, core_receiver) = tokio::sync::mpsc::channel(channel_size);
+        let mut directory = PluginDirectory::collect_from(directory_iter, core_sender)?;
 
         let instantiated_plugins = self
             .0
@@ -51,7 +73,17 @@ impl Reactor {
             .plugins()
             .iter()
             .map(|(pname, pconfig)| {
-                self.instantiate_plugin(pname, pconfig, core_msg_sender.clone())
+                let receiver = match directory.get_mut(pname).and_then(|pinfo| pinfo.receiver.take()) {
+                    Some(receiver) => receiver,
+                    None => unreachable!("Tried to take receiver twice. This is a FATAL bug, please report it"),
+                };
+
+                (pname, pconfig, receiver)
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .map(|(pname, pconfig, receiver)| {
+                self.instantiate_plugin(pname, pconfig, &directory, receiver, self.0.cancellation_token().child_token())
             })
             .collect::<futures::stream::FuturesUnordered<_>>()
             .collect::<Vec<Result<_>>>()
@@ -60,18 +92,11 @@ impl Reactor {
             .collect::<Result<Vec<_>>>()?;
         debug!("Plugins instantiated");
 
-        // Make sure the original Sender is dropped, so that when we run everything, the CoreTask
-        // automatically finishes when all Senders are dropped
-        drop(core_msg_sender);
-
         let running_core = {
-            let plugin_senders = instantiated_plugins
-                .iter()
-                .map(|prep| (prep.name.clone(), prep.task_sender.clone()))
-                .collect();
-            crate::core_task::CoreTask::new(core_msg_recv, plugin_senders)
-                .run()
-                .inspect(|res| debug!("Core finished running: {:?}", res))
+            // we clone the cancellation_token here, because the core must be able to use the
+            // "root" token to stop all plugins
+            let core_cancel_token = self.0.cancellation_token().clone();
+            crate::core_task::CoreTask::new(core_cancel_token, core_receiver).run()
         };
         debug!("Core task instantiated");
 
@@ -81,10 +106,9 @@ impl Reactor {
                 PluginTask::new(
                     prep.name,
                     prep.plugin,
-                    prep.plugin_recv,
-                    prep.task_recv,
-                    prep.core_msg_sender,
-                    prep.task_cancel_token,
+                    prep.plugin_msg_receiver,
+                    prep.cancellation_token,
+                    self.0.config().plugin_shutdown_timeout(),
                 )
             })
             .map(Task::run)
@@ -118,19 +142,21 @@ impl Reactor {
     fn find_plugin_builder<'a>(
         &'a self,
         plugin_kind: &PluginKind,
-    ) -> Option<&'a dyn tedge_api::PluginBuilder> {
+    ) -> Option<&'a Box<dyn tedge_api::PluginBuilder<PluginDirectory>>> {
         trace!("Searching builder for plugin: {}", plugin_kind.as_ref());
         self.0
             .plugin_builders()
             .get(plugin_kind.as_ref())
-            .map(AsRef::as_ref)
+            .map(|(_, pb)| pb)
     }
 
     async fn instantiate_plugin(
         &self,
         plugin_name: &str,
         plugin_config: &PluginInstanceConfiguration,
-        core_msg_sender: Sender,
+        directory: &PluginDirectory,
+        plugin_msg_receiver: tedge_api::address::MessageReceiver,
+        cancellation_token: CancellationToken,
     ) -> Result<PluginTaskPrep> {
         let builder = self
             .find_plugin_builder(plugin_config.kind())
@@ -144,21 +170,12 @@ impl Reactor {
             TedgeApplicationError::PluginConfigMissing(pname)
         })?;
 
-        let buf_size = self.0.config().communication_buffer_size().get();
-        let (plugin_message_sender, plugin_message_receiver) = tokio::sync::mpsc::channel(buf_size);
-        let (task_sender, task_receiver) = tokio::sync::mpsc::channel(buf_size);
+        if let Err(e) = builder.verify_configuration(&config).await {
+            error!("Verification of configuration failed for plugin '{}'", plugin_name);
+            return Err(TedgeApplicationError::PluginConfigVerificationFailed(e))
+        }
 
-        // Retreive task cancel token for cancling a task inside the core
-        let task_cancel_token = self.0.cancellation_token.child_token();
-
-        // ... and from that a plugin cancel token, that can be used to cancel only the plugin
-        let plugin_cancel_token = task_cancel_token.child_token();
-
-        let comms = tedge_api::plugin::CoreCommunication::new(
-            plugin_name.to_string(),
-            plugin_message_sender,
-            plugin_cancel_token,
-        );
+        let cancel_token = self.0.cancellation_token.child_token();
 
         trace!(
             "Instantiating plugin: {} of kind {}",
@@ -166,17 +183,14 @@ impl Reactor {
             plugin_config.kind().as_ref()
         );
         builder
-            .instantiate(config.clone(), comms)
+            .instantiate(config.clone(), cancel_token, directory)
             .await
             .map_err(TedgeApplicationError::from)
             .map(|plugin| PluginTaskPrep {
                 name: plugin_name.to_string(),
                 plugin,
-                plugin_recv: plugin_message_receiver,
-                task_sender,
-                task_recv: task_receiver,
-                core_msg_sender,
-                task_cancel_token,
+                plugin_msg_receiver,
+                cancellation_token,
             })
     }
 }

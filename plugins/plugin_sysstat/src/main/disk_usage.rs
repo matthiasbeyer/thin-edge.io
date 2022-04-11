@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::sync::Arc;
@@ -7,17 +8,14 @@ use sysinfo::DiskExt;
 use sysinfo::SystemExt;
 use tokio::sync::Mutex;
 
-use tedge_api::address::EndpointKind;
-use tedge_api::message::MeasurementValue;
-use tedge_api::plugin::CoreCommunication;
 use tedge_api::Address;
-use tedge_api::Message;
-use tedge_api::MessageKind;
 use tedge_api::PluginError;
+use tedge_api::plugin::Message;
 use tedge_lib::iter::IntoSendAll;
-use tedge_lib::iter::MapSendResult;
-use tedge_lib::reply::IntoReplyable;
-use tedge_lib::reply::ReplyableCoreCommunication;
+use tedge_lib::measurement::Measurement;
+use tedge_lib::measurement::MeasurementValue;
+
+use crate::plugin::MeasurementReceiver;
 
 use crate::config::HasBaseConfig;
 use crate::main::State;
@@ -25,9 +23,8 @@ use crate::main::StateFromConfig;
 
 pub struct DiskUsageState {
     interval: u64,
-    send_to: Vec<String>,
+    send_to: Arc<Vec<Address<MeasurementReceiver>>>,
     sys: sysinfo::System,
-    comms: CoreCommunication,
 }
 
 impl State for DiskUsageState {
@@ -39,13 +36,12 @@ impl State for DiskUsageState {
 impl StateFromConfig for DiskUsageState {
     fn new_from_config(
         config: &crate::config::SysStatConfig,
-        comms: CoreCommunication,
+        addrs: Arc<Vec<Address<MeasurementReceiver>>>,
     ) -> Option<Self> {
         config.disk_usage.as_ref().map(|config| DiskUsageState {
             interval: config.interval_ms().get(),
-            send_to: config.send_to().to_vec(),
+            send_to: addrs,
             sys: sysinfo::System::new_with_specifics({ sysinfo::RefreshKind::new().with_disks() }),
-            comms,
         })
     }
 }
@@ -61,19 +57,20 @@ pub async fn main_disk_usage(state: Arc<Mutex<DiskUsageState>>) -> Result<(), Pl
         .into_iter()
         .map(|disk| async {
             measure_to_messages(lock.deref(), &lock.deref().send_to, disk)?
-                .send_all(lock.deref().comms.clone())
-                .wait_for_reply()
-                .with_timeout(timeout_duration)
+                .send_all()
+                .wait_for_reply(timeout_duration)
                 .collect::<futures::stream::FuturesUnordered<_>>()
-                .collect::<Vec<Result<_, PluginError>>>()
+                .collect::<Vec<Result<_, _>>>()
                 .await
                 .into_iter()
-                .map_send_result(tedge_lib::iter::log_and_ignore_timeout)
-                .collect::<Result<Vec<_>, PluginError>>()
-                .map(|_| ())
+                .map(|res| {
+                    res.map_err(|_| PluginError::from(anyhow::anyhow!("Failed to send measurement")))
+                        .map(|_| ())
+                })
+                .collect::<Result<Vec<()>, PluginError>>()
         })
         .collect::<futures::stream::FuturesUnordered<_>>()
-        .collect::<Vec<Result<(), PluginError>>>()
+        .collect::<Vec<Result<Vec<()>, PluginError>>>()
         .await
         .into_iter()
         .collect::<Result<Vec<_>, PluginError>>()
@@ -82,9 +79,9 @@ pub async fn main_disk_usage(state: Arc<Mutex<DiskUsageState>>) -> Result<(), Pl
 
 fn measure_to_messages<'a>(
     state: &'a DiskUsageState,
-    targets: &'a [impl AsRef<str>],
+    targets: &'a [Address<MeasurementReceiver>],
     disk: &sysinfo::Disk,
-) -> Result<impl Iterator<Item = (MessageKind, Address)> + 'a, PluginError> {
+) -> Result<impl Iterator<Item = (Measurement, &'a Address<MeasurementReceiver>)> + 'a, PluginError> {
     let disk_name = disk
         .name()
         .to_os_string()
@@ -104,34 +101,18 @@ fn measure_to_messages<'a>(
     let disk_availspace = disk.available_space();
     let disk_removable = disk.is_removable();
 
-    let measurement = MeasurementValue::Aggregate(vec![
-        ("fs".to_string(), MeasurementValue::Str(disk_fs.to_string())),
-        (
-            "type".to_string(),
-            MeasurementValue::Str(disk_type.to_string()),
-        ),
-        (
-            "mountpoint".to_string(),
-            MeasurementValue::Str(disk_mountpoint.to_string()),
-        ),
-        ("total".to_string(), MeasurementValue::Int(disk_totalspace)),
-        ("avail".to_string(), MeasurementValue::Int(disk_availspace)),
-        (
-            "removable".to_string(),
-            MeasurementValue::Bool(disk_removable),
-        ),
-    ]);
+    let mut hm = HashMap::new();
+    hm.insert("fs".to_string(), MeasurementValue::Text(disk_fs.to_string()));
+    hm.insert("type".to_string(), MeasurementValue::Text(disk_type.to_string()));
+    hm.insert("mountpoint".to_string(), MeasurementValue::Text(disk_mountpoint.to_string()));
+    hm.insert("total".to_string(), MeasurementValue::Float(disk_totalspace as f64));
+    hm.insert("avail".to_string(), MeasurementValue::Float(disk_availspace as f64));
+    hm.insert("removable".to_string(), MeasurementValue::Bool(disk_removable));
+    let value = MeasurementValue::Map(hm);
+    let measurement = Measurement::new(disk_name.to_string(), value);
 
-    let iter = targets.into_iter().map(move |target| {
-        let addr = Address::new(EndpointKind::Plugin {
-            id: target.as_ref().to_string(),
-        });
-        let kind = MessageKind::Measurement {
-            name: disk_name.to_string(),
-            value: measurement.clone(),
-        };
-
-        (kind, addr)
+    let iter = targets.into_iter().map(move |addr| {
+        (measurement.clone(), addr)
     });
 
     Ok(iter)

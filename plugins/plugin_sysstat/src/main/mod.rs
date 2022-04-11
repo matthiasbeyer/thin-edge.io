@@ -7,12 +7,14 @@ pub mod memory;
 pub mod network;
 pub mod process;
 
-use tedge_api::plugin::CoreCommunication;
+use std::sync::Arc;
 
-use crate::config::SysStatConfig;
+use tedge_api::Address;
+
+use crate::{config::SysStatConfig, plugin::MeasurementReceiver};
 
 pub trait StateFromConfig: Sized {
-    fn new_from_config(config: &SysStatConfig, comms: CoreCommunication) -> Option<Self>;
+    fn new_from_config(config: &SysStatConfig, addrs: Arc<Vec<Address<MeasurementReceiver>>>) -> Option<Self>;
 }
 
 pub trait State {
