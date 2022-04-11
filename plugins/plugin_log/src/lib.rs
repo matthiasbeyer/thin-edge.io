@@ -83,7 +83,8 @@ where
             .try_into::<LogConfig>()
             .map_err(|_| anyhow::anyhow!("Failed to parse log configuration"))?;
 
-        let forward_to = config.forward_to
+        let forward_to = config
+            .forward_to
             .as_ref()
             .map(|addr| plugin_dir.get_address_for(addr))
             .transpose()?;
@@ -144,7 +145,7 @@ where
     async fn handle_message(
         &self,
         message: M,
-        _sender: ReplySender<M::Reply>,
+        mut sender: ReplySender<M::Reply>,
     ) -> Result<(), PluginError> {
         match self.config.level {
             log::Level::Trace => {
@@ -161,7 +162,38 @@ where
         }
 
         if let Some(fwd) = self.forward_to.as_ref() {
-            let _ = fwd.send(message).await;
+            match fwd.send(message).await {
+                Ok(reply_recv) => {
+                    tokio::select! {
+                        reply = reply_recv.wait_for_reply(std::time::Duration::MAX) => {
+                            match reply {
+                                Ok(m) => {
+                                    let _ = sender.reply(m);
+                                },
+
+                                Err(e) => {
+                                    debug!("Failed to receive reply: {:?}", e);
+                                }
+                            }
+                        }
+
+                        _ = sender.closed() => {
+                            debug!("Reply-channel was closed, we cannot do anything");
+                        }
+                    }
+                },
+
+                Err(_msg) => {
+                    debug!(
+                        "Failed to forward message to {}",
+                        self.config
+                            .forward_to
+                            .as_ref()
+                            .expect("Address exists but not config for it")
+                    );
+                    // drop the message
+                }
+            }
         }
 
         Ok(())
