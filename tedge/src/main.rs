@@ -88,6 +88,12 @@ async fn main() -> miette::Result<()> {
         plugin_httpstop::HttpStopPluginBuilder,
         plugin_httpstop::HttpStopPluginBuilder
     );
+    let application = register_plugin!(
+        application,
+        "builtin_plugin_measurement_filter",
+        plugin_measurement_filter::MeasurementFilterPluginBuilder,
+        plugin_measurement_filter::MeasurementFilterPluginBuilder
+    );
 
     let (cancel_sender, application) = application.with_config(config).into_diagnostic()?;
     info!("Application built");

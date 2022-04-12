@@ -3102,6 +3102,7 @@ dependencies = [
  "plugin_httpstop",
  "plugin_inotify",
  "plugin_log",
+ "plugin_measurement_filter",
  "plugin_sysstat",
  "tedge_api",
  "tedge_core",
