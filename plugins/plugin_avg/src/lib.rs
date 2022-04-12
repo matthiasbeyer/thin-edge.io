@@ -30,10 +30,6 @@ struct AvgConfig {
 
     /// Whether to report a 0 (zero) if there are zero measurements in the timeframe
     report_on_zero_elements: bool,
-
-    /// If set to `true`, report [1, 2].avg() as 1.5
-    /// If set to false, integers are reported (and possibly inaccurate)
-    int_to_float_avg: bool,
 }
 
 #[async_trait]
@@ -101,7 +97,6 @@ impl AvgPlugin {
 struct State {
     target: Address<MeasurementReceiver>,
     report_zero: bool,
-    int_to_float_avg: bool,
     values: Arc<RwLock<Vec<f64>>>,
 }
 
@@ -111,7 +106,6 @@ impl Plugin for AvgPlugin {
         let state = State {
             target: self.addr.clone(),
             report_zero: self.config.report_on_zero_elements,
-            int_to_float_avg: self.config.int_to_float_avg,
             values: self.values.clone(),
         };
         let (stopper, mainloop) =

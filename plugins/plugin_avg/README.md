@@ -18,10 +18,6 @@ The configuration of the plugin can have the following fields
 * `target`: Whom to send the average to
 * `report_on_zero_elements`: If there have not been any incoming measurements in
   the `timeframe`, whether to send out a zero, or not send anything
-* `int_to_float_avg`: whether to send out float values, even though the recorded
-  values are all integer.
-  With this setting to `true`, `[1, 2]` will be send out as `1.5` rather than
-  performing integer operations resulting in possibly inaccurate values
 
 
 Example configuration:
@@ -34,6 +30,5 @@ timeframe = "1min"
 target = "my_other_plugin"
 
 report_on_zero_elements = false
-int_to_float_avg = false
 ```
 
