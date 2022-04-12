@@ -13,7 +13,6 @@ use std::{
 use downcast_rs::{impl_downcast, DowncastSync};
 
 use async_trait::async_trait;
-use tokio_util::sync::CancellationToken;
 
 use crate::{
     address::{InternalMessage, ReceiverBundle, ReplySender},
