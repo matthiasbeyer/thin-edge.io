@@ -9,7 +9,7 @@ use futures::FutureExt;
 use tedge_api::{
     address::ReplySender,
     message::NoReply,
-    plugin::{BuiltPlugin, Handle, HandleTypes, Message, PluginDeclaration, PluginExt},
+    plugin::{BuiltPlugin, Handle, Message, PluginDeclaration, PluginExt},
     Address, CancellationToken, Plugin, PluginBuilder, PluginConfiguration, PluginDirectory,
     PluginError,
 };
@@ -45,7 +45,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for HeartbeatServiceBuilder {
     where
         Self: Sized,
     {
-        HandleTypes::empty()
+        HeartbeatService::get_handled_types()
     }
 
     async fn verify_configuration(
@@ -79,7 +79,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for HeartbeatServiceBuilder {
             monitored_services,
             cancellation_token,
         )
-        .into_untyped())
+        .finish())
     }
 }
 
@@ -230,7 +230,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for CriticalServiceBuilder {
         Ok(CriticalService {
             status: tokio::sync::Mutex::new(true),
         }
-        .into_untyped())
+        .finish())
     }
 }
 
@@ -420,8 +420,8 @@ async fn main() {
     let mut heartbeat = build_heartbeat_plugin(&mut comms, cancel_token.child_token()).await;
     let mut critical_service = build_critical_plugin(&mut comms, cancel_token.child_token()).await;
 
-    heartbeat.plugin_mut().setup().await.unwrap();
-    critical_service.plugin_mut().setup().await.unwrap();
+    heartbeat.plugin_mut().start().await.unwrap();
+    critical_service.plugin_mut().start().await.unwrap();
 
     let mut recv = comms
         .plugins
