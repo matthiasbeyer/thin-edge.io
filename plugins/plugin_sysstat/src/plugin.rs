@@ -18,6 +18,10 @@ pub struct SysStatPlugin {
     stoppers: Vec<tedge_lib::mainloop::MainloopStopper>,
 }
 
+impl tedge_api::plugin::PluginDeclaration for SysStatPlugin {
+    type HandledMessages = ();
+}
+
 tedge_api::make_receiver_bundle!(pub struct MeasurementReceiver(Measurement));
 
 pub struct AddressConfig {
@@ -41,7 +45,7 @@ impl SysStatPlugin {
 
 #[async_trait]
 impl Plugin for SysStatPlugin {
-    async fn setup(&mut self) -> Result<(), PluginError> {
+    async fn start(&mut self) -> Result<(), PluginError> {
         macro_rules! run {
             ($t:ty, $sender:expr, $main:expr) => {
                 if let Some(state) = <$t>::new_from_config(&self.config, $sender.clone()) {
@@ -94,7 +98,7 @@ impl Plugin for SysStatPlugin {
         while let Some(stopper) = self.stoppers.pop() {
             stopper
                 .stop()
-                .map_err(|_| anyhow::anyhow!("Failed to stop mainloop"))?
+                .map_err(|_| miette::miette!("Failed to stop mainloop"))?
         }
 
         Ok(())

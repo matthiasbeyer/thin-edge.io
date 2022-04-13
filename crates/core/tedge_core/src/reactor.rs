@@ -192,7 +192,7 @@ impl Reactor {
         builder
             .instantiate(config.clone(), cancel_token, &directory.for_plugin_named(plugin_name))
             .await
-            .map_err(TedgeApplicationError::from)
+            .map_err(TedgeApplicationError::Plugin)
             .map(|plugin| PluginTaskPrep {
                 name: plugin_name.to_string(),
                 plugin,

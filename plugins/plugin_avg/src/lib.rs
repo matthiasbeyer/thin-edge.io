@@ -43,11 +43,10 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for AvgPluginBuilder {
         config: &PluginConfiguration,
     ) -> Result<(), tedge_api::error::PluginError> {
         config
-            .get_ref()
             .clone()
             .try_into()
             .map(|_: AvgConfig| ())
-            .map_err(|_| anyhow::anyhow!("Failed to parse log configuration"))
+            .map_err(|_| miette::miette!("Failed to parse log configuration"))
             .map_err(PluginError::from)
     }
 
@@ -58,18 +57,17 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for AvgPluginBuilder {
         plugin_dir: &PD,
     ) -> Result<tedge_api::plugin::BuiltPlugin, PluginError> {
         let config = config
-            .into_inner()
             .try_into::<AvgConfig>()
-            .map_err(|_| anyhow::anyhow!("Failed to parse log configuration"))?;
+            .map_err(|_| miette::miette!("Failed to parse log configuration"))?;
 
         let address = plugin_dir.get_address_for::<MeasurementReceiver>(&config.target)?;
-        Ok(AvgPlugin::new(address, config).into_untyped::<(Measurement,)>())
+        Ok(AvgPlugin::new(address, config).finish())
     }
 
     fn kind_message_types() -> tedge_api::plugin::HandleTypes
         where Self:Sized
     {
-        tedge_api::plugin::HandleTypes::declare_handlers_for::<(Measurement,), AvgPlugin>()
+        AvgPlugin::get_handled_types()
     }
 
 }
@@ -81,6 +79,10 @@ struct AvgPlugin {
     config: AvgConfig,
     values: Arc<RwLock<Vec<f64>>>,
     stopper: Option<MainloopStopper>,
+}
+
+impl tedge_api::plugin::PluginDeclaration for AvgPlugin {
+    type HandledMessages = (Measurement,);
 }
 
 impl AvgPlugin {
@@ -102,7 +104,7 @@ struct State {
 
 #[async_trait]
 impl Plugin for AvgPlugin {
-    async fn setup(&mut self) -> Result<(), PluginError> {
+    async fn start(&mut self) -> Result<(), PluginError> {
         let state = State {
             target: self.addr.clone(),
             report_zero: self.config.report_on_zero_elements,
@@ -121,7 +123,7 @@ impl Plugin for AvgPlugin {
         if let Some(stopper) = self.stopper.take() {
             stopper
                 .stop()
-                .map_err(|_| anyhow::anyhow!("Failed to stop mainloop"))?
+                .map_err(|_| miette::miette!("Failed to stop mainloop"))?
         }
         Ok(())
     }

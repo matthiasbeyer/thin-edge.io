@@ -1,7 +1,7 @@
 #[derive(Debug, thiserror::Error)]
 pub enum TedgeApplicationError {
     #[error("Plugin error")]
-    Plugin(#[from] tedge_api::error::PluginError),
+    Plugin(tedge_api::error::PluginError),
 
     #[error("Config verification failed")]
     PluginConfigVerificationFailed(tedge_api::error::PluginError),

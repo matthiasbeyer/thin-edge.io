@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use futures::future::FutureExt;
+use miette::IntoDiagnostic;
 use tedge_api::Plugin;
 use tedge_api::PluginBuilder;
 use tedge_api::PluginConfiguration;
@@ -30,21 +31,25 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for NoShutdownPluginBuilder {
         _cancellation_token: tedge_api::CancellationToken,
         _plugin_dir: &PD,
     ) -> Result<tedge_api::plugin::BuiltPlugin, PluginError> {
-        Ok(NoShutdownPlugin {}.into_untyped::<()>())
+        Ok(NoShutdownPlugin {}.finish())
     }
 
     fn kind_message_types() -> tedge_api::plugin::HandleTypes
         where Self:Sized
     {
-        tedge_api::plugin::HandleTypes::declare_handlers_for::<(), NoShutdownPlugin>()
+        NoShutdownPlugin::get_handled_types()
     }
 }
 
 struct NoShutdownPlugin;
 
+impl tedge_api::plugin::PluginDeclaration for NoShutdownPlugin {
+    type HandledMessages = ();
+}
+
 #[async_trait]
 impl Plugin for NoShutdownPlugin {
-    async fn setup(&mut self) -> Result<(), PluginError> {
+    async fn start(&mut self) -> Result<(), PluginError> {
         tracing::info!("Setup called");
         Ok(())
     }
@@ -79,10 +84,12 @@ fn test_no_shutdown_plugin() -> Result<(), Box<(dyn std::error::Error + 'static)
             [plugins.noshut.configuration]
         "#;
 
-        let config: TedgeConfiguration = toml::de::from_str(CONF)?;
+        let config: TedgeConfiguration = toml::de::from_str(CONF).into_diagnostic()?;
         let (cancel_sender, application) = TedgeApplication::builder()
-            .with_plugin_builder(NoShutdownPluginBuilder {})?
-            .with_config(config)?;
+            .with_plugin_builder(NoShutdownPluginBuilder {})
+            .into_diagnostic()?
+            .with_config(config)
+            .into_diagnostic()?;
 
         let mut run_fut = tokio::spawn(application.run());
 
@@ -110,7 +117,7 @@ fn test_no_shutdown_plugin() -> Result<(), Box<(dyn std::error::Error + 'static)
                 _test_abort = &mut test_abort => {
                     tracing::error!("Test aborted");
                     run_fut.abort();
-                    anyhow::bail!("Timeout reached, shutdown did not happen")
+                    miette::bail!("Timeout reached, shutdown did not happen")
                 },
 
                 _ = &mut run_fut => {

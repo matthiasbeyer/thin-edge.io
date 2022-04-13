@@ -27,7 +27,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for SysStatPluginBuilder {
     where
         Self: Sized,
     {
-        HandleTypes::empty()
+        SysStatPlugin::get_handled_types()
     }
 
     async fn verify_configuration(
@@ -35,11 +35,10 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for SysStatPluginBuilder {
         config: &PluginConfiguration,
     ) -> Result<(), tedge_api::error::PluginError> {
         config
-            .get_ref()
             .clone()
             .try_into()
             .map(|_: SysStatConfig| ())
-            .map_err(|e| anyhow::anyhow!("Failed to parse sysinfo configuration: {:?}", e))
+            .map_err(|e| miette::miette!("Failed to parse sysinfo configuration: {:?}", e))
             .map_err(PluginError::from)
     }
 
@@ -50,9 +49,8 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for SysStatPluginBuilder {
         plugin_dir: &PD,
     ) -> Result<BuiltPlugin, PluginError> {
         let config = config
-            .into_inner()
             .try_into::<SysStatConfig>()
-            .map_err(|e| anyhow::anyhow!("Failed to parse sysinfo configuration: {:?}", e))?;
+            .map_err(|e| miette::miette!("Failed to parse sysinfo configuration: {:?}", e))?;
 
         let build_addr_config = |adrs: &[String]| {
             adrs.iter()
@@ -70,6 +68,6 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for SysStatPluginBuilder {
             process: config.process.as_ref().map(|cfg| build_addr_config(cfg.send_to())).unwrap_or_else(|| Ok(Arc::new(Vec::new())))?,
         };
 
-        Ok(SysStatPlugin::new(config, addr_config).into_untyped::<()>())
+        Ok(SysStatPlugin::new(config, addr_config).finish())
     }
 }

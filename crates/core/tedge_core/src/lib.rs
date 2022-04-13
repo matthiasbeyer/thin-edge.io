@@ -83,7 +83,7 @@ impl TedgeApplication {
                         let res = builder
                             .verify_configuration(plugin_cfg.configuration())
                             .await
-                            .map_err(TedgeApplicationError::from);
+                            .map_err(TedgeApplicationError::Plugin);
 
                         (plugin_name.to_string(), res)
                     } else {
@@ -151,7 +151,8 @@ impl TedgeApplicationCancelSender {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
+    use miette::Result;
+    use miette::IntoDiagnostic;
 
     use super::*;
 
@@ -183,22 +184,26 @@ mod tests {
                 _cancellation_token: tedge_api::CancellationToken,
                 _plugin_dir: &PluginDirectory,
             ) -> Result<BuiltPlugin, PluginError> {
-                Ok(DummyPlugin.into_untyped::<()>())
+                Ok(DummyPlugin.finish())
             }
 
             fn kind_message_types() -> HandleTypes
                 where Self:Sized
             {
-                HandleTypes::empty()
+                DummyPlugin::get_handled_types()
             }
 
         }
 
         pub struct DummyPlugin;
 
+        impl tedge_api::plugin::PluginDeclaration for DummyPlugin {
+            type HandledMessages = ();
+        }
+
         #[async_trait]
         impl Plugin for DummyPlugin {
-            async fn setup(&mut self) -> Result<(), PluginError> {
+            async fn start(&mut self) -> Result<(), PluginError> {
                 Ok(())
             }
 
@@ -219,11 +224,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_creating_tedge_application() -> Result<()> {
-        let config = toml::de::from_str(CONFIGURATION)?;
+        let config = toml::de::from_str(CONFIGURATION).into_diagnostic()?;
 
         let (_, _) = TedgeApplication::builder()
-            .with_plugin_builder(dummy::DummyPluginBuilder {})?
-            .with_config(config)?;
+            .with_plugin_builder(dummy::DummyPluginBuilder {})
+            .into_diagnostic()?
+            .with_config(config)
+            .into_diagnostic()?;
 
         Ok(())
     }

@@ -6,11 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1"
 async-trait = "0.1"
 env_logger = "0.9"
 futures = "0.3"
 humantime-serde = "1"
+miette = "4.4"
 inotify = "0.10"
 log = { version = "0.4", features = ["serde"] }
 serde = { version = "1.0.136", features = ["derive"] }

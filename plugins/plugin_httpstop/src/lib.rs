@@ -32,7 +32,7 @@ where
     where
         Self: Sized,
     {
-        HandleTypes::empty()
+        HttpStopPlugin::get_handled_types()
     }
 
     async fn verify_configuration(
@@ -41,11 +41,10 @@ where
     ) -> Result<(), tedge_api::PluginError> {
         debug!("Verifying HttpStopPlugin configuration");
         config
-            .get_ref()
             .clone()
             .try_into::<HttpStopConfig>()
             .map(|_| ())
-            .map_err(|_| anyhow::anyhow!("Failed to parse log configuration"))
+            .map_err(|_| miette::miette!("Failed to parse log configuration"))
             .map_err(PluginError::from)
     }
 
@@ -57,10 +56,9 @@ where
     ) -> Result<tedge_api::plugin::BuiltPlugin, tedge_api::PluginError> {
         debug!("Instantiating HttpStopPlugin");
         let config = config
-            .get_ref()
             .clone()
             .try_into::<HttpStopConfig>()
-            .map_err(|_| anyhow::anyhow!("Failed to parse log configuration"))?;
+            .map_err(|_| miette::miette!("Failed to parse log configuration"))?;
 
         let plugin = HttpStopPlugin {
             cancellation_token,
@@ -70,7 +68,7 @@ where
             join_handle: None,
         };
 
-        Ok(plugin.into_untyped::<()>())
+        Ok(plugin.finish())
     }
 }
 
@@ -82,9 +80,13 @@ pub struct HttpStopPlugin {
     join_handle: Option<JoinHandle<Result<(), hyper::Error>>>,
 }
 
+impl tedge_api::plugin::PluginDeclaration for HttpStopPlugin {
+    type HandledMessages = ();
+}
+
 #[async_trait::async_trait]
 impl Plugin for HttpStopPlugin {
-    async fn setup(&mut self) -> Result<(), PluginError> {
+    async fn start(&mut self) -> Result<(), PluginError> {
         debug!("Setting up HttpStopPlugin");
         let addr = self.core.clone();
         let svc = hyper::service::make_service_fn(move |_conn| {

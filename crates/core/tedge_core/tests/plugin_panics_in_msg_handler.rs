@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use futures::future::FutureExt;
+use miette::IntoDiagnostic;
 use tedge_api::Address;
 use tedge_api::Plugin;
 use tedge_api::PluginBuilder;
@@ -35,13 +36,13 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for HandlePanicPluginBuilder {
         plugin_dir: &PD,
     ) -> Result<tedge_api::plugin::BuiltPlugin, PluginError> {
         let self_addr = plugin_dir.get_address_for::<ReceivePanic>("panic")?;
-        Ok(HandlePanicPlugin { self_addr }.into_untyped::<(DoPanic,)>())
+        Ok(HandlePanicPlugin { self_addr }.finish())
     }
 
     fn kind_message_types() -> tedge_api::plugin::HandleTypes
         where Self:Sized
     {
-        tedge_api::plugin::HandleTypes::declare_handlers_for::<(DoPanic,), HandlePanicPlugin>()
+        HandlePanicPlugin::get_handled_types()
     }
 }
 
@@ -51,9 +52,13 @@ struct HandlePanicPlugin {
     self_addr: Address<ReceivePanic>,
 }
 
+impl tedge_api::plugin::PluginDeclaration for HandlePanicPlugin {
+    type HandledMessages = (DoPanic,);
+}
+
 #[async_trait]
 impl Plugin for HandlePanicPlugin {
-    async fn setup(&mut self) -> Result<(), PluginError> {
+    async fn start(&mut self) -> Result<(), PluginError> {
         tracing::info!("Setup called");
         let _ = self.self_addr.send(DoPanic).await;
         Ok(())
@@ -105,10 +110,13 @@ fn test_handler_panic() -> Result<(), Box<(dyn std::error::Error + 'static)>> {
             [plugins.panic.configuration]
         "#;
 
-        let config: TedgeConfiguration = toml::de::from_str(CONF)?;
+        let config: TedgeConfiguration = toml::de::from_str(CONF)
+            .into_diagnostic()?;
         let (cancel_sender, application) = TedgeApplication::builder()
-            .with_plugin_builder(HandlePanicPluginBuilder {})?
-            .with_config(config)?;
+            .with_plugin_builder(HandlePanicPluginBuilder {})
+            .into_diagnostic()?
+            .with_config(config)
+            .into_diagnostic()?;
 
         let mut run_fut = tokio::spawn(application.run());
 
@@ -136,7 +144,7 @@ fn test_handler_panic() -> Result<(), Box<(dyn std::error::Error + 'static)>> {
                 _test_abort = &mut test_abort => {
                     tracing::error!("Test aborted");
                     run_fut.abort();
-                    anyhow::bail!("Timeout reached, shutdown did not happen")
+                    miette::bail!("Timeout reached, shutdown did not happen")
                 },
 
                 _ = &mut run_fut => {

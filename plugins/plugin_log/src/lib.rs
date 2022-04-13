@@ -52,7 +52,7 @@ where
     where
         Self: Sized,
     {
-        HandleTypes::declare_handlers_for::<MB, LogPlugin<MB>>()
+        LogPlugin::get_handled_types()
     }
 
     async fn verify_configuration(
@@ -60,11 +60,10 @@ where
         config: &PluginConfiguration,
     ) -> Result<(), tedge_api::error::PluginError> {
         config
-            .get_ref()
             .clone()
             .try_into()
             .map(|_: LogConfig| ())
-            .map_err(|_| anyhow::anyhow!("Failed to parse log configuration"))
+            .map_err(|_| miette::miette!("Failed to parse log configuration"))
             .map_err(PluginError::from)
     }
 
@@ -75,11 +74,10 @@ where
         _plugin_dir: &PD,
     ) -> Result<BuiltPlugin, PluginError> {
         let config = config
-            .into_inner()
             .try_into::<LogConfig>()
-            .map_err(|_| anyhow::anyhow!("Failed to parse log configuration"))?;
+            .map_err(|_| miette::miette!("Failed to parse log configuration"))?;
 
-        Ok(LogPlugin::<MB>::new(config).into_untyped::<MB>())
+        Ok(LogPlugin::<MB>::new(config).finish())
     }
 }
 
@@ -87,6 +85,13 @@ struct LogPlugin<MB> {
     _pd: PhantomData<MB>,
     config: LogConfig,
 }
+
+impl<MB> tedge_api::plugin::PluginDeclaration for LogPlugin<MB>
+    where MB: MessageBundle + Sync + Send + 'static,
+{
+    type HandledMessages = MB;
+}
+
 
 impl<MB> LogPlugin<MB>
 where
@@ -102,7 +107,7 @@ impl<MB> Plugin for LogPlugin<MB>
 where
     MB: MessageBundle + Sync + Send + 'static,
 {
-    async fn setup(&mut self) -> Result<(), PluginError> {
+    async fn start(&mut self) -> Result<(), PluginError> {
         debug!(
             "Setting up log plugin with default level = {}, acknowledge = {}!",
             self.config.level, self.config.acknowledge

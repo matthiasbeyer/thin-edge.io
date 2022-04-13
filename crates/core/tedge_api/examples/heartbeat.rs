@@ -9,8 +9,9 @@ use futures::FutureExt;
 use tedge_api::{
     address::ReplySender,
     message::NoReply,
-    plugin::{BuiltPlugin, Handle, HandleTypes, Message, PluginExt},
-    Address, Plugin, PluginBuilder, PluginConfiguration, PluginDirectory, PluginError, CancellationToken,
+    plugin::{BuiltPlugin, Handle, Message, PluginDeclaration, PluginExt},
+    Address, CancellationToken, Plugin, PluginBuilder, PluginConfiguration, PluginDirectory,
+    PluginError,
 };
 
 /// A message that represents a heartbeat that gets sent to plugins
@@ -34,6 +35,12 @@ impl Message for HeartbeatStatus {
 #[derive(Debug)]
 struct HeartbeatServiceBuilder;
 
+#[derive(miette::Diagnostic, thiserror::Error, Debug)]
+enum HeartbeatBuildError {
+    #[error(transparent)]
+    TomlParse(#[from] toml::de::Error),
+}
+
 #[async_trait]
 impl<PD: PluginDirectory> PluginBuilder<PD> for HeartbeatServiceBuilder {
     fn kind_name() -> &'static str {
@@ -44,7 +51,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for HeartbeatServiceBuilder {
     where
         Self: Sized,
     {
-        HandleTypes::empty()
+        HeartbeatService::get_handled_types()
     }
 
     async fn verify_configuration(
@@ -63,7 +70,8 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for HeartbeatServiceBuilder {
     where
         PD: 'async_trait,
     {
-        let hb_config: HeartbeatConfig = toml::Value::try_into(config.into_inner())?;
+        let hb_config: HeartbeatConfig =
+            toml::Value::try_into(config).map_err(HeartbeatBuildError::from)?;
         let monitored_services = hb_config
             .plugins
             .iter()
@@ -78,7 +86,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for HeartbeatServiceBuilder {
             monitored_services,
             cancellation_token,
         )
-        .into_untyped::<()>())
+        .finish())
     }
 }
 
@@ -96,6 +104,10 @@ struct HeartbeatService {
     cancel_token: CancellationToken,
 }
 
+impl PluginDeclaration for HeartbeatService {
+    type HandledMessages = ();
+}
+
 #[async_trait]
 impl Plugin for HeartbeatService {
     /// The setup function of the HeartbeatService can be used by the plugin author to setup for
@@ -104,7 +116,7 @@ impl Plugin for HeartbeatService {
     ///
     /// Because this example is _simple_, we do not spawn a background task that periodically sends
     /// the heartbeat. In a real world scenario, that background task would be started here.
-    async fn setup(&mut self) -> Result<(), PluginError> {
+    async fn start(&mut self) -> Result<(), PluginError> {
         println!(
             "HeartbeatService: Setting up heartbeat service with interval: {:?}!",
             self.interval_duration
@@ -203,7 +215,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for CriticalServiceBuilder {
     where
         Self: Sized,
     {
-        HandleTypes::declare_handlers_for::<(Heartbeat,), CriticalService>()
+        CriticalService::get_handled_types()
     }
 
     async fn verify_configuration(
@@ -225,7 +237,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for CriticalServiceBuilder {
         Ok(CriticalService {
             status: tokio::sync::Mutex::new(true),
         }
-        .into_untyped::<(Heartbeat,)>())
+        .finish())
     }
 }
 
@@ -259,10 +271,14 @@ impl Handle<Heartbeat> for CriticalService {
     }
 }
 
+impl PluginDeclaration for CriticalService {
+    type HandledMessages = (Heartbeat,);
+}
+
 /// Because the CriticalService is of course a Plugin, it needs an implementation for that as well.
 #[async_trait]
 impl Plugin for CriticalService {
-    async fn setup(&mut self) -> Result<(), PluginError> {
+    async fn start(&mut self) -> Result<(), PluginError> {
         println!("CriticalService: Setting up critical service!");
         Ok(())
     }
@@ -411,8 +427,8 @@ async fn main() {
     let mut heartbeat = build_heartbeat_plugin(&mut comms, cancel_token.child_token()).await;
     let mut critical_service = build_critical_plugin(&mut comms, cancel_token.child_token()).await;
 
-    heartbeat.plugin_mut().setup().await.unwrap();
-    critical_service.plugin_mut().setup().await.unwrap();
+    heartbeat.plugin_mut().start().await.unwrap();
+    critical_service.plugin_mut().start().await.unwrap();
 
     let mut recv = comms
         .plugins

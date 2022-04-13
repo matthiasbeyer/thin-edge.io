@@ -5,6 +5,7 @@ use tedge_api::PluginBuilder;
 use tedge_api::PluginConfiguration;
 use tedge_api::PluginDirectory;
 use tedge_api::PluginError;
+use tedge_api::PluginExt;
 use tedge_core::configuration::TedgeConfiguration;
 use tedge_core::TedgeApplication;
 use tedge_core::errors::TedgeApplicationError;
@@ -21,9 +22,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for VerifyConfigFailsPluginBuilder {
         &self,
         _config: &PluginConfiguration,
     ) -> Result<(), tedge_api::error::PluginError> {
-        Err(tedge_api::error::PluginError::Custom(anyhow::anyhow!(
-            "Verification of config failed"
-        )))
+        Err(miette::miette!("Verification of config failed"))
     }
 
     async fn instantiate(
@@ -39,16 +38,20 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for VerifyConfigFailsPluginBuilder {
     where
         Self: Sized,
     {
-        HandleTypes::empty()
+        VerifyConfigFailsPlugin::get_handled_types()
     }
 }
 
 struct VerifyConfigFailsPlugin;
 
+impl tedge_api::plugin::PluginDeclaration for VerifyConfigFailsPlugin {
+    type HandledMessages = ();
+}
+
 #[async_trait]
 impl Plugin for VerifyConfigFailsPlugin {
     #[allow(unreachable_code)]
-    async fn setup(&mut self) -> Result<(), PluginError> {
+    async fn start(&mut self) -> Result<(), PluginError> {
         unreachable!()
     }
 
