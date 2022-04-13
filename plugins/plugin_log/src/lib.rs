@@ -52,7 +52,7 @@ where
     where
         Self: Sized,
     {
-        HandleTypes::declare_handlers_for::<MB, LogPlugin<MB>>()
+        LogPlugin::get_handled_types()
     }
 
     async fn verify_configuration(
@@ -79,7 +79,7 @@ where
             .try_into::<LogConfig>()
             .map_err(|_| anyhow::anyhow!("Failed to parse log configuration"))?;
 
-        Ok(LogPlugin::<MB>::new(config).into_untyped::<MB>())
+        Ok(LogPlugin::<MB>::new(config).into_untyped())
     }
 }
 
@@ -87,6 +87,13 @@ struct LogPlugin<MB> {
     _pd: PhantomData<MB>,
     config: LogConfig,
 }
+
+impl<MB> tedge_api::plugin::PluginDeclaration for LogPlugin<MB>
+    where MB: MessageBundle + Sync + Send + 'static,
+{
+    type HandledMessages = MB;
+}
+
 
 impl<MB> LogPlugin<MB>
 where
