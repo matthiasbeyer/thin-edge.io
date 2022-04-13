@@ -104,7 +104,7 @@ struct State {
 
 #[async_trait]
 impl Plugin for AvgPlugin {
-    async fn setup(&mut self) -> Result<(), PluginError> {
+    async fn start(&mut self) -> Result<(), PluginError> {
         let state = State {
             target: self.addr.clone(),
             report_zero: self.config.report_on_zero_elements,
