@@ -2054,9 +2054,9 @@ dependencies = [
 name = "plugin_log"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "log",
+ "miette",
  "serde",
  "tedge_api",
  "tokio-util 0.7.0",

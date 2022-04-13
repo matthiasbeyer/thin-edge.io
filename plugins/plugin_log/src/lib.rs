@@ -63,7 +63,7 @@ where
             .clone()
             .try_into()
             .map(|_: LogConfig| ())
-            .map_err(|_| anyhow::anyhow!("Failed to parse log configuration"))
+            .map_err(|_| miette::miette!("Failed to parse log configuration"))
             .map_err(PluginError::from)
     }
 
@@ -75,7 +75,7 @@ where
     ) -> Result<BuiltPlugin, PluginError> {
         let config = config
             .try_into::<LogConfig>()
-            .map_err(|_| anyhow::anyhow!("Failed to parse log configuration"))?;
+            .map_err(|_| miette::miette!("Failed to parse log configuration"))?;
 
         Ok(LogPlugin::<MB>::new(config).finish())
     }
