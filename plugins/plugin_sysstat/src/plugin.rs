@@ -18,6 +18,10 @@ pub struct SysStatPlugin {
     stoppers: Vec<tedge_lib::mainloop::MainloopStopper>,
 }
 
+impl tedge_api::plugin::PluginDeclaration for SysStatPlugin {
+    type HandledMessages = ();
+}
+
 tedge_api::make_receiver_bundle!(pub struct MeasurementReceiver(Measurement));
 
 pub struct AddressConfig {

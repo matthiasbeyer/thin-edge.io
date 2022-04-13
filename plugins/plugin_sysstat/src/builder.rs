@@ -70,6 +70,6 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for SysStatPluginBuilder {
             process: config.process.as_ref().map(|cfg| build_addr_config(cfg.send_to())).unwrap_or_else(|| Ok(Arc::new(Vec::new())))?,
         };
 
-        Ok(SysStatPlugin::new(config, addr_config).into_untyped::<()>())
+        Ok(SysStatPlugin::new(config, addr_config).into_untyped())
     }
 }
