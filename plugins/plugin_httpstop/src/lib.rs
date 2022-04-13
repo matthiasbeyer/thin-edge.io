@@ -41,7 +41,6 @@ where
     ) -> Result<(), tedge_api::PluginError> {
         debug!("Verifying HttpStopPlugin configuration");
         config
-            .get_ref()
             .clone()
             .try_into::<HttpStopConfig>()
             .map(|_| ())
@@ -57,7 +56,6 @@ where
     ) -> Result<tedge_api::plugin::BuiltPlugin, tedge_api::PluginError> {
         debug!("Instantiating HttpStopPlugin");
         let config = config
-            .get_ref()
             .clone()
             .try_into::<HttpStopConfig>()
             .map_err(|_| anyhow::anyhow!("Failed to parse log configuration"))?;
