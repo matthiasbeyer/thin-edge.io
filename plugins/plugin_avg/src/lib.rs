@@ -46,7 +46,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for AvgPluginBuilder {
             .clone()
             .try_into()
             .map(|_: AvgConfig| ())
-            .map_err(|_| anyhow::anyhow!("Failed to parse log configuration"))
+            .map_err(|_| miette::miette!("Failed to parse log configuration"))
             .map_err(PluginError::from)
     }
 
@@ -58,7 +58,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for AvgPluginBuilder {
     ) -> Result<tedge_api::plugin::BuiltPlugin, PluginError> {
         let config = config
             .try_into::<AvgConfig>()
-            .map_err(|_| anyhow::anyhow!("Failed to parse log configuration"))?;
+            .map_err(|_| miette::miette!("Failed to parse log configuration"))?;
 
         let address = plugin_dir.get_address_for::<MeasurementReceiver>(&config.target)?;
         Ok(AvgPlugin::new(address, config).finish())
@@ -123,7 +123,7 @@ impl Plugin for AvgPlugin {
         if let Some(stopper) = self.stopper.take() {
             stopper
                 .stop()
-                .map_err(|_| anyhow::anyhow!("Failed to stop mainloop"))?
+                .map_err(|_| miette::miette!("Failed to stop mainloop"))?
         }
         Ok(())
     }
