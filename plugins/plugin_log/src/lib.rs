@@ -77,7 +77,7 @@ where
             .try_into::<LogConfig>()
             .map_err(|_| anyhow::anyhow!("Failed to parse log configuration"))?;
 
-        Ok(LogPlugin::<MB>::new(config).into_untyped())
+        Ok(LogPlugin::<MB>::new(config).finish())
     }
 }
 
