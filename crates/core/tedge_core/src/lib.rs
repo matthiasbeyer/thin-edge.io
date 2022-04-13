@@ -2,6 +2,8 @@
 //!
 
 use std::collections::HashMap;
+use std::path::Path;
+use std::path::PathBuf;
 
 use tedge_api::PluginBuilder;
 use tedge_api::plugin::HandleTypes;
@@ -25,6 +27,7 @@ pub use crate::communication::PluginDirectory;
 
 /// A TedgeApplication
 pub struct TedgeApplication {
+    config_path: PathBuf,
     config: TedgeConfiguration,
     cancellation_token: CancellationToken,
     plugin_builders: HashMap<String, (HandleTypes, Box<dyn PluginBuilder<PluginDirectory>>)>,
@@ -117,12 +120,40 @@ impl TedgeApplicationBuilder {
         Ok(self)
     }
 
+    /// Build a TedgeApplication without a config file path
+    ///
+    /// # Warning
+    ///
+    /// This function is used for integration tests and should not be used by anything else.
+    ///
+    #[doc(hidden)]
     pub fn with_config(
         self,
         config: TedgeConfiguration,
     ) -> Result<(TedgeApplicationCancelSender, TedgeApplication)> {
         let cancellation = TedgeApplicationCancelSender(self.cancellation_token.clone());
         let app = TedgeApplication {
+            // this is for testing purposes only. Multi-file config should not be used in tests
+            config_path: PathBuf::from("/dev/null"),
+            config,
+            cancellation_token: self.cancellation_token,
+            plugin_builders: self.plugin_builders,
+        };
+
+        Ok((cancellation, app))
+    }
+
+    pub async fn with_config_from_path(
+        self,
+        config_path: impl AsRef<Path>,
+    ) -> Result<(TedgeApplicationCancelSender, TedgeApplication)> {
+        let config_str = tokio::fs::read_to_string(&config_path)
+            .await
+            .map_err(TedgeApplicationError::ConfigReadFailed)?;
+        let config = toml::de::from_str(&config_str)?;
+        let cancellation = TedgeApplicationCancelSender(self.cancellation_token.clone());
+        let app = TedgeApplication {
+            config_path: config_path.as_ref().to_path_buf(),
             config,
             cancellation_token: self.cancellation_token,
             plugin_builders: self.plugin_builders,

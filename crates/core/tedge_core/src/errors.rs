@@ -8,6 +8,9 @@ pub enum TedgeApplicationError {
     #[error("Plugin errored during startup")]
     PluginErroredOnStart(tedge_api::error::PluginError),
 
+    #[error("Failed to read configuration file")]
+    ConfigReadFailed(std::io::Error),
+
     #[error("Config verification failed")]
     PluginConfigVerificationFailed(tedge_api::error::PluginError),
 
