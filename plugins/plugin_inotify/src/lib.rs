@@ -96,7 +96,7 @@ struct State {
 
 #[async_trait]
 impl Plugin for InotifyPlugin {
-    async fn setup(&mut self) -> Result<(), PluginError> {
+    async fn start(&mut self) -> Result<(), PluginError> {
         let mut inotify = inotify::Inotify::init().map_err(anyhow::Error::from)?;
 
         let mut watches = HashMap::new();
