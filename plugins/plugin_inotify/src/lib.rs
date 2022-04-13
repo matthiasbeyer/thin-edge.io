@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use async_trait::async_trait;
 use tokio_util::sync::CancellationToken;
+use miette::IntoDiagnostic;
 
 use tedge_api::Address;
 use tedge_api::Plugin;
@@ -47,7 +48,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for InotifyPluginBuilder {
             .clone()
             .try_into()
             .map(|_: InotifyConfig| ())
-            .map_err(|_| anyhow::anyhow!("Failed to parse inotify configuration"))
+            .map_err(|_| miette::miette!("Failed to parse inotify configuration"))
             .map_err(PluginError::from)
     }
 
@@ -59,7 +60,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for InotifyPluginBuilder {
     ) -> Result<BuiltPlugin, PluginError> {
         let config = config
             .try_into::<InotifyConfig>()
-            .map_err(|_| anyhow::anyhow!("Failed to parse inotify configuration"))?;
+            .map_err(|_| miette::miette!("Failed to parse inotify configuration"))?;
 
         let addr = plugin_dir.get_address_for(&config.target)?;
         Ok(InotifyPlugin::new(addr, config).finish())
@@ -97,7 +98,7 @@ struct State {
 #[async_trait]
 impl Plugin for InotifyPlugin {
     async fn start(&mut self) -> Result<(), PluginError> {
-        let mut inotify = inotify::Inotify::init().map_err(anyhow::Error::from)?;
+        let mut inotify = inotify::Inotify::init().into_diagnostic()?;
 
         let mut watches = HashMap::new();
         for (path, modes) in self.config.pathes.iter() {
@@ -105,7 +106,7 @@ impl Plugin for InotifyPlugin {
                 mask | inotify::WatchMask::from(*el)
             });
 
-            let descriptor = inotify.add_watch(path, mask).map_err(anyhow::Error::from)?;
+            let descriptor = inotify.add_watch(path, mask).into_diagnostic()?;
             watches.insert(descriptor, path.clone());
         }
 
@@ -129,7 +130,7 @@ impl Plugin for InotifyPlugin {
         if let Some(stopper) = self.stopper.take() {
             stopper
                 .stop()
-                .map_err(|_| anyhow::anyhow!("Failed to stop mainloop"))?
+                .map_err(|_| miette::miette!("Failed to stop mainloop"))?
         }
         Ok(())
     }
@@ -144,7 +145,7 @@ async fn main_inotify(
     let mut stream = state
         .inotify
         .event_stream(Vec::from([0; 1024]))
-        .map_err(anyhow::Error::from)?;
+        .into_diagnostic()?;
 
     loop {
         tokio::select! {
@@ -165,7 +166,7 @@ async fn main_inotify(
                     Some(Err(err)) => {
                         debug!("Received inotify event = {:?}", err);
                         if state.fail_on_err {
-                            return Err(PluginError::from(anyhow::Error::from(err)))
+                            return Err(err).into_diagnostic()
                         }
                     },
 

@@ -2035,13 +2035,13 @@ dependencies = [
 name = "plugin_inotify"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "env_logger 0.9.0",
  "futures",
  "humantime-serde",
  "inotify",
  "log",
+ "miette",
  "serde",
  "tedge_api",
  "tedge_lib",
