@@ -86,7 +86,7 @@ impl tedge_api::plugin::PluginDeclaration for HttpStopPlugin {
 
 #[async_trait::async_trait]
 impl Plugin for HttpStopPlugin {
-    async fn setup(&mut self) -> Result<(), PluginError> {
+    async fn start(&mut self) -> Result<(), PluginError> {
         debug!("Setting up HttpStopPlugin");
         let addr = self.core.clone();
         let svc = hyper::service::make_service_fn(move |_conn| {
