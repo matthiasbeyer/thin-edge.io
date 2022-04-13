@@ -1,25 +1,17 @@
+use miette::Diagnostic;
 use thiserror::Error;
 
-/// An error that a plugin might emit
-#[derive(Error, Debug)]
-pub enum PluginError {
-    /// Error kind if the configuration of the plugin was faulty
-    #[error("An error in the configuration was found")]
-    Configuration(#[from] toml::de::Error),
+/// Errors as orginating from [`Plugin`](crate::Plugin) and [`PluginBuilder`](crate::PluginBuilder)
+pub type PluginError = miette::Report;
 
-    /// Error kind to report any `anyhow::Error` error
-    #[error(transparent)]
-    Custom(#[from] anyhow::Error),
-
-    #[error("Error from directory")]
-    DirectoryError(#[from] DirectoryError),
-}
-
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Diagnostic)]
+/// An error occured while interfacing with the [`PluginDirectory`](crate::plugin::PluginDirectory)
 pub enum DirectoryError {
+    /// The given plugin name does not exist in the configuration
     #[error("Plugin named '{}' not found", .0)]
     PluginNameNotFound(String),
 
+    /// The given plugin does not support all requested message types
     #[error("Plugin '{}' does not support the following message types: {}", .0 ,.1.join(","))]
     PluginDoesNotSupport(String, Vec<&'static str>),
 }

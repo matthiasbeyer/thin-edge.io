@@ -57,7 +57,7 @@ pub trait PluginDirectory: Send + Sync {
     fn get_address_for_self<RB: ReceiverBundle>(&self) -> Result<Address<RB>, DirectoryError>;
 }
 
-/// The plugin configuration as a `toml::Spanned` table.
+/// The plugin configuration as a TOML [`Value`](toml::value::Value)
 ///
 /// It is important that configuration errors are communicated precisely
 /// and concisely. Reporting the span is not a must, but greatly helps users
@@ -323,7 +323,11 @@ pub trait Plugin: Sync + Send + DowncastSync {
 
 impl_downcast!(sync Plugin);
 
+/// A trait declaring what messages a plugin purports to handle
+///
+/// This is then used by [`PluginExt`] to make writing a [`PluginBuilder`] easier.
 pub trait PluginDeclaration: Plugin {
+    /// A [`MessageBundle`] of types this plugin handles.
     type HandledMessages: MessageBundle;
 }
 
@@ -434,6 +438,7 @@ impl From<HandleTypes> for HashSet<(&'static str, TypeId)> {
 /// A message without the expectation of a reply can use the [`NoReply`](crate::message::NoReply)
 /// type.
 pub trait Message: 'static + Send + std::fmt::Debug {
+    /// The reply to this message
     type Reply: Message;
 }
 
