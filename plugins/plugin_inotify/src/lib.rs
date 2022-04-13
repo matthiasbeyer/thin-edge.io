@@ -36,7 +36,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for InotifyPluginBuilder {
     where
         Self: Sized,
     {
-        HandleTypes::empty()
+        InotifyPlugin::get_handled_types()
     }
 
     async fn verify_configuration(
