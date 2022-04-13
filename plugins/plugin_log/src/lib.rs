@@ -60,7 +60,6 @@ where
         config: &PluginConfiguration,
     ) -> Result<(), tedge_api::error::PluginError> {
         config
-            .get_ref()
             .clone()
             .try_into()
             .map(|_: LogConfig| ())
@@ -75,7 +74,6 @@ where
         _plugin_dir: &PD,
     ) -> Result<BuiltPlugin, PluginError> {
         let config = config
-            .into_inner()
             .try_into::<LogConfig>()
             .map_err(|_| anyhow::anyhow!("Failed to parse log configuration"))?;
 
