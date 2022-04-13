@@ -54,7 +54,7 @@ impl Task for PluginTask {
 
         // we can use AssertUnwindSafe here because we're _not_ using the plugin after a panic has
         // happened.
-        match std::panic::AssertUnwindSafe(self.plugin.plugin_mut().setup()).catch_unwind().await {
+        match std::panic::AssertUnwindSafe(self.plugin.plugin_mut().start()).catch_unwind().await {
             Err(_) => {
                 // don't make use of the plugin for unwind safety reasons, and the plugin
                 // will be dropped

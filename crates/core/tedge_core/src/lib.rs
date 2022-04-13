@@ -202,7 +202,7 @@ mod tests {
 
         #[async_trait]
         impl Plugin for DummyPlugin {
-            async fn setup(&mut self) -> Result<(), PluginError> {
+            async fn start(&mut self) -> Result<(), PluginError> {
                 Ok(())
             }
 

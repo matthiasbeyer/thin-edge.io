@@ -93,7 +93,7 @@ enum CoreInternalMessage {
 
 #[async_trait]
 impl Plugin for RunningCore {
-    async fn setup(&mut self) -> Result<(), PluginError> {
+    async fn start(&mut self) -> Result<(), PluginError> {
         Ok(())
     }
 

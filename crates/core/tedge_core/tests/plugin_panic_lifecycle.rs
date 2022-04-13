@@ -75,7 +75,7 @@ impl tedge_api::plugin::PluginDeclaration for PanicPlugin {
 #[async_trait]
 impl Plugin for PanicPlugin {
     #[allow(unreachable_code)]
-    async fn setup(&mut self) -> Result<(), PluginError> {
+    async fn start(&mut self) -> Result<(), PluginError> {
         tracing::info!("Setup called");
         if let PanicLocation::Setup = self.panic_loc {
             panic!("Oh noez...");

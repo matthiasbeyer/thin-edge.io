@@ -56,7 +56,7 @@ mod not_supported {
 
     #[async_trait]
     impl Plugin for NotSupportedPlugin {
-        async fn setup(&mut self) -> Result<(), PluginError> {
+        async fn start(&mut self) -> Result<(), PluginError> {
             tracing::info!("Setup called");
             Ok(())
         }
@@ -122,7 +122,7 @@ mod sending {
 
     #[async_trait]
     impl Plugin for SendingPlugin {
-        async fn setup(&mut self) -> Result<(), PluginError> {
+        async fn start(&mut self) -> Result<(), PluginError> {
             tracing::info!("Setup called");
             Ok(())
         }

@@ -48,7 +48,7 @@ impl tedge_api::plugin::PluginDeclaration for NoShutdownPlugin {
 
 #[async_trait]
 impl Plugin for NoShutdownPlugin {
-    async fn setup(&mut self) -> Result<(), PluginError> {
+    async fn start(&mut self) -> Result<(), PluginError> {
         tracing::info!("Setup called");
         Ok(())
     }

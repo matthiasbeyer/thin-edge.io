@@ -109,7 +109,7 @@ impl Plugin for HeartbeatService {
     ///
     /// Because this example is _simple_, we do not spawn a background task that periodically sends
     /// the heartbeat. In a real world scenario, that background task would be started here.
-    async fn setup(&mut self) -> Result<(), PluginError> {
+    async fn start(&mut self) -> Result<(), PluginError> {
         println!(
             "HeartbeatService: Setting up heartbeat service with interval: {:?}!",
             self.interval_duration
@@ -271,7 +271,7 @@ impl PluginDeclaration for CriticalService {
 /// Because the CriticalService is of course a Plugin, it needs an implementation for that as well.
 #[async_trait]
 impl Plugin for CriticalService {
-    async fn setup(&mut self) -> Result<(), PluginError> {
+    async fn start(&mut self) -> Result<(), PluginError> {
         println!("CriticalService: Setting up critical service!");
         Ok(())
     }

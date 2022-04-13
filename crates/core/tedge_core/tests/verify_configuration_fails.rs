@@ -53,7 +53,7 @@ impl tedge_api::plugin::PluginDeclaration for VerifyConfigFailsPlugin {
 #[async_trait]
 impl Plugin for VerifyConfigFailsPlugin {
     #[allow(unreachable_code)]
-    async fn setup(&mut self) -> Result<(), PluginError> {
+    async fn start(&mut self) -> Result<(), PluginError> {
         unreachable!()
     }
 
