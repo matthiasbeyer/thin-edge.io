@@ -83,7 +83,7 @@ impl TedgeApplication {
                         let res = builder
                             .verify_configuration(plugin_cfg.configuration())
                             .await
-                            .map_err(TedgeApplicationError::Plugin);
+                            .map_err(TedgeApplicationError::PluginConfigVerificationFailed);
 
                         (plugin_name.to_string(), res)
                     } else {
