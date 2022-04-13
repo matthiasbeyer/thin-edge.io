@@ -22,9 +22,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for VerifyConfigFailsPluginBuilder {
         &self,
         _config: &PluginConfiguration,
     ) -> Result<(), tedge_api::error::PluginError> {
-        Err(tedge_api::error::PluginError::Custom(anyhow::anyhow!(
-            "Verification of config failed"
-        )))
+        Err(miette::miette!("Verification of config failed"))
     }
 
     async fn instantiate(

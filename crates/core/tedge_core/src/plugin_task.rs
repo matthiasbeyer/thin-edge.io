@@ -62,7 +62,7 @@ impl Task for PluginTask {
                 error!("Plugin {} paniced in setup", self.plugin_name);
                 return Err(TedgeApplicationError::PluginSetupPaniced(self.plugin_name))
             }
-            Ok(res) => res?,
+            Ok(res) => res.map_err(TedgeApplicationError::Plugin)?,
         }
         trace!("Setup for plugin '{}' finished", self.plugin_name);
         let mut receiver_closed = false;
@@ -122,7 +122,7 @@ impl Task for PluginTask {
             }
             Ok(Ok(res)) => {
                 info!("Shutting down {} completed", self.plugin_name);
-                res.map_err(TedgeApplicationError::from)
+                res.map_err(TedgeApplicationError::Plugin)
             }
         }
     }

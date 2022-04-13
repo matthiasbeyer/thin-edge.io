@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use futures::future::FutureExt;
+use miette::IntoDiagnostic;
 use tedge_api::Plugin;
 use tedge_api::PluginBuilder;
 use tedge_api::PluginConfiguration;
@@ -83,10 +84,12 @@ fn test_no_shutdown_plugin() -> Result<(), Box<(dyn std::error::Error + 'static)
             [plugins.noshut.configuration]
         "#;
 
-        let config: TedgeConfiguration = toml::de::from_str(CONF)?;
+        let config: TedgeConfiguration = toml::de::from_str(CONF).into_diagnostic()?;
         let (cancel_sender, application) = TedgeApplication::builder()
-            .with_plugin_builder(NoShutdownPluginBuilder {})?
-            .with_config(config)?;
+            .with_plugin_builder(NoShutdownPluginBuilder {})
+            .into_diagnostic()?
+            .with_config(config)
+            .into_diagnostic()?;
 
         let mut run_fut = tokio::spawn(application.run());
 
@@ -114,7 +117,7 @@ fn test_no_shutdown_plugin() -> Result<(), Box<(dyn std::error::Error + 'static)
                 _test_abort = &mut test_abort => {
                     tracing::error!("Test aborted");
                     run_fut.abort();
-                    anyhow::bail!("Timeout reached, shutdown did not happen")
+                    miette::bail!("Timeout reached, shutdown did not happen")
                 },
 
                 _ = &mut run_fut => {

@@ -83,7 +83,7 @@ impl TedgeApplication {
                         let res = builder
                             .verify_configuration(plugin_cfg.configuration())
                             .await
-                            .map_err(TedgeApplicationError::from);
+                            .map_err(TedgeApplicationError::Plugin);
 
                         (plugin_name.to_string(), res)
                     } else {
@@ -151,7 +151,8 @@ impl TedgeApplicationCancelSender {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
+    use miette::Result;
+    use miette::IntoDiagnostic;
 
     use super::*;
 
@@ -223,11 +224,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_creating_tedge_application() -> Result<()> {
-        let config = toml::de::from_str(CONFIGURATION)?;
+        let config = toml::de::from_str(CONFIGURATION).into_diagnostic()?;
 
         let (_, _) = TedgeApplication::builder()
-            .with_plugin_builder(dummy::DummyPluginBuilder {})?
-            .with_config(config)?;
+            .with_plugin_builder(dummy::DummyPluginBuilder {})
+            .into_diagnostic()?
+            .with_config(config)
+            .into_diagnostic()?;
 
         Ok(())
     }

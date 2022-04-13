@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use futures::future::FutureExt;
+use miette::IntoDiagnostic;
 use tedge_api::Plugin;
 use tedge_api::PluginBuilder;
 use tedge_api::PluginConfiguration;
@@ -38,7 +39,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for PanicPluginBuilder {
             .clone()
             .try_into()
             .map(|_: PanicPluginConf| ())
-            .map_err(tedge_api::error::PluginError::from)?;
+            .into_diagnostic()?;
         Ok(())
     }
 
@@ -50,7 +51,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for PanicPluginBuilder {
     ) -> Result<tedge_api::plugin::BuiltPlugin, PluginError> {
         let config: PanicPluginConf = config
             .try_into()
-            .map_err(tedge_api::error::PluginError::from)?;
+            .into_diagnostic()?;
 
         tracing::info!("Config = {:?}", config);
 
@@ -121,10 +122,12 @@ fn test_setup_panic_plugin() -> Result<(), Box<(dyn std::error::Error + 'static)
             panic_location = "shutdown"
         "#;
 
-        let config: TedgeConfiguration = toml::de::from_str(CONF)?;
+        let config: TedgeConfiguration = toml::de::from_str(CONF).into_diagnostic()?;
         let (cancel_sender, application) = TedgeApplication::builder()
-            .with_plugin_builder(PanicPluginBuilder {})?
-            .with_config(config)?;
+            .with_plugin_builder(PanicPluginBuilder {})
+            .into_diagnostic()?
+            .with_config(config)
+            .into_diagnostic()?;
 
         let mut run_fut = tokio::spawn(application.run());
 
@@ -152,14 +155,14 @@ fn test_setup_panic_plugin() -> Result<(), Box<(dyn std::error::Error + 'static)
                 _test_abort = &mut test_abort => {
                     tracing::error!("Test aborted");
                     run_fut.abort();
-                    anyhow::bail!("Timeout reached, shutdown did not happen")
+                    miette::bail!("Timeout reached, shutdown did not happen")
                 },
 
                 app_res = &mut run_fut => {
                     tracing::info!("application.run() returned");
                     match app_res {
                         Err(e) => {
-                            anyhow::bail!("Application errored: {:?}", e);
+                            miette::bail!("Application errored: {:?}", e);
                         }
                         Ok(_) => assert!(cancelled, "Application returned but cancel did not happen yet"),
                     }
