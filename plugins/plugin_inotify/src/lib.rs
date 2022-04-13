@@ -64,7 +64,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for InotifyPluginBuilder {
             .map_err(|_| anyhow::anyhow!("Failed to parse inotify configuration"))?;
 
         let addr = plugin_dir.get_address_for(&config.target)?;
-        Ok(InotifyPlugin::new(addr, config).into_untyped::<()>())
+        Ok(InotifyPlugin::new(addr, config).into_untyped())
     }
 }
 
@@ -73,6 +73,10 @@ struct InotifyPlugin {
     addr: Address<MeasurementReceiver>,
     config: InotifyConfig,
     stopper: Option<MainloopStopper>,
+}
+
+impl tedge_api::plugin::PluginDeclaration for InotifyPlugin {
+    type HandledMessages = ();
 }
 
 impl InotifyPlugin {
