@@ -61,7 +61,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for AvgPluginBuilder {
             .map_err(|_| anyhow::anyhow!("Failed to parse log configuration"))?;
 
         let address = plugin_dir.get_address_for::<MeasurementReceiver>(&config.target)?;
-        Ok(AvgPlugin::new(address, config).into_untyped())
+        Ok(AvgPlugin::new(address, config).finish())
     }
 
     fn kind_message_types() -> tedge_api::plugin::HandleTypes
