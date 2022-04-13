@@ -63,13 +63,13 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for AvgPluginBuilder {
             .map_err(|_| anyhow::anyhow!("Failed to parse log configuration"))?;
 
         let address = plugin_dir.get_address_for::<MeasurementReceiver>(&config.target)?;
-        Ok(AvgPlugin::new(address, config).into_untyped::<(Measurement,)>())
+        Ok(AvgPlugin::new(address, config).into_untyped())
     }
 
     fn kind_message_types() -> tedge_api::plugin::HandleTypes
         where Self:Sized
     {
-        tedge_api::plugin::HandleTypes::declare_handlers_for::<(Measurement,), AvgPlugin>()
+        AvgPlugin::get_handled_types()
     }
 
 }
@@ -81,6 +81,10 @@ struct AvgPlugin {
     config: AvgConfig,
     values: Arc<RwLock<Vec<f64>>>,
     stopper: Option<MainloopStopper>,
+}
+
+impl tedge_api::plugin::PluginDeclaration for AvgPlugin {
+    type HandledMessages = (Measurement,);
 }
 
 impl AvgPlugin {
