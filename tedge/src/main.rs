@@ -1,11 +1,12 @@
 use std::collections::HashSet;
 
 use clap::Parser;
+use miette::IntoDiagnostic;
 
 use tedge_api::PluginBuilder;
+use tedge_core::configuration::TedgeConfiguration;
 use tedge_core::TedgeApplication;
 use tedge_core::TedgeApplicationCancelSender;
-use tedge_core::configuration::TedgeConfiguration;
 use tedge_lib::measurement::Measurement;
 use tracing::debug;
 use tracing::error;
@@ -16,7 +17,7 @@ mod logging;
 
 #[tokio::main]
 #[tracing::instrument]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> miette::Result<()> {
     #[cfg(feature = "core_debugging")]
     {
         console_subscriber::init();
@@ -30,9 +31,9 @@ async fn main() -> anyhow::Result<()> {
         cli::CliCommand::ValidateConfig { ref config } => config,
     };
 
-    let configuration = tokio::fs::read_to_string(config).await?;
+    let configuration = tokio::fs::read_to_string(config).await.into_diagnostic()?;
 
-    let config: TedgeConfiguration = toml::de::from_str(&configuration)?;
+    let config: TedgeConfiguration = toml::de::from_str(&configuration).into_diagnostic()?;
     info!("Configuration loaded.");
 
     let application = TedgeApplication::builder();
@@ -46,9 +47,9 @@ async fn main() -> anyhow::Result<()> {
                     let kind_name: &'static str = <$pluginbuilder as PluginBuilder<tedge_core::PluginDirectory>>::kind_name();
                     info!("Registering plugin builder for plugins of type {}", kind_name);
                     if !plugin_kinds.insert(kind_name) {
-                        anyhow::bail!("Plugin kind '{}' was already registered, cannot register!", kind_name)
+                        miette::bail!("Plugin kind '{}' was already registered, cannot register!", kind_name)
                     }
-                    $app.with_plugin_builder($pbinstance)?
+                    $app.with_plugin_builder($pbinstance).into_diagnostic()?
                 } else {
                     trace!("Not supporting plugins of type {}", std::stringify!($pluginbuilder));
                     $app
@@ -88,7 +89,7 @@ async fn main() -> anyhow::Result<()> {
         plugin_httpstop::HttpStopPluginBuilder
     );
 
-    let (cancel_sender, application) = application.with_config(config)?;
+    let (cancel_sender, application) = application.with_config(config).into_diagnostic()?;
     info!("Application built");
 
     match args.command {
@@ -108,19 +109,19 @@ async fn main() -> anyhow::Result<()> {
 async fn run(
     cancel_sender: TedgeApplicationCancelSender,
     application: TedgeApplication,
-) -> anyhow::Result<()> {
+) -> miette::Result<()> {
     info!("Booting app now.");
     let mut run_fut = Box::pin(application.run());
 
-    let kill_app = |fut| -> anyhow::Result<()> {
+    let kill_app = |fut| -> miette::Result<()> {
         error!("Killing application");
         drop(fut);
-        anyhow::bail!("Application killed")
+        miette::bail!("Application killed")
     };
 
     let res = tokio::select! {
         res = &mut run_fut => {
-            res.map_err(anyhow::Error::from)
+            res.into_diagnostic()
         },
 
         _int = tokio::signal::ctrl_c() => {
@@ -128,7 +129,7 @@ async fn run(
                 info!("Shutting down...");
                 cancel_sender.cancel_app();
                 tokio::select! {
-                    res = &mut run_fut => res.map_err(anyhow::Error::from),
+                    res = &mut run_fut => res.into_diagnostic(),
                     _ = tokio::signal::ctrl_c() => kill_app(run_fut),
                 }
             } else {
@@ -141,7 +142,7 @@ async fn run(
     res
 }
 
-async fn validate_config(application: &TedgeApplication) -> anyhow::Result<()> {
+async fn validate_config(application: &TedgeApplication) -> miette::Result<()> {
     let mut any_err = false;
     for (plugin_name, res) in application.verify_configurations().await {
         match res {
@@ -156,7 +157,7 @@ async fn validate_config(application: &TedgeApplication) -> anyhow::Result<()> {
     }
 
     if any_err {
-        Err(anyhow::anyhow!("Plugin configuration error"))
+        Err(miette::miette!("Plugin configuration error"))
     } else {
         Ok(())
     }

@@ -3007,11 +3007,11 @@ dependencies = [
 name = "tedge-cli"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "cfg-if 1.0.0",
  "clap 3.1.6",
  "console-subscriber",
  "env_logger 0.9.0",
+ "miette",
  "plugin_avg",
  "plugin_httpstop",
  "plugin_inotify",

@@ -7,9 +7,9 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "3", features = ["derive", "cargo", "suggestions"] }
-anyhow = "1"
 toml = "0.5.8"
 tokio = { version = "1", features = ["fs", "macros", "rt-multi-thread", "signal"] }
+miette = "4.4"
 cfg-if = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }

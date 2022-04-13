@@ -1,5 +1,5 @@
 #[allow(unused)]
-pub(crate) fn setup_logging(verbose: bool, debugging: bool) -> anyhow::Result<()> {
+pub(crate) fn setup_logging(verbose: bool, debugging: bool) -> miette::Result<()> {
     #[cfg(all(feature = "core_logging", not(feature = "core_debugging")))]
     {
         use tracing_subscriber::filter::EnvFilter;
@@ -18,7 +18,7 @@ pub(crate) fn setup_logging(verbose: bool, debugging: bool) -> anyhow::Result<()
             .finish();
 
         tracing::subscriber::set_global_default(subscriber)
-            .map_err(|e| anyhow::anyhow!("Failed to set global subscriber: {:?}", e))?;
+            .map_err(|e| miette::miette!("Failed to set global subscriber: {:?}", e))?;
     }
 
     Ok(())
