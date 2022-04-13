@@ -7,12 +7,7 @@ plugin_shutdown_timeout_ms = 10000
 
 [plugins.logging]
 kind = "log"
-
-[plugins.logging.configuration]
-name = "logging"
-level = "trace"
-acknowledge = false
-setup_logger = false
+configuration_file = "./example-config-logging.toml"
 
 
 

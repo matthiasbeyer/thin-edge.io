@@ -11,6 +11,9 @@ pub enum TedgeApplicationError {
     #[error("Failed to read configuration file")]
     ConfigReadFailed(std::io::Error),
 
+    #[error("Path is not a file path {0}")]
+    PathNotAFilePath(PathBuf),
+
     #[error("Config verification failed")]
     PluginConfigVerificationFailed(tedge_api::error::PluginError),
 

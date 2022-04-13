@@ -1,5 +1,6 @@
 use std::any::TypeId;
 use std::collections::HashSet;
+use std::path::Path;
 use std::sync::Arc;
 
 use futures::StreamExt;
@@ -10,6 +11,9 @@ use tracing::debug;
 use tracing::error;
 use tracing::trace;
 
+use crate::communication::CorePluginDirectory;
+use crate::communication::PluginDirectory;
+use crate::communication::PluginInfo;
 use crate::configuration::InstanceConfiguration;
 use crate::configuration::PluginInstanceConfiguration;
 use crate::configuration::PluginKind;
@@ -18,9 +22,6 @@ use crate::errors::Result;
 use crate::plugin_task::PluginTask;
 use crate::task::Task;
 use crate::TedgeApplication;
-use crate::communication::CorePluginDirectory;
-use crate::communication::PluginDirectory;
-use crate::communication::PluginInfo;
 
 /// Helper type for running a TedgeApplication
 ///
@@ -46,26 +47,27 @@ impl Reactor {
     pub async fn run(self) -> Result<()> {
         let channel_size = self.0.config().communication_buffer_size().get();
 
-        let directory_iter = self.0
-            .config()
-            .plugins()
-            .iter()
-            .map(|(pname, pconfig)| {
-                let handle_types = self.0
-                    .plugin_builders()
-                    .get(pconfig.kind().as_ref())
-                    .map(|(handle_types, _)| {
-                        handle_types.get_types()
-                            .into_iter()
-                            .cloned()
-                            .collect::<HashSet<(&'static str, TypeId)>>()
-                    })
-                    .ok_or_else(|| {
-                        TedgeApplicationError::UnknownPluginKind(pconfig.kind().as_ref().to_string())
-                    })?;
+        let directory_iter = self.0.config().plugins().iter().map(|(pname, pconfig)| {
+            let handle_types = self
+                .0
+                .plugin_builders()
+                .get(pconfig.kind().as_ref())
+                .map(|(handle_types, _)| {
+                    handle_types
+                        .get_types()
+                        .into_iter()
+                        .cloned()
+                        .collect::<HashSet<(&'static str, TypeId)>>()
+                })
+                .ok_or_else(|| {
+                    TedgeApplicationError::UnknownPluginKind(pconfig.kind().as_ref().to_string())
+                })?;
 
-                    Ok((pname.to_string(), PluginInfo::new(handle_types, channel_size)))
-            });
+            Ok((
+                pname.to_string(),
+                PluginInfo::new(handle_types, channel_size),
+            ))
+        });
         let (core_sender, core_receiver) = tokio::sync::mpsc::channel(channel_size);
 
         let mut directory = CorePluginDirectory::collect_from(directory_iter, core_sender)?;
@@ -76,9 +78,14 @@ impl Reactor {
             .plugins()
             .iter()
             .map(|(pname, pconfig)| {
-                let receiver = match directory.get_mut(pname).and_then(|pinfo| pinfo.receiver.take()) {
+                let receiver = match directory
+                    .get_mut(pname)
+                    .and_then(|pinfo| pinfo.receiver.take())
+                {
                     Some(receiver) => receiver,
-                    None => unreachable!("Tried to take receiver twice. This is a FATAL bug, please report it"),
+                    None => unreachable!(
+                        "Tried to take receiver twice. This is a FATAL bug, please report it"
+                    ),
                 };
 
                 (pname, pconfig, receiver)
@@ -90,7 +97,14 @@ impl Reactor {
         let instantiated_plugins = plugin_instantiation_prep
             .into_iter()
             .map(|(pname, pconfig, receiver)| {
-                self.instantiate_plugin(pname, pconfig, directory.clone(), receiver, self.0.cancellation_token().child_token())
+                self.instantiate_plugin(
+                    pname,
+                    self.0.config_path(),
+                    pconfig,
+                    directory.clone(),
+                    receiver,
+                    self.0.cancellation_token().child_token(),
+                )
             })
             .collect::<futures::stream::FuturesUnordered<_>>()
             .collect::<Vec<Result<_>>>()
@@ -133,10 +147,7 @@ impl Reactor {
             .and_then(|_| core_res)
     }
 
-    fn get_config_for_plugin<'a>(
-        &'a self,
-        plugin_name: &str,
-    ) -> Option<&'a InstanceConfiguration> {
+    fn get_config_for_plugin<'a>(&'a self, plugin_name: &str) -> Option<&'a InstanceConfiguration> {
         trace!("Searching config for plugin: {}", plugin_name);
         self.0
             .config()
@@ -159,6 +170,7 @@ impl Reactor {
     async fn instantiate_plugin(
         &self,
         plugin_name: &str,
+        root_config_path: &Path,
         plugin_config: &PluginInstanceConfiguration,
         directory: Arc<CorePluginDirectory>,
         plugin_msg_receiver: tedge_api::address::MessageReceiver,
@@ -176,11 +188,14 @@ impl Reactor {
             TedgeApplicationError::PluginConfigMissing(pname)
         })?;
 
-        let config = match config.verify_with_builder(builder).await {
+        let config = match config.verify_with_builder(builder, root_config_path).await {
             Err(e) => {
-                error!("Verification of configuration failed for plugin '{}'", plugin_name);
-                return Err(e)
-            },
+                error!(
+                    "Verification of configuration failed for plugin '{}'",
+                    plugin_name
+                );
+                return Err(e);
+            }
             Ok(cfg) => cfg,
         };
 
@@ -192,7 +207,11 @@ impl Reactor {
             plugin_config.kind().as_ref()
         );
         builder
-            .instantiate(config.clone(), cancel_token, &directory.for_plugin_named(plugin_name))
+            .instantiate(
+                config.clone(),
+                cancel_token,
+                &directory.for_plugin_named(plugin_name),
+            )
             .await
             .map_err(TedgeApplicationError::PluginInstantiationFailed)
             .map(|plugin| {

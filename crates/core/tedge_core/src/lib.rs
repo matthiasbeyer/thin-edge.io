@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 
+use miette::IntoDiagnostic;
 use tedge_api::PluginBuilder;
 use tedge_api::plugin::HandleTypes;
 use tokio_util::sync::CancellationToken;
@@ -47,6 +48,10 @@ impl TedgeApplication {
         }
     }
 
+    pub(crate) fn config_path(&self) -> &Path {
+        &self.config_path
+    }
+
     pub(crate) fn config(&self) -> &TedgeConfiguration {
         &self.config
     }
@@ -80,8 +85,9 @@ impl TedgeApplication {
                         debug!("Verifying {}", plugin_cfg.kind().as_ref());
                         let res = plugin_cfg
                             .configuration()
-                            .verify_with_builder(builder)
+                            .verify_with_builder(builder, self.config_path())
                             .await
+                            .into_diagnostic()
                             .map_err(TedgeApplicationError::PluginConfigVerificationFailed)
                             .map(|_| ());
                         (plugin_name.to_string(), res)
@@ -90,7 +96,7 @@ impl TedgeApplication {
                             plugin_name.to_string(),
                             Err(TedgeApplicationError::UnknownPluginKind(
                                 plugin_cfg.kind().as_ref().to_string(),
-                            )),
+                            ))
                         )
                     }
                 },
@@ -253,6 +259,12 @@ mod tests {
         kind = "dummy_plugin"
         [plugins.testplug.configuration]
     "#;
+
+    #[test]
+    fn test_deser_empty_plugin_config() {
+        let s = "";
+        let _: tedge_api::PluginConfiguration = toml::de::from_str(s).unwrap();
+    }
 
     #[tokio::test]
     async fn test_creating_tedge_application() -> Result<()> {
