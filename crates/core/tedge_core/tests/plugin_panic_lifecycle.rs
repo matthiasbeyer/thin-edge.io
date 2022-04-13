@@ -34,9 +34,10 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for PanicPluginBuilder {
         &self,
         config: &PluginConfiguration,
     ) -> Result<(), tedge_api::error::PluginError> {
-        config.get_ref()
+        config
             .clone()
-            .try_into::<PanicPluginConf>()
+            .try_into()
+            .map(|_: PanicPluginConf| ())
             .map_err(tedge_api::error::PluginError::from)?;
         Ok(())
     }
@@ -47,9 +48,8 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for PanicPluginBuilder {
         _cancellation_token: tedge_api::CancellationToken,
         _plugin_dir: &PD,
     ) -> Result<tedge_api::plugin::BuiltPlugin, PluginError> {
-        let config = config.get_ref()
-            .clone()
-            .try_into::<PanicPluginConf>()
+        let config: PanicPluginConf = config
+            .try_into()
             .map_err(tedge_api::error::PluginError::from)?;
 
         tracing::info!("Config = {:?}", config);
