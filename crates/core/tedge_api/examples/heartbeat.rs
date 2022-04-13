@@ -368,6 +368,12 @@ impl PluginDirectory for Communication {
     fn get_address_for_core(&self) -> Address<tedge_api::CoreMessages> {
         todo!()
     }
+
+    fn get_address_for_self<RB: tedge_api::address::ReceiverBundle>(
+        &self,
+    ) -> Result<Address<RB>, tedge_api::error::DirectoryError> {
+        todo!()
+    }
 }
 
 /// Helper function
