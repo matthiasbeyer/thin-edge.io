@@ -2020,10 +2020,10 @@ dependencies = [
 name = "plugin_httpstop"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "hyper",
  "log",
+ "miette",
  "serde",
  "tedge_api",
  "tokio",

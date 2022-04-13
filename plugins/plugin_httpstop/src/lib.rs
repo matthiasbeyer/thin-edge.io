@@ -44,7 +44,7 @@ where
             .clone()
             .try_into::<HttpStopConfig>()
             .map(|_| ())
-            .map_err(|_| anyhow::anyhow!("Failed to parse log configuration"))
+            .map_err(|_| miette::miette!("Failed to parse log configuration"))
             .map_err(PluginError::from)
     }
 
@@ -58,7 +58,7 @@ where
         let config = config
             .clone()
             .try_into::<HttpStopConfig>()
-            .map_err(|_| anyhow::anyhow!("Failed to parse log configuration"))?;
+            .map_err(|_| miette::miette!("Failed to parse log configuration"))?;
 
         let plugin = HttpStopPlugin {
             cancellation_token,
