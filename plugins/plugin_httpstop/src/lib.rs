@@ -32,7 +32,7 @@ where
     where
         Self: Sized,
     {
-        HandleTypes::empty()
+        HttpStopPlugin::get_handled_types()
     }
 
     async fn verify_configuration(
