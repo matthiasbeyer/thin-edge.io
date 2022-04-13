@@ -27,7 +27,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for SysStatPluginBuilder {
     where
         Self: Sized,
     {
-        HandleTypes::empty()
+        SysStatPlugin::get_handled_types()
     }
 
     async fn verify_configuration(
