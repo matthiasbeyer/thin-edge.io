@@ -107,7 +107,7 @@ impl<MB> Plugin for LogPlugin<MB>
 where
     MB: MessageBundle + Sync + Send + 'static,
 {
-    async fn setup(&mut self) -> Result<(), PluginError> {
+    async fn start(&mut self) -> Result<(), PluginError> {
         debug!(
             "Setting up log plugin with default level = {}, acknowledge = {}!",
             self.config.level, self.config.acknowledge
