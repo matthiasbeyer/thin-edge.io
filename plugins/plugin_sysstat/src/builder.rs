@@ -35,7 +35,6 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for SysStatPluginBuilder {
         config: &PluginConfiguration,
     ) -> Result<(), tedge_api::error::PluginError> {
         config
-            .get_ref()
             .clone()
             .try_into()
             .map(|_: SysStatConfig| ())
@@ -50,7 +49,6 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for SysStatPluginBuilder {
         plugin_dir: &PD,
     ) -> Result<BuiltPlugin, PluginError> {
         let config = config
-            .into_inner()
             .try_into::<SysStatConfig>()
             .map_err(|e| anyhow::anyhow!("Failed to parse sysinfo configuration: {:?}", e))?;
 
