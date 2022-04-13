@@ -38,7 +38,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for SysStatPluginBuilder {
             .clone()
             .try_into()
             .map(|_: SysStatConfig| ())
-            .map_err(|e| anyhow::anyhow!("Failed to parse sysinfo configuration: {:?}", e))
+            .map_err(|e| miette::miette!("Failed to parse sysinfo configuration: {:?}", e))
             .map_err(PluginError::from)
     }
 
@@ -50,7 +50,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for SysStatPluginBuilder {
     ) -> Result<BuiltPlugin, PluginError> {
         let config = config
             .try_into::<SysStatConfig>()
-            .map_err(|e| anyhow::anyhow!("Failed to parse sysinfo configuration: {:?}", e))?;
+            .map_err(|e| miette::miette!("Failed to parse sysinfo configuration: {:?}", e))?;
 
         let build_addr_config = |adrs: &[String]| {
             adrs.iter()

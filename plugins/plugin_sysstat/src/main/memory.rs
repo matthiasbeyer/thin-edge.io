@@ -140,7 +140,7 @@ pub async fn main_memory(state: Arc<Mutex<MemoryState>>) -> Result<(), PluginErr
         .await
         .into_iter()
         .map(|res| {
-            res.map_err(|_| PluginError::from(anyhow::anyhow!("Failed to send measurement")))
+            res.map_err(|_| PluginError::from(miette::miette!("Failed to send measurement")))
                 .map(|_| ())
         })
         .collect::<Result<Vec<()>, PluginError>>()

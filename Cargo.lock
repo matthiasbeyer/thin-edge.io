@@ -2090,10 +2090,10 @@ dependencies = [
 name = "plugin_sysstat"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "futures",
  "log",
+ "miette",
  "serde",
  "sysinfo",
  "tedge_api",
