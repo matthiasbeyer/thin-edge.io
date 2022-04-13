@@ -70,7 +70,7 @@ where
             join_handle: None,
         };
 
-        Ok(plugin.into_untyped::<()>())
+        Ok(plugin.into_untyped())
     }
 }
 
@@ -80,6 +80,10 @@ pub struct HttpStopPlugin {
     core: Address<CoreMessages>,
 
     join_handle: Option<JoinHandle<Result<(), hyper::Error>>>,
+}
+
+impl tedge_api::plugin::PluginDeclaration for HttpStopPlugin {
+    type HandledMessages = ();
 }
 
 #[async_trait::async_trait]
