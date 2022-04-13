@@ -183,18 +183,22 @@ mod tests {
                 _cancellation_token: tedge_api::CancellationToken,
                 _plugin_dir: &PluginDirectory,
             ) -> Result<BuiltPlugin, PluginError> {
-                Ok(DummyPlugin.into_untyped::<()>())
+                Ok(DummyPlugin.into_untyped())
             }
 
             fn kind_message_types() -> HandleTypes
                 where Self:Sized
             {
-                HandleTypes::empty()
+                DummyPlugin::get_handled_types()
             }
 
         }
 
         pub struct DummyPlugin;
+
+        impl tedge_api::plugin::PluginDeclaration for DummyPlugin {
+            type HandledMessages = ();
+        }
 
         #[async_trait]
         impl Plugin for DummyPlugin {

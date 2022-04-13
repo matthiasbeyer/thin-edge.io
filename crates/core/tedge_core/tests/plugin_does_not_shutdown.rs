@@ -30,17 +30,21 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for NoShutdownPluginBuilder {
         _cancellation_token: tedge_api::CancellationToken,
         _plugin_dir: &PD,
     ) -> Result<tedge_api::plugin::BuiltPlugin, PluginError> {
-        Ok(NoShutdownPlugin {}.into_untyped::<()>())
+        Ok(NoShutdownPlugin {}.into_untyped())
     }
 
     fn kind_message_types() -> tedge_api::plugin::HandleTypes
         where Self:Sized
     {
-        tedge_api::plugin::HandleTypes::declare_handlers_for::<(), NoShutdownPlugin>()
+        NoShutdownPlugin::get_handled_types()
     }
 }
 
 struct NoShutdownPlugin;
+
+impl tedge_api::plugin::PluginDeclaration for NoShutdownPlugin {
+    type HandledMessages = ();
+}
 
 #[async_trait]
 impl Plugin for NoShutdownPlugin {

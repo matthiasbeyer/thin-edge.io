@@ -37,18 +37,22 @@ mod not_supported {
             _cancellation_token: tedge_api::CancellationToken,
             _plugin_dir: &PD,
         ) -> Result<tedge_api::plugin::BuiltPlugin, PluginError> {
-            Ok(NotSupportedPlugin {}.into_untyped::<()>())
+            Ok(NotSupportedPlugin {}.into_untyped())
         }
 
         fn kind_message_types() -> tedge_api::plugin::HandleTypes
         where
             Self: Sized,
         {
-            tedge_api::plugin::HandleTypes::declare_handlers_for::<(), NotSupportedPlugin>()
+            NotSupportedPlugin::get_handled_types()
         }
     }
 
     struct NotSupportedPlugin;
+
+    impl tedge_api::plugin::PluginDeclaration for NotSupportedPlugin {
+        type HandledMessages = ();
+    }
 
     #[async_trait]
     impl Plugin for NotSupportedPlugin {
@@ -99,18 +103,22 @@ mod sending {
             let _target_addr = plugin_dir.get_address_for::<SendingMessages>(
                 crate::not_supported::NOT_SUPPORTED_PLUGIN_NAME,
             )?;
-            Ok(SendingPlugin {}.into_untyped::<()>())
+            Ok(SendingPlugin {}.into_untyped())
         }
 
         fn kind_message_types() -> tedge_api::plugin::HandleTypes
         where
             Self: Sized,
         {
-            tedge_api::plugin::HandleTypes::declare_handlers_for::<(), SendingPlugin>()
+            SendingPlugin::get_handled_types()
         }
     }
 
     struct SendingPlugin;
+
+    impl tedge_api::plugin::PluginDeclaration for SendingPlugin {
+        type HandledMessages = ();
+    }
 
     #[async_trait]
     impl Plugin for SendingPlugin {

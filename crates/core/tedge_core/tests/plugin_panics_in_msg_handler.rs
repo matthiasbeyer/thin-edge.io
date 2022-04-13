@@ -35,13 +35,13 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for HandlePanicPluginBuilder {
         plugin_dir: &PD,
     ) -> Result<tedge_api::plugin::BuiltPlugin, PluginError> {
         let self_addr = plugin_dir.get_address_for::<ReceivePanic>("panic")?;
-        Ok(HandlePanicPlugin { self_addr }.into_untyped::<(DoPanic,)>())
+        Ok(HandlePanicPlugin { self_addr }.into_untyped())
     }
 
     fn kind_message_types() -> tedge_api::plugin::HandleTypes
         where Self:Sized
     {
-        tedge_api::plugin::HandleTypes::declare_handlers_for::<(DoPanic,), HandlePanicPlugin>()
+        HandlePanicPlugin::get_handled_types()
     }
 }
 
@@ -49,6 +49,10 @@ tedge_api::make_receiver_bundle!(struct ReceivePanic(DoPanic));
 
 struct HandlePanicPlugin {
     self_addr: Address<ReceivePanic>,
+}
+
+impl tedge_api::plugin::PluginDeclaration for HandlePanicPlugin {
+    type HandledMessages = (DoPanic,);
 }
 
 #[async_trait]

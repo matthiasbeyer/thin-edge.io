@@ -36,7 +36,7 @@ impl CoreTask {
         let running_core = RunningCore {
             sender: self.internal_sender,
         };
-        let built_plugin = running_core.into_untyped::<(StopCore,)>();
+        let built_plugin = running_core.into_untyped();
         let mut receiver_closed = false;
 
         loop {
@@ -81,6 +81,10 @@ impl CoreTask {
 
 struct RunningCore {
     sender: tokio::sync::mpsc::Sender<CoreInternalMessage>,
+}
+
+impl tedge_api::plugin::PluginDeclaration for RunningCore {
+    type HandledMessages = (StopCore,);
 }
 
 enum CoreInternalMessage {

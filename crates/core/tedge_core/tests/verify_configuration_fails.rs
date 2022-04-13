@@ -5,6 +5,7 @@ use tedge_api::PluginBuilder;
 use tedge_api::PluginConfiguration;
 use tedge_api::PluginDirectory;
 use tedge_api::PluginError;
+use tedge_api::PluginExt;
 use tedge_core::configuration::TedgeConfiguration;
 use tedge_core::TedgeApplication;
 use tedge_core::errors::TedgeApplicationError;
@@ -39,11 +40,15 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for VerifyConfigFailsPluginBuilder {
     where
         Self: Sized,
     {
-        HandleTypes::empty()
+        VerifyConfigFailsPlugin::get_handled_types()
     }
 }
 
 struct VerifyConfigFailsPlugin;
+
+impl tedge_api::plugin::PluginDeclaration for VerifyConfigFailsPlugin {
+    type HandledMessages = ();
+}
 
 #[async_trait]
 impl Plugin for VerifyConfigFailsPlugin {

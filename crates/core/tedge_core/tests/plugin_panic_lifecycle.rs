@@ -54,18 +54,22 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for PanicPluginBuilder {
 
         tracing::info!("Config = {:?}", config);
 
-        Ok(PanicPlugin { panic_loc: config.panic_location }.into_untyped::<()>())
+        Ok(PanicPlugin { panic_loc: config.panic_location }.into_untyped())
     }
 
     fn kind_message_types() -> HandleTypes
         where Self:Sized
     {
-        HandleTypes::declare_handlers_for::<(), PanicPlugin>()
+        PanicPlugin::get_handled_types()
     }
 }
 
 struct PanicPlugin {
     panic_loc: PanicLocation,
+}
+
+impl tedge_api::plugin::PluginDeclaration for PanicPlugin {
+    type HandledMessages = ();
 }
 
 #[async_trait]
