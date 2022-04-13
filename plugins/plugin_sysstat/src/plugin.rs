@@ -45,7 +45,7 @@ impl SysStatPlugin {
 
 #[async_trait]
 impl Plugin for SysStatPlugin {
-    async fn setup(&mut self) -> Result<(), PluginError> {
+    async fn start(&mut self) -> Result<(), PluginError> {
         macro_rules! run {
             ($t:ty, $sender:expr, $main:expr) => {
                 if let Some(state) = <$t>::new_from_config(&self.config, $sender.clone()) {
