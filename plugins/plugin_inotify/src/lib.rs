@@ -62,7 +62,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for InotifyPluginBuilder {
             .map_err(|_| anyhow::anyhow!("Failed to parse inotify configuration"))?;
 
         let addr = plugin_dir.get_address_for(&config.target)?;
-        Ok(InotifyPlugin::new(addr, config).into_untyped())
+        Ok(InotifyPlugin::new(addr, config).finish())
     }
 }
 
