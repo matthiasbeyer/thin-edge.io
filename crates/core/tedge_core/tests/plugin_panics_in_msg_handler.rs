@@ -35,7 +35,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for HandlePanicPluginBuilder {
         plugin_dir: &PD,
     ) -> Result<tedge_api::plugin::BuiltPlugin, PluginError> {
         let self_addr = plugin_dir.get_address_for::<ReceivePanic>("panic")?;
-        Ok(HandlePanicPlugin { self_addr }.into_untyped())
+        Ok(HandlePanicPlugin { self_addr }.finish())
     }
 
     fn kind_message_types() -> tedge_api::plugin::HandleTypes

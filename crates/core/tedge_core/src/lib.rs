@@ -183,7 +183,7 @@ mod tests {
                 _cancellation_token: tedge_api::CancellationToken,
                 _plugin_dir: &PluginDirectory,
             ) -> Result<BuiltPlugin, PluginError> {
-                Ok(DummyPlugin.into_untyped())
+                Ok(DummyPlugin.finish())
             }
 
             fn kind_message_types() -> HandleTypes

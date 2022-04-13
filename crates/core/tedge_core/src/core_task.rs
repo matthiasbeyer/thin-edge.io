@@ -36,7 +36,7 @@ impl CoreTask {
         let running_core = RunningCore {
             sender: self.internal_sender,
         };
-        let built_plugin = running_core.into_untyped();
+        let built_plugin = running_core.finish();
         let mut receiver_closed = false;
 
         loop {

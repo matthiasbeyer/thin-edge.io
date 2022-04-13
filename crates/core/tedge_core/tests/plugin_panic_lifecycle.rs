@@ -54,7 +54,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for PanicPluginBuilder {
 
         tracing::info!("Config = {:?}", config);
 
-        Ok(PanicPlugin { panic_loc: config.panic_location }.into_untyped())
+        Ok(PanicPlugin { panic_loc: config.panic_location }.finish())
     }
 
     fn kind_message_types() -> HandleTypes
