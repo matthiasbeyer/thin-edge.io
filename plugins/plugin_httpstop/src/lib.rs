@@ -68,7 +68,7 @@ where
             join_handle: None,
         };
 
-        Ok(plugin.into_untyped())
+        Ok(plugin.finish())
     }
 }
 
