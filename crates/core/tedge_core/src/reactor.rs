@@ -193,11 +193,15 @@ impl Reactor {
             .instantiate(config.clone(), cancel_token, &directory.for_plugin_named(plugin_name))
             .await
             .map_err(TedgeApplicationError::Plugin)
-            .map(|plugin| PluginTaskPrep {
-                name: plugin_name.to_string(),
-                plugin,
-                plugin_msg_receiver,
-                cancellation_token,
+            .map(|plugin| {
+                trace!("Instantiation of plugin '{}' successfull", plugin_name);
+
+                PluginTaskPrep {
+                    name: plugin_name.to_string(),
+                    plugin,
+                    plugin_msg_receiver,
+                    cancellation_token,
+                }
             })
     }
 }
