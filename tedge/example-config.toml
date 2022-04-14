@@ -81,3 +81,23 @@ kind = "httpstop"
 [plugins.httpstopper.configuration]
 bind = "127.0.0.1:9090"
 
+
+[plugins.plugmqtt]
+kind = "mqtt"
+
+[plugins.plugmqtt.configuration]
+host = "tcp://localhost:1883"
+target = "logging"
+
+[[plugins.plugmqtt.configuration.subscriptions]]
+topic = "subs"
+qos = "at_most_once"
+
+
+
+[plugins.mqttbridge]
+kind = "mqtt_measurement_bridge"
+[plugins.mqttbridge.configuration]
+mqtt_plugin_name = "plugmqtt"
+topic = "pubs"
+

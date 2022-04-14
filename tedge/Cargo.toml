@@ -14,6 +14,7 @@ cfg-if = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
 console-subscriber = { version = "0.1", optional = true }
+cfg_table = "1.0.0"
 
 tedge_api = { path = "../crates/core/tedge_api" }
 tedge_core = { path = "../crates/core/tedge_core" }
@@ -27,6 +28,8 @@ plugin_sysstat = { path = "../plugins/plugin_sysstat", optional = true }
 plugin_inotify = { path = "../plugins/plugin_inotify", optional = true }
 plugin_httpstop = { path = "../plugins/plugin_httpstop", optional = true }
 plugin_measurement_filter = { path = "../plugins/plugin_measurement_filter", optional = true }
+plugin_mqtt = { path = "../plugins/plugin_mqtt", optional = true }
+plugin_mqtt_measurement_bridge = { path = "../plugins/plugin_mqtt_measurement_bridge", optional = true }
 
 
 [features]
@@ -48,4 +51,6 @@ builtin_plugin_sysstat = ["plugin_sysstat"]
 builtin_plugin_inotify = ["plugin_inotify"]
 builtin_plugin_httpstop = ["plugin_httpstop"]
 builtin_plugin_measurement_filter = ["plugin_measurement_filter"]
+
+mqtt = ["plugin_mqtt", "plugin_mqtt_measurement_bridge"]
 
