@@ -1,4 +1,6 @@
 use futures::FutureExt;
+use miette::Context;
+use miette::IntoDiagnostic;
 use tedge_api::address::MessageReceiver;
 use tedge_api::plugin::BuiltPlugin;
 use tokio_util::sync::CancellationToken;
@@ -8,7 +10,6 @@ use tracing::info;
 use tracing::trace;
 use tracing::warn;
 
-use crate::errors::Result;
 use crate::errors::TedgeApplicationError;
 use crate::task::Task;
 
@@ -49,20 +50,26 @@ impl PluginTask {
 #[async_trait::async_trait]
 impl Task for PluginTask {
     #[tracing::instrument]
-    async fn run(mut self) -> Result<()> {
+    async fn run(mut self) -> miette::Result<()> {
         trace!("Setup for plugin '{}'", self.plugin_name);
 
         // we can use AssertUnwindSafe here because we're _not_ using the plugin after a panic has
         // happened.
-        match std::panic::AssertUnwindSafe(self.plugin.plugin_mut().start()).catch_unwind().await {
+        match std::panic::AssertUnwindSafe(self.plugin.plugin_mut().start())
+            .catch_unwind()
+            .await
+        {
             Err(_) => {
                 // don't make use of the plugin for unwind safety reasons, and the plugin
                 // will be dropped
 
                 error!("Plugin {} paniced in setup", self.plugin_name);
                 return Err(TedgeApplicationError::PluginSetupPaniced(self.plugin_name))
+                    .into_diagnostic();
             }
-            Ok(res) => res.map_err(TedgeApplicationError::Plugin)?,
+            Ok(res) => {
+                res.wrap_err(TedgeApplicationError::PluginErroredOnStart)?;
+            }
         }
         trace!("Setup for plugin '{}' finished", self.plugin_name);
         let mut receiver_closed = false;
@@ -77,7 +84,8 @@ impl Task for PluginTask {
                                 // panic happened in handle_message() implementation
 
                                 error!("Plugin {} paniced in message handler", self.plugin_name);
-                                return Err(TedgeApplicationError::PluginMessageHandlerPaniced(self.plugin_name));
+                                return Err(TedgeApplicationError::PluginMessageHandlerPaniced(self.plugin_name))
+                                    .into_diagnostic();
                             },
                             Ok(Ok(_)) => debug!("Plugin handled message successfully"),
                             Ok(Err(e)) => warn!("Plugin failed to handle message: {:?}", e),
@@ -110,6 +118,7 @@ impl Task for PluginTask {
                 Err(TedgeApplicationError::PluginShutdownTimeout(
                     self.plugin_name,
                 ))
+                .into_diagnostic()
             }
             Ok(Err(e)) => {
                 error!("Waiting for plugin {} shutdown failed", self.plugin_name);
@@ -118,11 +127,11 @@ impl Task for PluginTask {
                 } else if e.is_cancelled() {
                     error!("Shutdown of {} cancelled", self.plugin_name);
                 }
-                Err(TedgeApplicationError::PluginShutdownError(self.plugin_name))
+                Err(TedgeApplicationError::PluginShutdownError(self.plugin_name)).into_diagnostic()
             }
             Ok(Ok(res)) => {
                 info!("Shutting down {} completed", self.plugin_name);
-                res.map_err(TedgeApplicationError::Plugin)
+                res.wrap_err(TedgeApplicationError::PluginShutdownError(self.plugin_name))
             }
         }
     }
