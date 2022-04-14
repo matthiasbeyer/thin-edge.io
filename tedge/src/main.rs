@@ -51,7 +51,7 @@ async fn main() -> miette::Result<()> {
                     }
                     $app.with_plugin_builder($pbinstance).into_diagnostic()?
                 } else {
-                    trace!("Not supporting plugins of type {}", std::stringify!($pluginbuilder));
+                    tracing::trace!("Not supporting plugins of type {}", std::stringify!($pluginbuilder));
                     $app
                 }
             }
