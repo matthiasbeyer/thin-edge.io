@@ -15,21 +15,12 @@ acknowledge = false
 setup_logger = false
 
 
-[plugins.warn-logging]
-kind = "log"
-
-[plugins.warn-logging.configuration]
-name = "logging"
-level = "warn"
-acknowledge = false
-setup_logger = false
-
 
 [plugins.filter-high-cpu]
 kind = "measurement_filter"
 
 [plugins.filter-high-cpu.configuration]
-target = "warn-logging"
+target = "mqttbridge"
 filtered_target = "logging"
 extractor = "global_processor_info.cpu_usage"
 more_than = 12.0
