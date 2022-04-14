@@ -1,0 +1,21 @@
+[package]
+name = "plugin_measurement_filter"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+miette = "4.4"
+async-trait = "0.1"
+tracing = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_with = "1.12"
+tokio = { version = "1", features = ["rt"] }
+tokio-util = "0.7.0"
+
+tedge_api = { path = "../../crates/core/tedge_api" }
+tedge_lib = { path = "../../crates/core/tedge_lib" }
+
+[dev-dependencies]
+toml = "0.5"

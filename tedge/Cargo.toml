@@ -26,6 +26,7 @@ plugin_log = { path = "../plugins/plugin_log", optional = true }
 plugin_sysstat = { path = "../plugins/plugin_sysstat", optional = true }
 plugin_inotify = { path = "../plugins/plugin_inotify", optional = true }
 plugin_httpstop = { path = "../plugins/plugin_httpstop", optional = true }
+plugin_measurement_filter = { path = "../plugins/plugin_measurement_filter", optional = true }
 
 
 [features]
@@ -36,6 +37,7 @@ default = [
     "builtin_plugin_sysstat",
     "builtin_plugin_inotify",
     "builtin_plugin_httpstop",
+    "builtin_plugin_measurement_filter",
 ]
 
 core_debugging = ["console-subscriber"]
@@ -45,4 +47,5 @@ builtin_plugin_log = ["plugin_log"]
 builtin_plugin_sysstat = ["plugin_sysstat"]
 builtin_plugin_inotify = ["plugin_inotify"]
 builtin_plugin_httpstop = ["plugin_httpstop"]
+builtin_plugin_measurement_filter = ["plugin_measurement_filter"]
 
