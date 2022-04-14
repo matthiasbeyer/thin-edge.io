@@ -49,7 +49,7 @@ async fn main() -> miette::Result<()> {
                     if !plugin_kinds.insert(kind_name) {
                         miette::bail!("Plugin kind '{}' was already registered, cannot register!", kind_name)
                     }
-                    $app.with_plugin_builder($pbinstance).into_diagnostic()?
+                    $app.with_plugin_builder($pbinstance)?
                 } else {
                     tracing::trace!("Not supporting plugins of type {}", std::stringify!($pluginbuilder));
                     $app
@@ -95,7 +95,7 @@ async fn main() -> miette::Result<()> {
         plugin_measurement_filter::MeasurementFilterPluginBuilder
     );
 
-    let (cancel_sender, application) = application.with_config(config).into_diagnostic()?;
+    let (cancel_sender, application) = application.with_config(config)?;
     info!("Application built");
 
     match args.command {
@@ -127,7 +127,7 @@ async fn run(
 
     let res = tokio::select! {
         res = &mut run_fut => {
-            res.into_diagnostic()
+            res
         },
 
         _int = tokio::signal::ctrl_c() => {
@@ -135,7 +135,7 @@ async fn run(
                 info!("Shutting down...");
                 cancel_sender.cancel_app();
                 tokio::select! {
-                    res = &mut run_fut => res.into_diagnostic(),
+                    res = &mut run_fut => res,
                     _ = tokio::signal::ctrl_c() => kill_app(run_fut),
                 }
             } else {
