@@ -32,7 +32,7 @@ impl CoreTask {
         }
     }
 
-    pub(crate) async fn run(mut self) -> crate::errors::Result<()> {
+    pub(crate) async fn run(mut self) -> miette::Result<()> {
         let running_core = RunningCore {
             sender: self.internal_sender,
         };
