@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 
+use miette::IntoDiagnostic;
 use tedge_api::address::Address;
 use tedge_api::address::ReplySender;
 use tedge_api::plugin::Handle;
@@ -97,11 +98,8 @@ impl Plugin for MqttPlugin {
             Ok(())
         };
 
-        match (client_shutdown_err, stop_err) {
-            (Err(e), _) => Err(e).map_err(PluginError::from),
-            (_, Err(e)) => Err(e).map_err(PluginError::from),
-            _ => Ok(()),
-        }
+        crate::error::MqttShutdownError::build_for(client_shutdown_err, stop_err)
+            .into_diagnostic()
     }
 }
 
