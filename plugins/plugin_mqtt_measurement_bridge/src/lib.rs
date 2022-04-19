@@ -114,7 +114,10 @@ impl Handle<tedge_lib::measurement::Measurement> for MqttMeasurementBridgePlugin
         let outgoing = plugin_mqtt::OutgoingMessage::for_payload(&message, self.topic.clone())?;
         match self.mqtt_plugin_addr.send(outgoing).await {
             Ok(_) => trace!("Message forwarded to MQTT plugin"),
-            Err(_) => trace!("Message not send"),
+            Err(_) => {
+                trace!("Message not send");
+                return Err(miette::miette!("Failed to send message"))
+            },
         }
         Ok(())
     }
