@@ -227,10 +227,8 @@ mod tests {
         let config = toml::de::from_str(CONFIGURATION).into_diagnostic()?;
 
         let (_, _) = TedgeApplication::builder()
-            .with_plugin_builder(dummy::DummyPluginBuilder {})
-            .into_diagnostic()?
-            .with_config(config)
-            .into_diagnostic()?;
+            .with_plugin_builder(dummy::DummyPluginBuilder {})?
+            .with_config(config)?;
 
         Ok(())
     }

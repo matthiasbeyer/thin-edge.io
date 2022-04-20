@@ -86,10 +86,8 @@ fn test_no_shutdown_plugin() -> Result<(), Box<(dyn std::error::Error + 'static)
 
         let config: TedgeConfiguration = toml::de::from_str(CONF).into_diagnostic()?;
         let (cancel_sender, application) = TedgeApplication::builder()
-            .with_plugin_builder(NoShutdownPluginBuilder {})
-            .into_diagnostic()?
-            .with_config(config)
-            .into_diagnostic()?;
+            .with_plugin_builder(NoShutdownPluginBuilder {})?
+            .with_config(config)?;
 
         let mut run_fut = tokio::spawn(application.run());
 
