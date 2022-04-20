@@ -8,6 +8,8 @@ use tedge_api::{
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, warn};
 
+use crate::errors::Result;
+
 pub struct CoreTask {
     cancellation_token: CancellationToken,
     receiver: MessageReceiver,
@@ -32,7 +34,7 @@ impl CoreTask {
         }
     }
 
-    pub(crate) async fn run(mut self) -> miette::Result<()> {
+    pub(crate) async fn run(mut self) -> Result<()> {
         let running_core = RunningCore {
             sender: self.internal_sender,
         };
@@ -93,11 +95,11 @@ enum CoreInternalMessage {
 
 #[async_trait]
 impl Plugin for RunningCore {
-    async fn start(&mut self) -> Result<(), PluginError> {
+    async fn start(&mut self) -> std::result::Result<(), PluginError> {
         Ok(())
     }
 
-    async fn shutdown(&mut self) -> Result<(), PluginError> {
+    async fn shutdown(&mut self) -> std::result::Result<(), PluginError> {
         Ok(())
     }
 }
@@ -108,7 +110,7 @@ impl Handle<StopCore> for RunningCore {
         &self,
         _message: StopCore,
         _sender: ReplySender<<StopCore as Message>::Reply>,
-    ) -> Result<(), PluginError> {
+    ) -> std::result::Result<(), PluginError> {
         let _ = self.sender.send(CoreInternalMessage::Stop).await;
         Ok(())
     }

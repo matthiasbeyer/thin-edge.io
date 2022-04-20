@@ -86,8 +86,12 @@ async fn test_verify_fails_plugin() -> Result<(), Box<(dyn std::error::Error + '
             tracing::info!("Application errored successfully: {:?}", e);
             Ok(())
         },
-        _ => {
-            panic!("Application should have errored because plugin failed to verify configuration")
+        Err(_) => {
+            panic!("Application should have errored with PluginConfigVerificationFailed because plugin failed to verify configuration")
         },
+
+        _ok => {
+            panic!("Application should have errored because plugin failed to verify configuration")
+        }
     }
 }

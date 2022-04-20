@@ -183,18 +183,15 @@ async fn test_not_supported_message() -> Result<(), Box<(dyn std::error::Error +
             tracing::info!("application.run() returned");
             match app_res {
                 Ok(_) => panic!("Application exited successfully. It should return an error though"),
-                Err(e) => {
-                    match e {
-                        TedgeApplicationError::Plugin(_) => {
-                            // TODO Check whether correct error kind is returned
-                            Ok(())
-                        }
+                Err(TedgeApplicationError::PluginInstantiationFailed(_)) => {
+                    // TODO Check whether correct error kind is returned
+                    Ok(())
+                }
 
-                        other => {
-                            panic!("Expected PluginDoesNotSupport error, found: {:?}", other);
-                        }
-                    }
-                },
+                Err(other) => {
+                    panic!("Expected PluginDoesNotSupport error, found: {:?}", other);
+                }
+
             }
         },
 

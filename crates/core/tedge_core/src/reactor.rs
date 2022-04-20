@@ -4,9 +4,6 @@ use std::sync::Arc;
 
 use futures::StreamExt;
 
-use futures::future::FutureExt;
-use miette::Context;
-use miette::IntoDiagnostic;
 use tedge_api::plugin::BuiltPlugin;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
@@ -16,6 +13,7 @@ use tracing::trace;
 use crate::configuration::PluginInstanceConfiguration;
 use crate::configuration::PluginKind;
 use crate::errors::TedgeApplicationError;
+use crate::errors::Result;
 use crate::plugin_task::PluginTask;
 use crate::task::Task;
 use crate::TedgeApplication;
@@ -44,7 +42,7 @@ struct PluginTaskPrep {
 }
 
 impl Reactor {
-    pub async fn run(self) -> miette::Result<()> {
+    pub async fn run(self) -> Result<()> {
         let channel_size = self.0.config().communication_buffer_size().get();
 
         let directory_iter = self.0
@@ -94,10 +92,10 @@ impl Reactor {
                 self.instantiate_plugin(pname, pconfig, directory.clone(), receiver, self.0.cancellation_token().child_token())
             })
             .collect::<futures::stream::FuturesUnordered<_>>()
-            .collect::<Vec<miette::Result<_>>>()
+            .collect::<Vec<Result<_>>>()
             .await
             .into_iter()
-            .collect::<miette::Result<Vec<_>>>()?;
+            .collect::<Result<Vec<_>>>()?;
         debug!("Plugins instantiated");
 
         let running_core = {
@@ -122,8 +120,7 @@ impl Reactor {
             .map(Task::run)
             .map(Box::pin)
             .collect::<futures::stream::FuturesUnordered<_>>() // main loop
-            .collect::<Vec<miette::Result<()>>>()
-            .inspect(|res| debug!("All Plugin Tasks finished running: {:?}", res));
+            .collect::<Vec<Result<()>>>();
         debug!("Plugin tasks instantiated");
 
         debug!("Entering main loop");
@@ -131,7 +128,7 @@ impl Reactor {
 
         plugin_res
             .into_iter() // result type conversion
-            .collect::<miette::Result<Vec<()>>>()
+            .collect::<Result<Vec<()>>>()
             .and_then(|_| core_res)
     }
 
@@ -165,7 +162,7 @@ impl Reactor {
         directory: Arc<CorePluginDirectory>,
         plugin_msg_receiver: tedge_api::address::MessageReceiver,
         cancellation_token: CancellationToken,
-    ) -> miette::Result<PluginTaskPrep> {
+    ) -> Result<PluginTaskPrep> {
         let builder = self
             .find_plugin_builder(plugin_config.kind())
             .ok_or_else(|| {
@@ -181,7 +178,6 @@ impl Reactor {
         if let Err(e) = builder.verify_configuration(&config).await {
             error!("Verification of configuration failed for plugin '{}'", plugin_name);
             return Err(TedgeApplicationError::PluginConfigVerificationFailed(e))
-                .into_diagnostic();
         }
 
         let cancel_token = self.0.cancellation_token.child_token();
@@ -194,7 +190,7 @@ impl Reactor {
         builder
             .instantiate(config.clone(), cancel_token, &directory.for_plugin_named(plugin_name))
             .await
-            .wrap_err(TedgeApplicationError::PluginInstantiationFailed)
+            .map_err(TedgeApplicationError::PluginInstantiationFailed)
             .map(|plugin| {
                 trace!("Instantiation of plugin '{}' successfull", plugin_name);
 

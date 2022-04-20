@@ -127,7 +127,7 @@ async fn run(
 
     let res = tokio::select! {
         res = &mut run_fut => {
-            res
+            res.into_diagnostic()
         },
 
         _int = tokio::signal::ctrl_c() => {
@@ -135,7 +135,7 @@ async fn run(
                 info!("Shutting down...");
                 cancel_sender.cancel_app();
                 tokio::select! {
-                    res = &mut run_fut => res,
+                    res = &mut run_fut => res.into_diagnostic(),
                     _ = tokio::signal::ctrl_c() => kill_app(run_fut),
                 }
             } else {

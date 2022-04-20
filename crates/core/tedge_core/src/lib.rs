@@ -3,7 +3,6 @@
 
 use std::collections::HashMap;
 
-use miette::IntoDiagnostic;
 use tedge_api::PluginBuilder;
 use tedge_api::plugin::HandleTypes;
 use tokio_util::sync::CancellationToken;
@@ -21,6 +20,7 @@ mod utils;
 use crate::configuration::PluginInstanceConfiguration;
 use crate::configuration::TedgeConfiguration;
 use crate::errors::TedgeApplicationError;
+use crate::errors::Result;
 pub use crate::communication::PluginDirectory;
 
 /// A TedgeApplication
@@ -64,13 +64,13 @@ impl TedgeApplication {
     ///
     /// This function makes sure that the configuration is verified before the plugins are started.
     /// So there is no need to call [TedgeApplication::verify_configuration] before this.
-    pub async fn run(self) -> miette::Result<()> {
+    pub async fn run(self) -> Result<()> {
         crate::reactor::Reactor(self).run().await
     }
 
     /// Check whether all configured plugin kinds exist (are available in registered plugins)
     #[tracing::instrument(skip(self))]
-    pub async fn verify_configurations(&self) -> Vec<(String, miette::Result<()>)> {
+    pub async fn verify_configurations(&self) -> Vec<(String, Result<()>)> {
         use futures::stream::StreamExt;
 
         debug!("Verifying configurations");
@@ -83,8 +83,7 @@ impl TedgeApplication {
                         let res = builder
                             .verify_configuration(plugin_cfg.configuration())
                             .await
-                            .map_err(TedgeApplicationError::PluginConfigVerificationFailed)
-                            .into_diagnostic();
+                            .map_err(TedgeApplicationError::PluginConfigVerificationFailed);
 
                         (plugin_name.to_string(), res)
                     } else {
@@ -92,13 +91,13 @@ impl TedgeApplication {
                             plugin_name.to_string(),
                             Err(TedgeApplicationError::UnknownPluginKind(
                                 plugin_cfg.kind().as_ref().to_string(),
-                            )).into_diagnostic(),
+                            )),
                         )
                     }
                 },
             )
             .collect::<futures::stream::FuturesUnordered<_>>()
-            .collect::<Vec<(String, miette::Result<()>)>>()
+            .collect::<Vec<(String, Result<()>)>>()
             .await
     }
 }
@@ -109,13 +108,12 @@ pub struct TedgeApplicationBuilder {
 }
 
 impl TedgeApplicationBuilder {
-    pub fn with_plugin_builder<PB: PluginBuilder<PluginDirectory>>(mut self, builder: PB) -> miette::Result<Self> {
+    pub fn with_plugin_builder<PB: PluginBuilder<PluginDirectory>>(mut self, builder: PB) -> Result<Self> {
         let handle_types = PB::kind_message_types();
         let kind_name = PB::kind_name();
 
         if self.plugin_builders.contains_key(kind_name) {
             return Err(TedgeApplicationError::PluginKindExists(kind_name.to_string()))
-                .into_diagnostic();
         }
 
         self.plugin_builders
@@ -126,7 +124,7 @@ impl TedgeApplicationBuilder {
     pub fn with_config(
         self,
         config: TedgeConfiguration,
-    ) -> miette::Result<(TedgeApplicationCancelSender, TedgeApplication)> {
+    ) -> Result<(TedgeApplicationCancelSender, TedgeApplication)> {
         let cancellation = TedgeApplicationCancelSender(self.cancellation_token.clone());
         let app = TedgeApplication {
             config,
@@ -229,10 +227,8 @@ mod tests {
         let config = toml::de::from_str(CONFIGURATION).into_diagnostic()?;
 
         let (_, _) = TedgeApplication::builder()
-            .with_plugin_builder(dummy::DummyPluginBuilder {})
-            .into_diagnostic()?
-            .with_config(config)
-            .into_diagnostic()?;
+            .with_plugin_builder(dummy::DummyPluginBuilder {})?
+            .with_config(config)?;
 
         Ok(())
     }
