@@ -8,10 +8,7 @@ pub struct Measurement {
 
 impl Measurement {
     pub const fn new(name: String, value: MeasurementValue) -> Self {
-        Self {
-            name,
-            value
-        }
+        Self { name, value }
     }
 
     /// Get a reference to the measurement's name.
@@ -31,11 +28,11 @@ impl tedge_api::plugin::Message for Measurement {
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[non_exhaustive]
+#[serde(untagged)]
 pub enum MeasurementValue {
     Bool(bool),
     Float(f64),
     Text(String),
     List(Vec<MeasurementValue>),
-    Map(HashMap<String, MeasurementValue>)
+    Map(HashMap<String, MeasurementValue>),
 }
-
