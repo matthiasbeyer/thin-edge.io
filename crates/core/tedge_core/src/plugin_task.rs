@@ -11,8 +11,8 @@ use tracing::info;
 use tracing::trace;
 use tracing::warn;
 
-use crate::errors::TedgeApplicationError;
 use crate::errors::Result;
+use crate::errors::TedgeApplicationError;
 use crate::task::Task;
 
 pub struct PluginTask {
@@ -61,82 +61,33 @@ impl Task for PluginTask {
         //
         // For this to resolve, we build the following pattern:
         //
-        // Two tasks are started. The first one receives messages in a loop. For each received
-        // message, a tokio task is spawned that calls `Plugin::handle_message()` (plus some panic
-        // catching). This task (its JoinHandle) is then pushed to a channel.
+        // A Plugin instance is guarded with a RwLock. That RwLock is aquired mutably during the
+        // plugin setup, non-mutably via the message handing and mutable again for the shutdown.
+        // With this we get "waiting for all handling to be finished" for free.
         //
-        // The second task receives from the channel and puts these JoinHandle objects into a
-        // FuturesUnordered, which gets awaited in a streaming-like fashion (`StreamExt::next()`).
-        // This also happens to be in a loop, of course.
-        //
-        let (handler_sender, handler_receiver) = tokio::sync::mpsc::channel(10); // TODO decide size, this decides the "concurrencyness" of the Plugin::handle_message()` calls for this plugin
-        let plugin_lifecycle_join_handle = {
-            let plugin = self.plugin;
+        let plugin = Arc::new(RwLock::new(self.plugin));
+
+        trace!("Setup for plugin '{}'", self.plugin_name);
+        plugin_setup(plugin.clone(), &self.plugin_name).await?;
+        trace!("Setup for plugin '{}' finished", self.plugin_name);
+
+        trace!("Mainloop for plugin '{}'", self.plugin_name);
+        {
             let plugin_msg_receiver = self.plugin_msg_receiver;
-            let plugin_name: String = self.plugin_name.clone();
             let task_cancel_token = self.task_cancel_token;
-            let shutdown_timeout = self.shutdown_timeout;
-
-            // Spawn a task on the runtime that implements the lifecycle of the plugin
-            tokio::spawn(process_plugin_lifecycle(
-                plugin,
+            plugin_mainloop(
+                plugin.clone(),
+                &self.plugin_name,
                 plugin_msg_receiver,
-                plugin_name,
-                handler_sender,
                 task_cancel_token,
-                shutdown_timeout,
-            ))
-        };
-
-        // Spawn a task on the runtime that takes care of waiting for the futures that call
-        // `Plugin::handle_message()`.
-        let waiter_task_join_handle = tokio::spawn(process_message_handling_futures(
-            handler_receiver,
-            self.plugin_name.clone(),
-        ));
-
-        match tokio::try_join!(plugin_lifecycle_join_handle, waiter_task_join_handle) {
-            Ok((Ok(_), Ok(_))) => Ok(()),
-            Ok((Ok(_), Err(e))) => Err(e),
-            Ok((Err(e), _)) => Err(e),
-            Err(e) => Err(TedgeApplicationError::MessageHandlingJobFailed(
-                self.plugin_name.clone(), e
-            )),
+            )
+            .await?;
         }
+        trace!("Mainloop for plugin '{}' finished", self.plugin_name);
+
+        info!("Shutting down {}", self.plugin_name);
+        plugin_shutdown(plugin, &self.plugin_name, self.shutdown_timeout).await
     }
-}
-
-/// Implements the lifecycle of a plugin
-///
-/// This function implements the lifecycle of a plugin by calling its setup() method, looping over
-/// incoming messages and passing them to the plugin and finally calling shutdown() on the plugin.
-async fn process_plugin_lifecycle(
-    plugin: BuiltPlugin,
-    plugin_msg_receiver: MessageReceiver,
-    plugin_name: String,
-    handler_sender: tokio::sync::mpsc::Sender<tokio::task::JoinHandle<Result<()>>>,
-    task_cancel_token: CancellationToken,
-    shutdown_timeout: std::time::Duration,
-) -> Result<()> {
-    let plugin = Arc::new(RwLock::new(plugin));
-
-    trace!("Setup for plugin '{}'", plugin_name);
-    plugin_setup(plugin.clone(), &plugin_name).await?;
-    trace!("Setup for plugin '{}' finished", plugin_name);
-
-    trace!("Mainloop for plugin '{}'", plugin_name);
-    plugin_mainloop(
-        plugin.clone(),
-        &plugin_name,
-        plugin_msg_receiver,
-        handler_sender,
-        task_cancel_token,
-    )
-    .await?;
-    trace!("Mainloop for plugin '{}' finished", plugin_name);
-
-    info!("Shutting down {}", plugin_name);
-    plugin_shutdown(plugin, &plugin_name, shutdown_timeout).await
 }
 
 async fn plugin_setup(plugin: Arc<RwLock<BuiltPlugin>>, plugin_name: &str) -> Result<()> {
@@ -154,7 +105,7 @@ async fn plugin_setup(plugin: Arc<RwLock<BuiltPlugin>>, plugin_name: &str) -> Re
             error!("Plugin {} paniced in setup", plugin_name);
             return Err(TedgeApplicationError::PluginSetupPaniced(
                 plugin_name.to_string(),
-            ))
+            ));
         }
         Ok(res) => {
             res.map_err(|e| TedgeApplicationError::PluginSetupFailed(plugin_name.to_string(), e))
@@ -166,7 +117,6 @@ async fn plugin_mainloop(
     plugin: Arc<RwLock<BuiltPlugin>>,
     plugin_name: &str,
     mut plugin_msg_receiver: MessageReceiver,
-    handler_sender: tokio::sync::mpsc::Sender<tokio::task::JoinHandle<Result<()>>>,
     task_cancel_token: CancellationToken,
 ) -> Result<()> {
     let mut receiver_closed = false;
@@ -180,7 +130,7 @@ async fn plugin_mainloop(
 
                         // send the future that calls Plugin::handle_message() to the task that
                         // takes care of awaiting these futures.
-                        handler_sender.send(tokio::spawn(async move {
+                        tokio::spawn(async move {
                             let read_plug = plug.read().await;
                             match std::panic::AssertUnwindSafe(read_plug.handle_message(msg)).catch_unwind().await {
                                 Err(_) => {
@@ -193,8 +143,8 @@ async fn plugin_mainloop(
                                 Ok(Err(e)) => warn!("Plugin failed to handle message: {:?}", e),
                             }
                             Ok(())
-                        })).await
-                        .map_err(|_| TedgeApplicationError::PluginMessageHandlingFailed(plugin_name.to_string()))?;
+                        }).await
+                        .map_err(|_| TedgeApplicationError::PluginMessageHandlingFailed(plugin_name.to_string()))??;
                     },
 
                     None => {
@@ -249,48 +199,4 @@ async fn plugin_shutdown(
             res.map_err(|_| TedgeApplicationError::PluginShutdownError(plugin_name.to_string()))
         }
     }
-}
-
-/// Receive and wait for the futures that call `Plugin::handle_message()`
-async fn process_message_handling_futures(
-    mut receiver: tokio::sync::mpsc::Receiver<tokio::task::JoinHandle<Result<()>>>,
-    plugin_name: String,
-) -> Result<()> {
-    use futures::stream::StreamExt;
-
-    let mut message_handle_tasks = futures::stream::FuturesUnordered::new();
-    loop {
-        tokio::select! {
-            next_handler = receiver.recv() => {
-                match next_handler {
-                    Some(h) => message_handle_tasks.push(h),
-                    None => break,
-                }
-            },
-
-            next_handler_result = message_handle_tasks.next(), if !message_handle_tasks.is_empty() => {
-                match next_handler_result {
-                    Some(Ok(Ok(()))) => {
-                        trace!("Message handler task returned Ok(())");
-                    },
-
-                    Some(Ok(Err(e))) => {
-                        trace!("Message handler task errored");
-                        return Err(e)
-                    },
-
-                    Some(Err(e)) => {
-                        trace!("Joining message handle task failed");
-                        return Err(TedgeApplicationError::MessageHandlingJobFailed(plugin_name, e))
-                    },
-
-                    None => {
-                        trace!("Stream exhausted");
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(())
 }
