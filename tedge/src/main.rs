@@ -109,6 +109,12 @@ async fn main() -> miette::Result<()> {
         plugin_mqtt_measurement_bridge::MqttMeasurementBridgePluginBuilder,
         plugin_mqtt_measurement_bridge::MqttMeasurementBridgePluginBuilder::new()
     );
+    let application = register_plugin!(
+        application,
+        "builtin_plugin_notification",
+        plugin_notification::NotificationPluginBuilder,
+        plugin_notification::NotificationPluginBuilder
+    );
 
     match args.command {
         cli::CliCommand::Run { config } => {

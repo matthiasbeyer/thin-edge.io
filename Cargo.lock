@@ -3294,6 +3294,7 @@ dependencies = [
  "plugin_measurement_filter",
  "plugin_mqtt",
  "plugin_mqtt_measurement_bridge",
+ "plugin_notification",
  "plugin_sysstat",
  "tedge_api",
  "tedge_core",
