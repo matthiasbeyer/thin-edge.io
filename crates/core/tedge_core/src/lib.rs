@@ -126,29 +126,6 @@ impl TedgeApplicationBuilder {
         Ok(self)
     }
 
-    /// Build a TedgeApplication without a config file path
-    ///
-    /// # Warning
-    ///
-    /// This function is used for integration tests and should not be used by anything else.
-    ///
-    #[doc(hidden)]
-    pub fn with_config(
-        self,
-        config: TedgeConfiguration,
-    ) -> Result<(TedgeApplicationCancelSender, TedgeApplication)> {
-        let cancellation = TedgeApplicationCancelSender(self.cancellation_token.clone());
-        let app = TedgeApplication {
-            // this is for testing purposes only. Multi-file config should not be used in tests
-            config_path: PathBuf::from("/dev/null"),
-            config,
-            cancellation_token: self.cancellation_token,
-            plugin_builders: self.plugin_builders,
-        };
-
-        Ok((cancellation, app))
-    }
-
     pub async fn with_config_from_path(
         self,
         config_path: impl AsRef<Path>,
@@ -189,91 +166,9 @@ impl TedgeApplicationCancelSender {
 
 #[cfg(test)]
 mod tests {
-    use miette::Result;
-    use miette::IntoDiagnostic;
-
-    use super::*;
-
-    mod dummy {
-        use async_trait::async_trait;
-        use tedge_api::{Plugin, PluginBuilder, PluginConfiguration, PluginError};
-        use tedge_api::plugin::{BuiltPlugin, PluginExt, HandleTypes};
-
-        use crate::communication::PluginDirectory;
-
-        pub struct DummyPluginBuilder;
-
-        #[async_trait::async_trait]
-        impl PluginBuilder<PluginDirectory> for DummyPluginBuilder {
-            fn kind_name() -> &'static str {
-                "dummy_plugin"
-            }
-
-            async fn verify_configuration(
-                &self,
-                _config: &PluginConfiguration,
-            ) -> Result<(), tedge_api::error::PluginError> {
-                Ok(())
-            }
-
-            async fn instantiate(
-                &self,
-                _config: PluginConfiguration,
-                _cancellation_token: tedge_api::CancellationToken,
-                _plugin_dir: &PluginDirectory,
-            ) -> Result<BuiltPlugin, PluginError> {
-                Ok(DummyPlugin.finish())
-            }
-
-            fn kind_message_types() -> HandleTypes
-                where Self:Sized
-            {
-                DummyPlugin::get_handled_types()
-            }
-
-        }
-
-        pub struct DummyPlugin;
-
-        impl tedge_api::plugin::PluginDeclaration for DummyPlugin {
-            type HandledMessages = ();
-        }
-
-        #[async_trait]
-        impl Plugin for DummyPlugin {
-            async fn start(&mut self) -> Result<(), PluginError> {
-                Ok(())
-            }
-
-            async fn shutdown(&mut self) -> Result<(), PluginError> {
-                Ok(())
-            }
-        }
-    }
-
-    const CONFIGURATION: &str = r#"
-        communication_buffer_size = 1
-        plugin_shutdown_timeout_ms = 1000
-        [plugins]
-        [plugins.testplug]
-        kind = "dummy_plugin"
-        [plugins.testplug.configuration]
-    "#;
-
     #[test]
     fn test_deser_empty_plugin_config() {
         let s = "";
         let _: tedge_api::PluginConfiguration = toml::de::from_str(s).unwrap();
-    }
-
-    #[tokio::test]
-    async fn test_creating_tedge_application() -> Result<()> {
-        let config = toml::de::from_str(CONFIGURATION).into_diagnostic()?;
-
-        let (_, _) = TedgeApplication::builder()
-            .with_plugin_builder(dummy::DummyPluginBuilder {})?
-            .with_config(config)?;
-
-        Ok(())
     }
 }
