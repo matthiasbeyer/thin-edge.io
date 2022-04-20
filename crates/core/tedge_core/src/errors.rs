@@ -1,10 +1,10 @@
 #[derive(Debug, miette::Diagnostic, thiserror::Error)]
 pub enum TedgeApplicationError {
     #[error("Plugin instantiation failed")]
-    PluginInstantiationFailed,
+    PluginInstantiationFailed(tedge_api::error::PluginError),
 
     #[error("Plugin errored during startup")]
-    PluginErroredOnStart,
+    PluginErroredOnStart(tedge_api::error::PluginError),
 
     #[error("Config verification failed")]
     PluginConfigVerificationFailed(tedge_api::error::PluginError),
@@ -33,4 +33,6 @@ pub enum TedgeApplicationError {
     #[error("Plugin '{0}' paniced in message handler")]
     PluginMessageHandlerPaniced(String),
 }
+
+pub(crate) type Result<T> = std::result::Result<T, TedgeApplicationError>;
 
