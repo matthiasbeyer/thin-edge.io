@@ -17,7 +17,6 @@ use tedge_api::PluginConfiguration;
 use tedge_api::PluginDirectory;
 use tedge_api::PluginError;
 use tedge_api::PluginExt;
-use tedge_core::configuration::TedgeConfiguration;
 use tedge_core::TedgeApplication;
 
 const MESSAGE_COUNT: usize = 1000;
@@ -174,26 +173,22 @@ impl Handle<Spam> for SpammedPlugin {
 async fn test_verify_concurrent_messages() -> miette::Result<()> {
     let _ = tracing_subscriber::fmt::try_init();
 
-    const CONF: &'static str = r#"
-        communication_buffer_size = 1
-        plugin_shutdown_timeout_ms = 2000
-
-        [plugins.spammer]
-        kind = "spammer"
-        configuration =  {}
-        
-        [plugins.spammed]
-        kind = "spammed"
-        configuration =  {}
-    "#;
+    let config_file_path = {
+        let dir = std::env::current_exe().unwrap().parent().unwrap().join("../../../");
+        let mut name = std::path::PathBuf::from(std::file!());
+        name.set_extension("toml");
+        let filepath = dir.join(name);
+        assert!(filepath.exists(), "Config file does not exist: {}", filepath.display());
+        filepath
+    };
 
     let (sender, mut recv) = tokio::sync::mpsc::channel(10);
 
-    let config: TedgeConfiguration = toml::de::from_str(CONF).into_diagnostic()?;
     let (_cancel_sender, application) = TedgeApplication::builder()
         .with_plugin_builder(SpammyPluginBuilder {})?
         .with_plugin_builder(SpammedPluginBuilder { sender })?
-        .with_config(config)?;
+        .with_config_from_path(config_file_path)
+        .await?;
 
     let app_loop = tokio::spawn(application.run());
     let messages = tokio::spawn(futures::stream::poll_fn(move |ctx| recv.poll_recv(ctx)).count());

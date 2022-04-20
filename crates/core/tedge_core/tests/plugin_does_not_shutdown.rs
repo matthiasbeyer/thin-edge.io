@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use futures::future::FutureExt;
-use miette::IntoDiagnostic;
 use tedge_api::Plugin;
 use tedge_api::PluginBuilder;
 use tedge_api::PluginConfiguration;
@@ -8,7 +7,6 @@ use tedge_api::PluginDirectory;
 use tedge_api::PluginError;
 use tedge_api::plugin::PluginExt;
 use tedge_core::TedgeApplication;
-use tedge_core::configuration::TedgeConfiguration;
 
 pub struct NoShutdownPluginBuilder;
 
@@ -73,21 +71,18 @@ fn test_no_shutdown_plugin() -> Result<(), Box<(dyn std::error::Error + 'static)
         .unwrap();
 
     let res = rt.block_on(async {
-        const CONF: &'static str = r#"
-            communication_buffer_size = 10
-
-            plugin_shutdown_timeout_ms = 2000
-
-            [plugins]
-            [plugins.noshut]
-            kind = "noshutdown"
-            [plugins.noshut.configuration]
-        "#;
-
-        let config: TedgeConfiguration = toml::de::from_str(CONF).into_diagnostic()?;
+        let config_file_path = {
+            let dir = std::env::current_exe().unwrap().parent().unwrap().join("../../../");
+            let mut name = std::path::PathBuf::from(std::file!());
+            name.set_extension("toml");
+            let filepath = dir.join(name);
+            assert!(filepath.exists(), "Config file does not exist: {}", filepath.display());
+            filepath
+        };
         let (cancel_sender, application) = TedgeApplication::builder()
             .with_plugin_builder(NoShutdownPluginBuilder {})?
-            .with_config(config)?;
+            .with_config_from_path(config_file_path)
+            .await?;
 
         let mut run_fut = tokio::spawn(application.run());
 

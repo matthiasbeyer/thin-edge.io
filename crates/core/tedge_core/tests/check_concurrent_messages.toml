@@ -1,0 +1,10 @@
+communication_buffer_size = 1
+plugin_shutdown_timeout_ms = 2000
+
+[plugins.spammer]
+kind = "spammer"
+configuration =  {}
+
+[plugins.spammed]
+kind = "spammed"
+configuration =  {}

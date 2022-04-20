@@ -1,5 +1,4 @@
 use futures::future::FutureExt;
-use tedge_core::configuration::TedgeConfiguration;
 use tedge_core::errors::TedgeApplicationError;
 use tedge_core::TedgeApplication;
 
@@ -11,8 +10,6 @@ mod not_supported {
     use tedge_api::PluginConfiguration;
     use tedge_api::PluginDirectory;
     use tedge_api::PluginError;
-
-    pub const NOT_SUPPORTED_PLUGIN_NAME: &'static str = "not_supported";
 
     pub struct NotSupportedPluginBuilder;
 
@@ -99,7 +96,7 @@ mod sending {
             tracing::warn!("Going to fetch addresses that do not support the messages I expect");
             // this should not work
             let _target_addr = plugin_dir.get_address_for::<SendingMessages>(
-                crate::not_supported::NOT_SUPPORTED_PLUGIN_NAME,
+                "not_supported"
             )?;
             Ok(SendingPlugin {}.finish())
         }
@@ -144,29 +141,20 @@ mod sending {
 async fn test_not_supported_message() -> Result<(), Box<(dyn std::error::Error + 'static)>> {
     let _ = tracing_subscriber::fmt::try_init();
 
-    let conf = format!(
-        r#"
-        communication_buffer_size = 10
+    let config_file_path = {
+        let dir = std::env::current_exe().unwrap().parent().unwrap().join("../../../");
+        let mut name = std::path::PathBuf::from(std::file!());
+        name.set_extension("toml");
+        let filepath = dir.join(name);
+        assert!(filepath.exists(), "Config file does not exist: {}", filepath.display());
+        filepath
+    };
 
-        plugin_shutdown_timeout_ms = 2000
-
-        [plugins]
-        [plugins.{not_supported_plugin_name}]
-        kind = "notsupported"
-        [plugins.{not_supported_plugin_name}.configuration]
-
-        [plugins.sender]
-        kind = "sending"
-        [plugins.sender.configuration]
-    "#,
-        not_supported_plugin_name = crate::not_supported::NOT_SUPPORTED_PLUGIN_NAME
-    );
-
-    let config: TedgeConfiguration = toml::de::from_str(&conf)?;
     let (cancel_sender, application) = TedgeApplication::builder()
         .with_plugin_builder(crate::not_supported::NotSupportedPluginBuilder {})?
         .with_plugin_builder(crate::sending::SendingPluginBuilder {})?
-        .with_config(config)?;
+        .with_config_from_path(config_file_path)
+        .await?;
 
     let run_fut = application.run();
 

@@ -1,0 +1,15 @@
+communication_buffer_size = 10
+
+plugin_shutdown_timeout_ms = 2000
+
+[plugins]
+
+[plugins.panic_at_the_disco_setup]
+kind = "panicplugin"
+[plugins.panic_at_the_disco_setup.configuration]
+panic_location = "setup"
+
+[plugins.panic_at_the_disco_shutdown]
+kind = "panicplugin"
+[plugins.panic_at_the_disco_shutdown.configuration]
+panic_location = "shutdown"
