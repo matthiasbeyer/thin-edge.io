@@ -30,8 +30,17 @@ pub enum TedgeApplicationError {
     #[error("Plugin '{0}' setup paniced")]
     PluginSetupPaniced(String),
 
+    #[error("Plugin '{0}' setup failed")]
+    PluginSetupFailed(String, tedge_api::error::PluginError),
+
     #[error("Plugin '{0}' paniced in message handler")]
     PluginMessageHandlerPaniced(String),
+
+    #[error("Plugin message handling for plugin '{0}' failed")]
+    PluginMessageHandlingFailed(String),
+
+    #[error("Message handling scheduling failed for plugin '{0}'")]
+    MessageHandlingJobFailed(String, tokio::task::JoinError),
 }
 
 pub(crate) type Result<T> = std::result::Result<T, TedgeApplicationError>;
