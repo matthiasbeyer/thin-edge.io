@@ -120,6 +120,11 @@ async fn plugin_mainloop(
     task_cancel_token: CancellationToken,
 ) -> Result<()> {
     let mut receiver_closed = false;
+
+    // allocate a mpsc channel with one element size
+    // one element is enough because we stop the plugin anyways if there was a panic
+    let (panic_err_sender, mut panic_err_recv) = tokio::sync::mpsc::channel(1);
+
     loop {
         tokio::select! {
             next_message = plugin_msg_receiver.recv(), if !receiver_closed => {
@@ -127,6 +132,7 @@ async fn plugin_mainloop(
                     Some(msg) => {
                         let pname = plugin_name.to_string();
                         let plug = plugin.clone();
+                        let panic_err_sender = panic_err_sender.clone();
 
                         tokio::spawn(async move {
                             let read_plug = plug.read().await;
@@ -135,12 +141,12 @@ async fn plugin_mainloop(
                                     // panic happened in handle_message() implementation
 
                                     error!("Plugin {} paniced in message handler", pname);
-                                    return Err(TedgeApplicationError::PluginMessageHandlerPaniced(pname.to_string()))
+                                    let _ = panic_err_sender
+                                        .send(TedgeApplicationError::PluginMessageHandlerPaniced(pname.to_string()));
                                 },
                                 Ok(Ok(_)) => debug!("Plugin handled message successfully"),
                                 Ok(Err(e)) => warn!("Plugin failed to handle message: {:?}", e),
                             }
-                            Ok(())
                         });
                     },
 
@@ -150,6 +156,12 @@ async fn plugin_mainloop(
                     },
                 }
             },
+
+            panic_err = panic_err_recv.recv() => {
+                if let Some(panic_err) = panic_err {
+                    return Err(panic_err)
+                }
+            }
 
             _shutdown = task_cancel_token.cancelled() => {
                 // no communication happened when we got this future returned,
