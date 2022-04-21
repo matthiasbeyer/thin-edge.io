@@ -128,8 +128,6 @@ async fn plugin_mainloop(
                         let pname = plugin_name.to_string();
                         let plug = plugin.clone();
 
-                        // send the future that calls Plugin::handle_message() to the task that
-                        // takes care of awaiting these futures.
                         tokio::spawn(async move {
                             let read_plug = plug.read().await;
                             match std::panic::AssertUnwindSafe(read_plug.handle_message(msg)).catch_unwind().await {
@@ -143,8 +141,7 @@ async fn plugin_mainloop(
                                 Ok(Err(e)) => warn!("Plugin failed to handle message: {:?}", e),
                             }
                             Ok(())
-                        }).await
-                        .map_err(|_| TedgeApplicationError::PluginMessageHandlingFailed(plugin_name.to_string()))??;
+                        });
                     },
 
                     None => {
