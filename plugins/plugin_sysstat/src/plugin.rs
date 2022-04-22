@@ -4,9 +4,9 @@ use async_trait::async_trait;
 use tedge_api::Address;
 use tedge_lib::measurement::Measurement;
 use tokio::sync::Mutex;
-
 use tedge_api::Plugin;
 use tedge_api::PluginError;
+use tracing::debug;
 
 use crate::config::SysStatConfig;
 use crate::main::State;
@@ -93,7 +93,7 @@ impl Plugin for SysStatPlugin {
     }
 
     async fn shutdown(&mut self) -> Result<(), PluginError> {
-        log::debug!("Shutting down sysstat plugin!");
+        debug!("Shutting down sysstat plugin!");
 
         while let Some(stopper) = self.stoppers.pop() {
             stopper
