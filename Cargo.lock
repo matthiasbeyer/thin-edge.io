@@ -2156,8 +2156,10 @@ dependencies = [
  "miette",
  "serde",
  "tedge_api",
+ "thiserror",
  "tokio",
  "tokio-util 0.7.0",
+ "toml",
  "tracing",
 ]
 

@@ -14,6 +14,15 @@ struct HttpStopConfig {
     bind: std::net::SocketAddr,
 }
 
+#[derive(Debug, miette::Diagnostic, thiserror::Error)]
+enum Error {
+    #[error("Failed to parse configuration")]
+    ConfigParseFailed(#[from] toml::de::Error),
+
+    #[error("HTTP Server stop failed")]
+    FailedToStopMainloop(#[from] tokio::task::JoinError),
+}
+
 pub struct HttpStopPluginBuilder;
 
 #[async_trait::async_trait]
@@ -44,7 +53,7 @@ where
             .clone()
             .try_into::<HttpStopConfig>()
             .map(|_| ())
-            .map_err(|_| miette::miette!("Failed to parse log configuration"))
+            .map_err(Error::from)
             .map_err(PluginError::from)
     }
 
@@ -58,7 +67,7 @@ where
         let config = config
             .clone()
             .try_into::<HttpStopConfig>()
-            .map_err(|_| miette::miette!("Failed to parse log configuration"))?;
+            .map_err(Error::from)?;
 
         let plugin = HttpStopPlugin {
             cancellation_token,
@@ -110,9 +119,7 @@ impl Plugin for HttpStopPlugin {
     async fn shutdown(&mut self) -> Result<(), PluginError> {
         debug!("Shutting down HttpStopPlugin");
         if let Some(join_handle) = self.join_handle.take() {
-            if let Err(e) = join_handle.await {
-                error!("HTTP Server shutdown failed: {:?}", e);
-            }
+            let _ = join_handle.await.map_err(Error::FailedToStopMainloop)?;
         }
         Ok(())
     }
