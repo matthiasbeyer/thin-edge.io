@@ -2207,6 +2207,7 @@ dependencies = [
  "serde_with",
  "tedge_api",
  "tedge_lib",
+ "thiserror",
  "tokio",
  "tokio-util 0.7.0",
  "toml",
