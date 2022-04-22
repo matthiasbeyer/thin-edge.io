@@ -1,0 +1,36 @@
+communication_buffer_size = 10
+
+plugin_shutdown_timeout_ms = 10000
+
+[plugins]
+
+[plugins.logging]
+kind = "log"
+configuration_file = "./example-config-logging.toml"
+
+
+[plugins.syscpu]
+kind = "sysinfo"
+
+[plugins.syscpu.configuration.cpu]
+send_to = ["loggin"]
+interval_ms = 1000
+
+[plugins.syscpu.configuration.cpu.report_global_processor_info]
+enable = true
+frequency = true
+cpu_usage = true
+name = true
+vendor_id = true
+brand = true
+
+[plugins.syscpu.configuration.cpu.report_processor_info]
+enable = false
+frequency = false
+cpu_usage = false
+name = false
+vendor_id = false
+brand = false
+
+[plugins.syscpu.configuration.cpu.report_physical_core_count]
+enable = false

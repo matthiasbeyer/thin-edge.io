@@ -65,7 +65,7 @@ macro_rules! register_plugin {
                 }));
 
                 Registry {
-                    app_builder: registry.app_builder.with_plugin_builder($pbinstance)?,
+                    app_builder: registry.app_builder.with_plugin_builder($pbinstance),
                     plugin_kinds: registry.plugin_kinds,
                     doc_printers: registry.doc_printers,
                 }
@@ -250,22 +250,5 @@ async fn run(
 }
 
 async fn validate_config(application: &TedgeApplication) -> miette::Result<()> {
-    let mut any_err = false;
-    for (plugin_name, res) in application.verify_configurations().await {
-        match res {
-            Err(e) => {
-                error!(%plugin_name, ?e, "Error in Plugin configuration");
-                any_err = true;
-            }
-            Ok(_) => {
-                info!(%plugin_name, "Plugin configured correctly");
-            }
-        }
-    }
-
-    if any_err {
-        Err(miette::miette!("Plugin configuration error"))
-    } else {
-        Ok(())
-    }
+    Ok(application.verify_configurations().await?)
 }
