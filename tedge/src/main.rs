@@ -124,6 +124,9 @@ async fn main() -> miette::Result<()> {
 
     match args.command {
         cli::CliCommand::Run { .. } => {
+            debug!("Verifying the configuration");
+            validate_config(&application).await?;
+
             debug!("Going to run the application");
             run(cancel_sender, application).await
         }
