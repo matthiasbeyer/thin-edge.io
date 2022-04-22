@@ -12,5 +12,7 @@ miette = "4.4"
 serde = { version = "1.0.136", features = ["derive"] }
 tracing = "0.1"
 tokio-util = "0.7.0"
+thiserror = "1"
+toml = "0.5"
 
 tedge_api = { path = "../../crates/core/tedge_api" }
