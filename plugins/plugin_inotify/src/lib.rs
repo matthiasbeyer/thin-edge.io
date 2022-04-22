@@ -25,6 +25,16 @@ use config::*;
 
 pub struct InotifyPluginBuilder;
 
+#[derive(Debug, miette::Diagnostic, thiserror::Error)]
+enum Error {
+    #[error("Failed to parse configuration")]
+    ConfigParseFailed(#[from] toml::de::Error),
+
+    #[error("Failed to stop Mainloop")]
+    FailedToStopMainloop,
+}
+
+
 tedge_api::make_receiver_bundle!(pub struct MeasurementReceiver(Measurement));
 
 #[async_trait]
@@ -48,7 +58,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for InotifyPluginBuilder {
             .clone()
             .try_into()
             .map(|_: InotifyConfig| ())
-            .map_err(|_| miette::miette!("Failed to parse inotify configuration"))
+            .map_err(Error::from)
             .map_err(PluginError::from)
     }
 
@@ -60,7 +70,8 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for InotifyPluginBuilder {
     ) -> Result<BuiltPlugin, PluginError> {
         let config = config
             .try_into::<InotifyConfig>()
-            .map_err(|_| miette::miette!("Failed to parse inotify configuration"))?;
+            .map_err(Error::from)
+            .map_err(PluginError::from)?;
 
         let addr = plugin_dir.get_address_for(&config.target)?;
         Ok(InotifyPlugin::new(addr, config).finish())
@@ -129,7 +140,7 @@ impl Plugin for InotifyPlugin {
         if let Some(stopper) = self.stopper.take() {
             stopper
                 .stop()
-                .map_err(|_| miette::miette!("Failed to stop mainloop"))?
+                .map_err(|()| Error::FailedToStopMainloop)?
         }
         Ok(())
     }
