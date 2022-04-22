@@ -59,11 +59,6 @@ impl TedgeApplication {
     /// Run the TedgeApplication that has been setup for running
     ///
     /// This function runs as long as there is no shutdown signalled to the application.
-    ///
-    /// # Note
-    ///
-    /// This function makes sure that the configuration is verified before the plugins are started.
-    /// So there is no need to call [TedgeApplication::verify_configuration] before this.
     pub async fn run(self) -> Result<()> {
         crate::reactor::Reactor(self).run().await
     }
