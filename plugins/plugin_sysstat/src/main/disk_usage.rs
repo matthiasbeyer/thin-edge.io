@@ -68,7 +68,7 @@ pub async fn main_disk_usage(state: Arc<Mutex<DiskUsageState>>) -> Result<(), Pl
                 .await
                 .into_iter()
                 .map(|res| {
-                    res.map_err(|_| PluginError::from(miette::miette!("Failed to send measurement")))
+                    res.map_err(|_| PluginError::from(crate::error::Error::FailedToSendMeasurement))
                         .map(|_| ())
                 })
                 .collect::<Result<Vec<()>, PluginError>>()
@@ -90,10 +90,10 @@ fn measure_to_messages<'a>(
         .name()
         .to_os_string()
         .into_string()
-        .map_err(|_| miette::miette!("Cannot read disk name"))?;
+        .map_err(|_| crate::error::Error::CannotReadDiskName)?;
 
     let disk_fs = std::str::from_utf8(disk.file_system())
-        .map_err(|_| miette::miette!("Disk Filesystem name not valid UTF-8"))?;
+        .map_err(crate::error::Error::Utf8Error)?;
 
     let disk_type = match disk.type_() {
         sysinfo::DiskType::HDD => "HDD",

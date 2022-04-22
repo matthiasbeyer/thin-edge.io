@@ -13,6 +13,8 @@ tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
 tokio-util = "0.7.0"
 sysinfo = "0.23"
 futures = "0.3"
+thiserror = "1"
+toml = "0.5"
 tracing = "0.1"
 
 tedge_api = { path = "../../crates/core/tedge_api" }
