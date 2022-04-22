@@ -39,7 +39,6 @@ impl tedge_api::plugin::Message for IncomingMessage {
 
 tedge_api::make_receiver_bundle!(pub struct MqttMessageReceiver(IncomingMessage));
 
-
 #[derive(Debug)]
 pub struct OutgoingMessage {
     pub(crate) payload: Vec<u8>,
@@ -65,5 +64,3 @@ impl OutgoingMessage {
 impl tedge_api::plugin::Message for OutgoingMessage {
     type Reply = tedge_api::message::NoReply; // for now
 }
-
-

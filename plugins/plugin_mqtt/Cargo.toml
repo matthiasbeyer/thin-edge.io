@@ -17,6 +17,7 @@ serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = [] }
 tokio-util = "0.7.0"
 tracing = "0.1"
+toml = "0.5"
 
 tedge_api = { path = "../../crates/core/tedge_api" }
 tedge_lib = { path = "../../crates/core/tedge_lib" }
