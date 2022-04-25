@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 async-trait = "0.1"
-env_logger = "0.9"
 humantime-serde = "1"
 log = { version = "0.4", features = ["serde"] }
 miette = "4.4"
