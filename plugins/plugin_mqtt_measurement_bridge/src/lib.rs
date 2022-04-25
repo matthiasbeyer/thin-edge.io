@@ -1,9 +1,6 @@
 use async_trait::async_trait;
-use tedge_api::Plugin;
-use tedge_api::PluginBuilder;
-use tedge_api::PluginConfiguration;
-use tedge_api::PluginDirectory;
-use tedge_api::PluginError;
+use miette::Context;
+use miette::IntoDiagnostic;
 use tedge_api::address::Address;
 use tedge_api::address::ReplySender;
 use tedge_api::plugin::BuiltPlugin;
@@ -11,6 +8,11 @@ use tedge_api::plugin::Handle;
 use tedge_api::plugin::HandleTypes;
 use tedge_api::plugin::Message;
 use tedge_api::plugin::PluginExt;
+use tedge_api::Plugin;
+use tedge_api::PluginBuilder;
+use tedge_api::PluginConfiguration;
+use tedge_api::PluginDirectory;
+use tedge_api::PluginError;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::trace;
@@ -111,15 +113,20 @@ impl Handle<tedge_lib::measurement::Measurement> for MqttMeasurementBridgePlugin
         message: tedge_lib::measurement::Measurement,
         _sender: ReplySender<<tedge_lib::measurement::Measurement as Message>::Reply>,
     ) -> Result<(), PluginError> {
-        let outgoing = plugin_mqtt::OutgoingMessage::for_payload(&message, self.topic.clone())?;
+        let json_msg = serde_json::to_string(&message)
+            .into_diagnostic()
+            .context("Cannot transform Measurement to JSON")?;
+
+        let outgoing =
+            plugin_mqtt::OutgoingMessage::new(json_msg.as_bytes().to_vec(), self.topic.clone());
+
         match self.mqtt_plugin_addr.send(outgoing).await {
             Ok(_) => trace!("Message forwarded to MQTT plugin"),
             Err(_) => {
                 trace!("Message not send");
-                return Err(miette::miette!("Failed to send message"))
-            },
+                return Err(miette::miette!("Failed to send message"));
+            }
         }
         Ok(())
     }
 }
-
