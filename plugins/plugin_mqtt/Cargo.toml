@@ -8,7 +8,6 @@ edition = "2021"
 [dependencies]
 async-trait = "0.1"
 backoff = { version = "0.4", features = ["tokio"] }
-fastrand = "1.6"
 miette = "4.4"
 thiserror = "1"
 log = { version = "0.4", features = ["serde"] }
