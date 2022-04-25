@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 
+use miette::Context;
 use miette::IntoDiagnostic;
 use tedge_api::address::Address;
 use tedge_api::address::ReplySender;
@@ -164,13 +165,8 @@ async fn mqtt_main(
 
 async fn handle_incoming_message(state: &State, message: paho_mqtt::Message) -> Result<(), PluginError> {
     debug!("Received MQTT message");
-    let payload = serde_json::from_str(&message.payload_str())
-        .map_err(|e| {
-            miette::miette!("Failed to deserialize message: {}: '{}'", e, message.payload_str())
-        })?;
-
     let incoming = crate::message::IncomingMessage {
-        payload,
+        payload: message.payload().to_vec(),
         qos: message.qos(),
         retain: message.retained(),
         topic: message.topic().to_string(),
@@ -190,16 +186,9 @@ impl Handle<OutgoingMessage> for MqttPlugin {
     ) -> Result<(), PluginError> {
         debug!("Received outgoing message");
         if let Some(client) = self.client.as_ref() {
-            debug!("Parsing payload into JSON");
-            let payload = serde_json::to_vec(&message.payload).map_err(|e| {
-                miette::miette!("Failed to deserialize message: '{:?}': {:?}", message, e)
-            })?;
-
-            let msg = paho_mqtt::Message::new(&message.topic, payload, message.qos.into());
+            let msg = paho_mqtt::Message::new(&message.topic, message.payload, message.qos.into());
             debug!("Publishing message on {}", message.topic);
-            client.publish(msg).await.map_err(|e| {
-                miette::miette!("Failed to publish message: '{:?}': {:?}", message, e)
-            })?;
+            client.publish(msg).await.into_diagnostic().context("Failed to publish message")?;
             debug!("Publishing message succeeded");
             Ok(())
         } else {
