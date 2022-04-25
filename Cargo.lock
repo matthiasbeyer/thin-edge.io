@@ -2230,11 +2230,9 @@ name = "plugin_mqtt_measurement_bridge"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "fastrand",
  "log",
  "miette",
  "plugin_mqtt",
- "rumqttc",
  "serde",
  "serde_json",
  "tedge_api",
