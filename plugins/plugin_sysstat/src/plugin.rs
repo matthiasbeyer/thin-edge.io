@@ -4,9 +4,10 @@ use async_trait::async_trait;
 use tedge_api::Address;
 use tedge_lib::measurement::Measurement;
 use tokio::sync::Mutex;
-
 use tedge_api::Plugin;
 use tedge_api::PluginError;
+use tracing::debug;
+use tracing::trace;
 
 use crate::config::SysStatConfig;
 use crate::main::State;
@@ -46,9 +47,11 @@ impl SysStatPlugin {
 #[async_trait]
 impl Plugin for SysStatPlugin {
     async fn start(&mut self) -> Result<(), PluginError> {
+        debug!("Starting sysstat plugin");
         macro_rules! run {
             ($t:ty, $sender:expr, $main:expr) => {
                 if let Some(state) = <$t>::new_from_config(&self.config, $sender.clone()) {
+                    trace!("Starting sysstat plugin with {}", std::any::type_name::<$t>());
                     let duration = std::time::Duration::from_millis(state.interval());
                     let (stopper, mainloop) =
                         tedge_lib::mainloop::Mainloop::ticking_every(duration, Mutex::new(state));
@@ -93,7 +96,7 @@ impl Plugin for SysStatPlugin {
     }
 
     async fn shutdown(&mut self) -> Result<(), PluginError> {
-        log::debug!("Shutting down sysstat plugin!");
+        debug!("Shutting down sysstat plugin!");
 
         while let Some(stopper) = self.stoppers.pop() {
             stopper
