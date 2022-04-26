@@ -135,7 +135,7 @@ impl Handle<Measurement> for AvgPlugin {
         let value = match message.value() {
             MeasurementValue::Float(f) => Some(f),
             other => {
-                log::error!(
+                tracing::error!(
                     "Received measurement that I cannot handle: {} = {}",
                     message.name(),
                     measurement_to_str(other)
