@@ -24,4 +24,8 @@ pub(crate) enum CliCommand {
 
     #[clap(name = "validate-config")]
     ValidateConfig { config: PathBuf },
+
+    /// Print the supported plugin kinds
+    #[clap(name = "get-plugin-kinds")]
+    GetPluginKinds,
 }

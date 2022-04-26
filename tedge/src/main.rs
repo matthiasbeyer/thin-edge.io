@@ -137,6 +137,15 @@ async fn main() -> miette::Result<()> {
             info!("Configuration validated");
             Ok(())
         }
+        cli::CliCommand::GetPluginKinds => {
+            use std::io::Write;
+
+            let mut out = std::io::stdout();
+            for name in application.plugin_kind_names() {
+                writeln!(out, "{}", name).into_diagnostic()?;
+            }
+            Ok(())
+        }
     }
 }
 
