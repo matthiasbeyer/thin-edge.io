@@ -134,6 +134,11 @@ impl TedgeApplicationBuilder {
     pub fn plugin_kind_names(&self) -> impl Iterator<Item = &str> {
         self.plugin_builders.keys().map(String::as_ref)
     }
+
+    #[cfg(test)]
+    pub fn plugin_builders(&self) -> &HashMap<String, (HandleTypes, Box<dyn PluginBuilder<PluginDirectory>>)> {
+        &self.plugin_builders
+    }
 }
 
 #[derive(Clone, Debug)]
