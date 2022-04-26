@@ -5,18 +5,18 @@ use tedge_api::PluginError;
 // A message that was received over MQTT by this plugin and is to be send to another plugin
 #[derive(Debug)]
 pub struct IncomingMessage {
-    pub(crate) payload: serde_json::Value,
+    pub(crate) payload: Vec<u8>,
     pub(crate) qos: i32,
     pub(crate) retain: bool,
     pub(crate) topic: String,
 }
 
 impl IncomingMessage {
-    pub fn payload(&self) -> &serde_json::Value {
+    pub fn payload(&self) -> &[u8] {
         &self.payload
     }
 
-    pub fn into_payload(self) -> serde_json::Value {
+    pub fn into_payload(self) -> Vec<u8> {
         self.payload
     }
 
@@ -42,25 +42,18 @@ tedge_api::make_receiver_bundle!(pub struct MqttMessageReceiver(IncomingMessage)
 
 #[derive(Debug)]
 pub struct OutgoingMessage {
-    pub(crate) payload: serde_json::Value,
+    pub(crate) payload: Vec<u8>,
     pub(crate) topic: String,
     pub(crate) qos: crate::config::QoS,
 }
 
 impl OutgoingMessage {
-    pub fn for_payload<T>(t: &T, topic: String) -> Result<Self, PluginError>
-        where T: serde::Serialize + std::fmt::Debug
-    {
-        let payload = serde_json::to_value(t)
-            .map_err(|e| miette::miette!("Failed to serialize '{:?}': {}", t, e))?;
-
-        Ok({
-            OutgoingMessage {
-                payload,
-                topic,
-                qos: crate::config::QoS::AtLeastOnce,
-            }
-        })
+    pub fn new(payload: Vec<u8>, topic: String) -> Self {
+        OutgoingMessage {
+            payload,
+            topic,
+            qos: crate::config::QoS::AtLeastOnce,
+        }
     }
 
     pub fn with_qos(mut self, qos: crate::config::QoS) -> Self {
