@@ -129,6 +129,11 @@ impl TedgeApplicationBuilder {
 
         Ok((cancellation, app))
     }
+
+    /// Fetch the currently registered plugin kind names from the TedgeApplicationBuilder instance
+    pub fn plugin_kind_names(&self) -> impl Iterator<Item = &str> {
+        self.plugin_builders.keys().map(String::as_ref)
+    }
 }
 
 #[derive(Clone, Debug)]
