@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::path::Path;
 
 use clap::Parser;
 use miette::IntoDiagnostic;
@@ -26,15 +27,6 @@ async fn main() -> miette::Result<()> {
     crate::logging::setup_logging(args.verbose, args.debug)?;
     info!("Tedge booting...");
     debug!("Tedge CLI: {:?}", args);
-    let config = match args.command {
-        cli::CliCommand::Run { ref config } => config,
-        cli::CliCommand::ValidateConfig { ref config } => config,
-    };
-
-    let configuration = tokio::fs::read_to_string(config).await.into_diagnostic()?;
-
-    let config: TedgeConfiguration = toml::de::from_str(&configuration).into_diagnostic()?;
-    info!("Configuration loaded.");
 
     let application = TedgeApplication::builder();
     let mut plugin_kinds = HashSet::new();
@@ -119,24 +111,49 @@ async fn main() -> miette::Result<()> {
         plugin_mqtt_measurement_bridge::MqttMeasurementBridgePluginBuilder::new()
     );
 
-    let (cancel_sender, application) = application.with_config(config)?;
-    info!("Application built");
-
     match args.command {
-        cli::CliCommand::Run { .. } => {
+        cli::CliCommand::Run { config } => {
+            let config = get_config(&config).await?;
+            info!("Configuration loaded.");
+
+            let (cancel_sender, application) = application.with_config(config)?;
+            info!("Application built");
+
             debug!("Verifying the configuration");
             validate_config(&application).await?;
 
             debug!("Going to run the application");
             run(cancel_sender, application).await
         }
-        cli::CliCommand::ValidateConfig { .. } => {
+        cli::CliCommand::ValidateConfig { config } => {
+            let config = get_config(&config).await?;
+            info!("Configuration loaded.");
+
+            let (_, application) = application.with_config(config)?;
+            info!("Application built");
+
             debug!("Only going to validate the configuration");
             validate_config(&application).await?;
             info!("Configuration validated");
             Ok(())
         }
+        cli::CliCommand::GetPluginKinds => {
+            use std::io::Write;
+
+            let mut out = std::io::stdout();
+            for name in application.plugin_kind_names() {
+                writeln!(out, "{}", name).into_diagnostic()?;
+            }
+            Ok(())
+        }
     }
+}
+
+async fn get_config(config_path: &Path) -> miette::Result<TedgeConfiguration> {
+    tokio::fs::read_to_string(config_path)
+        .await
+        .into_diagnostic()
+        .and_then(|c| toml::de::from_str(&c).into_diagnostic())
 }
 
 async fn run(

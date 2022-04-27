@@ -19,9 +19,15 @@ pub(crate) struct Cli {
 
 #[derive(Debug, clap::Subcommand)]
 pub(crate) enum CliCommand {
+    /// Run thin-edge with the passed configuration
     #[clap(name = "run")]
     Run { config: PathBuf },
 
+    /// Validate the passed configuration
     #[clap(name = "validate-config")]
     ValidateConfig { config: PathBuf },
+
+    /// Print the supported plugin kinds
+    #[clap(name = "get-plugin-kinds")]
+    GetPluginKinds,
 }
