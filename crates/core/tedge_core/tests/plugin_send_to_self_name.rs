@@ -84,7 +84,7 @@ impl tedge_api::plugin::Handle<Msg> for SelfSendPlugin {
         &self,
         _: Msg,
         _: tedge_api::address::ReplySenderFor<Msg>,
-    ) -> Result<(), miette::Error> {
+    ) -> Result<(), PluginError> {
         unimplemented!() // will never be called in this test
     }
 }

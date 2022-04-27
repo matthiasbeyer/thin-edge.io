@@ -13,7 +13,7 @@ configuration_file = "./example-config-logging.toml"
 kind = "sysinfo"
 
 [plugins.syscpu.configuration.cpu]
-send_to = ["loggin"]
+send_to = ["logging"]
 interval_ms = 1000
 
 [plugins.syscpu.configuration.cpu.report_global_processor_info]

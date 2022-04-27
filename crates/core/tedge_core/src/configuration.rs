@@ -4,11 +4,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use miette::IntoDiagnostic;
+
 use tedge_api::PluginBuilder;
 use tracing::debug;
 
-use crate::{communication::PluginDirectory, errors::PluginConfigurationError};
+use crate::{
+    communication::PluginDirectory,
+    errors::{PluginConfigVerificationError, PluginConfigurationError},
+};
 
 #[derive(serde::Deserialize, Debug)]
 pub struct TedgeConfiguration {
@@ -74,20 +77,28 @@ pub enum InstanceConfiguration {
 impl InstanceConfiguration {
     pub async fn verify_with_builder(
         &self,
+        plugin_name: &str,
         builder: &Box<dyn PluginBuilder<PluginDirectory>>,
         root_config_path: &Path,
-    ) -> Result<toml::Value, miette::Error> {
+    ) -> Result<toml::Value, PluginConfigurationError> {
         match self {
             InstanceConfiguration::Config(cfg) => builder
                 .verify_configuration(&cfg)
                 .await
+                .map_err(|e| {
+                    PluginConfigurationError::Verification(PluginConfigVerificationError {
+                        name: plugin_name.to_string(),
+                        error: e,
+                    })
+                })
                 .map(|_| cfg.to_owned()),
             InstanceConfiguration::ConfigFilePath(path) => {
                 async fn inner(
+                    plugin_name: &str,
                     builder: &Box<dyn PluginBuilder<PluginDirectory>>,
                     root_config_path: &Path,
                     path: &Path,
-                ) -> Result<toml::Value, miette::Error> {
+                ) -> Result<toml::Value, PluginConfigurationError> {
                     let file_path = root_config_path
                         .parent()
                         .ok_or_else(|| PluginConfigurationError::PathNotAFilePath {
@@ -104,12 +115,26 @@ impl InstanceConfiguration {
                             }
                         })?;
 
-                    let cfg = toml::from_str(&file_contents).into_diagnostic()?;
+                    let cfg = toml::from_str(&file_contents).map_err(|e| {
+                        PluginConfigurationError::ConfigNotParseable {
+                            path: path.to_path_buf(),
+                            error: e,
+                        }
+                    })?;
 
-                    builder.verify_configuration(&cfg).await.map(|_| cfg)
+                    builder
+                        .verify_configuration(&cfg)
+                        .await
+                        .map(|_| cfg)
+                        .map_err(|e| {
+                            PluginConfigurationError::Verification(PluginConfigVerificationError {
+                                name: plugin_name.to_string(),
+                                error: e,
+                            })
+                        })
                 }
 
-                inner(builder, root_config_path, &path).await
+                inner(plugin_name, builder, root_config_path, &path).await
             }
         }
     }

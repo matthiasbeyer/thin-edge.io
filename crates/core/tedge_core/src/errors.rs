@@ -60,6 +60,12 @@ pub enum PluginConfigurationError {
         #[source]
         error: std::io::Error,
     },
+    #[error("Could not read from path: {:?}", path)]
+    ConfigNotParseable {
+        path: PathBuf,
+        #[source]
+        error: toml::de::Error,
+    },
     #[error(transparent)]
     #[diagnostic(transparent)]
     UnknownKind(PluginKindUnknownError),
@@ -74,7 +80,7 @@ pub struct PluginKindUnknownError {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[error("Failed to instantiate plugin '{name}'")]
+#[error("Failed to verify config of plugin '{name}'")]
 pub struct PluginConfigVerificationError {
     pub name: String,
     pub error: tedge_api::error::PluginError,
@@ -82,7 +88,11 @@ pub struct PluginConfigVerificationError {
 
 impl miette::Diagnostic for PluginConfigVerificationError {
     fn related<'a>(&'a self) -> Option<Box<dyn Iterator<Item = &'a dyn miette::Diagnostic> + 'a>> {
-        Some(Box::new(std::iter::once(self.error.as_ref())))
+        Some(Box::new(std::iter::once_with(|| {
+            let err: &dyn miette::Diagnostic = &*self.error;
+
+            err
+        })))
     }
 }
 
@@ -106,7 +116,7 @@ pub enum PluginInstantiationError {
     ConfigurationNotFound(PluginConfigurationNotFoundError),
     #[error(transparent)]
     #[diagnostic(transparent)]
-    ConfigurationVerificationFailed(PluginConfigVerificationError),
+    ConfigurationVerificationFailed(PluginConfigurationError),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -118,7 +128,11 @@ pub struct PluginBuilderInstantiationError {
 
 impl miette::Diagnostic for PluginBuilderInstantiationError {
     fn related<'a>(&'a self) -> Option<Box<dyn Iterator<Item = &'a dyn miette::Diagnostic> + 'a>> {
-        Some(Box::new(std::iter::once(self.error.as_ref())))
+        Some(Box::new(std::iter::once_with(|| {
+            let err: &dyn miette::Diagnostic = &*self.error;
+
+            err
+        })))
     }
 }
 
@@ -168,7 +182,11 @@ pub struct PluginStartFailed {
 
 impl miette::Diagnostic for PluginStartFailed {
     fn related<'a>(&'a self) -> Option<Box<dyn Iterator<Item = &'a dyn miette::Diagnostic> + 'a>> {
-        Some(Box::new(std::iter::once(self.error.as_ref())))
+        Some(Box::new(std::iter::once_with(|| {
+            let err: &dyn miette::Diagnostic = &*self.error;
+
+            err
+        })))
     }
 }
 
@@ -187,7 +205,11 @@ pub struct PluginMainFailed {
 
 impl miette::Diagnostic for PluginMainFailed {
     fn related<'a>(&'a self) -> Option<Box<dyn Iterator<Item = &'a dyn miette::Diagnostic> + 'a>> {
-        Some(Box::new(std::iter::once(self.error.as_ref())))
+        Some(Box::new(std::iter::once_with(|| {
+            let err: &dyn miette::Diagnostic = &*self.error;
+
+            err
+        })))
     }
 }
 
@@ -208,7 +230,11 @@ pub struct PluginMessageHandlerFailed {
 
 impl miette::Diagnostic for PluginMessageHandlerFailed {
     fn related<'a>(&'a self) -> Option<Box<dyn Iterator<Item = &'a dyn miette::Diagnostic> + 'a>> {
-        Some(Box::new(std::iter::once(self.error.as_ref())))
+        Some(Box::new(std::iter::once_with(|| {
+            let err: &dyn miette::Diagnostic = &*self.error;
+
+            err
+        })))
     }
 }
 
@@ -234,6 +260,10 @@ pub struct PluginStopFailed {
 
 impl miette::Diagnostic for PluginStopFailed {
     fn related<'a>(&'a self) -> Option<Box<dyn Iterator<Item = &'a dyn miette::Diagnostic> + 'a>> {
-        Some(Box::new(std::iter::once(self.error.as_ref())))
+        Some(Box::new(std::iter::once_with(|| {
+            let err: &dyn miette::Diagnostic = &*self.error;
+
+            err
+        })))
     }
 }

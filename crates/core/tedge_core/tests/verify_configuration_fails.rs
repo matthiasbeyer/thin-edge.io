@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use miette::Diagnostic;
 use tedge_api::plugin::HandleTypes;
 use tedge_api::Plugin;
 use tedge_api::PluginBuilder;
@@ -8,8 +9,13 @@ use tedge_api::PluginError;
 use tedge_api::PluginExt;
 use tedge_core::errors::TedgeApplicationError;
 use tedge_core::TedgeApplication;
+use thiserror::Error;
 
 pub struct VerifyConfigFailsPluginBuilder;
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Some error occurred")]
+struct SomeError;
 
 #[async_trait::async_trait]
 impl<PD: PluginDirectory> PluginBuilder<PD> for VerifyConfigFailsPluginBuilder {
@@ -21,7 +27,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for VerifyConfigFailsPluginBuilder {
         &self,
         _config: &PluginConfiguration,
     ) -> Result<(), tedge_api::error::PluginError> {
-        Err(miette::miette!("Verification of config failed"))
+        Err(Box::new(SomeError))
     }
 
     async fn instantiate(

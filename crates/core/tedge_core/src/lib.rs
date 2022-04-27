@@ -26,7 +26,7 @@ mod utils;
 pub use crate::communication::PluginDirectory;
 use crate::configuration::PluginInstanceConfiguration;
 use crate::configuration::TedgeConfiguration;
-use crate::errors::PluginConfigVerificationError;
+
 use crate::errors::PluginConfigurationError;
 use crate::errors::PluginKindUnknownError;
 use crate::errors::TedgeApplicationBuilderError;
@@ -108,32 +108,27 @@ impl TedgeApplication {
             .plugins()
             .iter()
             .map(
-                |(plugin_name, plugin_cfg): (&String, &PluginInstanceConfiguration)| async {
-                    if let Some((_, builder)) =
-                        self.plugin_builders().get(plugin_cfg.kind().as_ref())
-                    {
-                        debug!("Verifying {}", plugin_cfg.kind().as_ref());
-                        let res = plugin_cfg
-                            .configuration()
-                            .verify_with_builder(builder, self.config_path())
-                            .await
-                            .map_err(|e| {
-                                PluginConfigurationError::Verification(
-                                    PluginConfigVerificationError {
-                                        name: plugin_name.to_string(),
-                                        error: e,
-                                    },
-                                )
-                            });
+                |(plugin_name, plugin_cfg): (&String, &PluginInstanceConfiguration)| {
+                    let plugin_name = plugin_name.to_string();
+                    async move {
+                        if let Some((_, builder)) =
+                            self.plugin_builders().get(plugin_cfg.kind().as_ref())
+                        {
+                            debug!("Verifying {}", plugin_cfg.kind().as_ref());
+                            let res = plugin_cfg
+                                .configuration()
+                                .verify_with_builder(&plugin_name, builder, self.config_path())
+                                .await;
 
-                        res
-                    } else {
-                        Err(PluginConfigurationError::UnknownKind(
-                            PluginKindUnknownError {
-                                name: plugin_cfg.kind().as_ref().to_string(),
-                                alternatives: None,
-                            },
-                        ))
+                            Ok(res?)
+                        } else {
+                            Err(PluginConfigurationError::UnknownKind(
+                                PluginKindUnknownError {
+                                    name: plugin_name.to_string(),
+                                    alternatives: None,
+                                },
+                            ))
+                        }
                     }
                 },
             )

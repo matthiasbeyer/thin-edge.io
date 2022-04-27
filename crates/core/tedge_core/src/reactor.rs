@@ -27,7 +27,7 @@ use crate::configuration::PluginKind;
 use crate::core_task::CoreInternalMessage;
 use crate::core_task::CorePlugin;
 use crate::errors::PluginBuilderInstantiationError;
-use crate::errors::PluginConfigVerificationError;
+
 use crate::errors::PluginConfigurationNotFoundError;
 use crate::errors::PluginInstantiationError;
 use crate::errors::PluginKindUnknownError;
@@ -346,7 +346,7 @@ impl Reactor {
         )?;
 
         let config = match config
-            .verify_with_builder(builder, root_config_path)
+            .verify_with_builder(plugin_name, builder, root_config_path)
             .instrument(trace_span!("core.config_verification"))
             .await
         {
@@ -355,12 +355,7 @@ impl Reactor {
                     "Verification of configuration failed for plugin '{}'",
                     plugin_name
                 );
-                return Err(PluginInstantiationError::ConfigurationVerificationFailed(
-                    PluginConfigVerificationError {
-                        name: plugin_name.to_string(),
-                        error: e,
-                    },
-                ));
+                return Err(PluginInstantiationError::ConfigurationVerificationFailed(e))?;
             }
             Ok(cfg) => cfg,
         };

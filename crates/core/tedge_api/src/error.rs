@@ -2,7 +2,7 @@ use miette::Diagnostic;
 use thiserror::Error;
 
 /// Errors as orginating from [`Plugin`](crate::Plugin) and [`PluginBuilder`](crate::PluginBuilder)
-pub type PluginError = miette::Report;
+pub type PluginError = Box<dyn Diagnostic + Send + Sync + 'static>;
 
 #[derive(Error, Debug, Diagnostic)]
 /// An error occured while interfacing with the [`PluginDirectory`](crate::plugin::PluginDirectory)
