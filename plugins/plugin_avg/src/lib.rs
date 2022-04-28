@@ -4,18 +4,18 @@ use async_trait::async_trait;
 use tedge_api::plugin::PluginExt;
 use tokio_util::sync::CancellationToken;
 
-use tedge_lib::measurement::Measurement;
-use tedge_lib::measurement::MeasurementValue;
-use tedge_api::Address;
-use tedge_api::plugin::Handle;
-use tedge_api::PluginDirectory;
 use tedge_api::address::ReplySender;
 use tedge_api::message::NoReply;
+use tedge_api::plugin::Handle;
+use tedge_api::Address;
 use tedge_api::Plugin;
 use tedge_api::PluginBuilder;
 use tedge_api::PluginConfiguration;
+use tedge_api::PluginDirectory;
 use tedge_api::PluginError;
 use tedge_lib::mainloop::MainloopStopper;
+use tedge_lib::measurement::Measurement;
+use tedge_lib::measurement::MeasurementValue;
 
 use tokio::sync::RwLock;
 
@@ -65,11 +65,11 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for AvgPluginBuilder {
     }
 
     fn kind_message_types() -> tedge_api::plugin::HandleTypes
-        where Self:Sized
+    where
+        Self: Sized,
     {
         AvgPlugin::get_handled_types()
     }
-
 }
 
 tedge_api::make_receiver_bundle!(struct MeasurementReceiver(Measurement));
@@ -118,7 +118,6 @@ impl Plugin for AvgPlugin {
         Ok(())
     }
 
-
     async fn shutdown(&mut self) -> Result<(), PluginError> {
         if let Some(stopper) = self.stopper.take() {
             stopper
@@ -131,7 +130,11 @@ impl Plugin for AvgPlugin {
 
 #[async_trait]
 impl Handle<Measurement> for AvgPlugin {
-    async fn handle_message(&self, message: Measurement, _reply: ReplySender<NoReply>) -> Result<(), PluginError> {
+    async fn handle_message(
+        &self,
+        message: Measurement,
+        _reply: ReplySender<NoReply>,
+    ) -> Result<(), PluginError> {
         let value = match message.value() {
             MeasurementValue::Float(f) => Some(f),
             other => {
@@ -160,7 +163,7 @@ async fn main_avg(state: Arc<State>) -> Result<(), PluginError> {
         let sum = values.drain(0..).sum::<f64>();
         let value = MeasurementValue::Float(sum / (count as f64));
         let measurement = Measurement::new("avg".to_string(), value);
-        let _ = state.target.send(measurement).await;
+        let _ = state.target.send_and_wait(measurement).await;
     }
 
     Ok(())

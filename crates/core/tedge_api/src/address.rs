@@ -1,5 +1,7 @@
 use std::{marker::PhantomData, time::Duration};
 
+use tokio::sync::mpsc::error::{SendTimeoutError, TrySendError};
+
 use crate::plugin::Message;
 
 #[doc(hidden)]
@@ -57,7 +59,8 @@ impl<RB: ReceiverBundle> Address<RB> {
         }
     }
 
-    /// Send a message `M` to the address represented by the instance of this struct
+    /// Send a message `M` to the address represented by the instance of this struct and wait for
+    /// them to accept it
     ///
     /// This function can be used to send a message of type `M` to the plugin that is addressed by
     /// the instance of this type.
@@ -72,8 +75,11 @@ impl<RB: ReceiverBundle> Address<RB> {
     ///
     /// # Details
     ///
+    /// This function may block indefinitely if the receiving end does not start correctly. If this
+    /// could become an issue use something akin to timeout (like
+    /// [`timeout`](tokio::time::timeout)).
     /// For details on sending and receiving, see `tokio::sync::mpsc::Sender`.
-    pub async fn send<M: Message>(&self, msg: M) -> Result<ReplyReceiver<M::Reply>, M>
+    pub async fn send_and_wait<M: Message>(&self, msg: M) -> Result<ReplyReceiver<M::Reply>, M>
     where
         RB: Contains<M>,
     {
@@ -92,10 +98,77 @@ impl<RB: ReceiverBundle> Address<RB> {
             reply_recv: receiver,
         })
     }
+
+    /// Try sending a message `M` to the plugin behind this address without potentially waiting
+    ///
+    /// This function should be used when waiting for the plugin to receive the message is not
+    /// required.
+    ///
+    /// # Return
+    ///
+    /// The function either returns `Ok(())` if sending the message succeeded,
+    /// or the message in the error variant of the `Result`: `Err(M)`.
+    ///
+    /// The error is returned if the receiving side (the plugin that is addressed) cannot currently
+    /// receive messages (either because it is closed or the queue is full).
+    pub fn try_send<M: Message>(&self, msg: M) -> Result<ReplyReceiver<M::Reply>, M> {
+        let (sender, receiver) = tokio::sync::oneshot::channel();
+
+        self.sender
+            .try_send(InternalMessage {
+                data: Box::new(msg),
+                reply_sender: sender,
+            })
+            .map_err(|msg| match msg {
+                TrySendError::Full(data) | TrySendError::Closed(data) => {
+                    *data.data.downcast::<M>().unwrap()
+                }
+            })?;
+
+        Ok(ReplyReceiver {
+            _pd: PhantomData,
+            reply_recv: receiver,
+        })
+    }
+
+    /// Send a message `M` to the address represented by the instance of this struct and wait for
+    /// them to accept it or timeout
+    ///
+    /// This method is identical to [`Address::send_and_wait`] except a timeout can be specified after which
+    /// trying to send is aborted.
+    ///
+    /// If you do not wish to wait for a timeout see [`Address::try_send`]
+    pub async fn send_with_timeout<M: Message>(
+        &self,
+        msg: M,
+        timeout: Duration,
+    ) -> Result<ReplyReceiver<M::Reply>, M> {
+        let (sender, receiver) = tokio::sync::oneshot::channel();
+
+        self.sender
+            .send_timeout(
+                InternalMessage {
+                    data: Box::new(msg),
+                    reply_sender: sender,
+                },
+                timeout,
+            )
+            .await
+            .map_err(|msg| match msg {
+                SendTimeoutError::Timeout(data) | SendTimeoutError::Closed(data) => {
+                    *data.data.downcast::<M>().unwrap()
+                }
+            })?;
+
+        Ok(ReplyReceiver {
+            _pd: PhantomData,
+            reply_recv: receiver,
+        })
+    }
 }
 
 #[derive(Debug)]
-/// Listener that allows one to wait for a reply as sent through [`Address::send`]
+/// Listener that allows one to wait for a reply as sent through [`Address::send_and_wait`]
 pub struct ReplyReceiver<M> {
     _pd: PhantomData<fn(M)>,
     reply_recv: tokio::sync::oneshot::Receiver<AnySendBox>,
@@ -257,8 +330,8 @@ mod tests {
     #[allow(unreachable_code, dead_code, unused)]
     fn check_compile() {
         let addr: Address<FooBar> = todo!();
-        addr.send(Foo);
-        addr.send(Bar);
+        addr.send_and_wait(Foo);
+        addr.send_and_wait(Bar);
     }
 
     /////// Assert that types have the correct traits

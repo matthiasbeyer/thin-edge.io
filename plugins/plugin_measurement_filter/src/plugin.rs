@@ -66,14 +66,13 @@ impl Handle<Measurement> for MeasurementFilterPlugin {
         if let Some(value) = message.extract(&self.extractor.0) {
             trace!("Applying filter {:?} to value {:?}", self.filter, value);
             if value.apply_filter(&self.filter) {
-                let _ = self.target.send(message).await;
+                let _ = self.target.send_and_wait(message).await;
             } else {
                 if let Some(ftarget) = self.filtered_target.as_ref() {
-                    let _ = ftarget.send(message).await;
+                    let _ = ftarget.send_and_wait(message).await;
                 }
             }
         }
         Ok(())
     }
 }
-

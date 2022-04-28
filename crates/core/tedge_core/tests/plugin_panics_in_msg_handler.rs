@@ -60,7 +60,7 @@ impl tedge_api::plugin::PluginDeclaration for HandlePanicPlugin {
 impl Plugin for HandlePanicPlugin {
     async fn start(&mut self) -> Result<(), PluginError> {
         tracing::info!("Setup called");
-        let _ = self.self_addr.send(DoPanic).await;
+        let _ = self.self_addr.send_and_wait(DoPanic).await;
         Ok(())
     }
 

@@ -7,7 +7,7 @@ use tedge_api::{
 };
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
-use tracing::{error, debug};
+use tracing::{debug, error};
 
 #[derive(serde::Deserialize, Debug)]
 struct HttpStopConfig {
@@ -91,9 +91,7 @@ impl Plugin for HttpStopPlugin {
         let addr = self.core.clone();
         let svc = hyper::service::make_service_fn(move |_conn| {
             let addr = addr.clone();
-            let service = hyper::service::service_fn(move |req| {
-                request_handler(addr.clone(), req)
-            });
+            let service = hyper::service::service_fn(move |req| request_handler(addr.clone(), req));
 
             async move { Ok::<_, Infallible>(service) }
         });
@@ -125,7 +123,6 @@ async fn request_handler(
     _: Request<Body>,
 ) -> Result<Response<Body>, Infallible> {
     debug!("Received request, stopping thin-edge now.");
-    let _ = addr.send(tedge_api::message::StopCore).await;
+    let _ = addr.send_and_wait(tedge_api::message::StopCore).await;
     Ok(Response::new("shutdown initiated".into()))
 }
-

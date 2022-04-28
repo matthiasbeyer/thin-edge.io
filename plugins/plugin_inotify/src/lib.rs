@@ -2,18 +2,18 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use async_trait::async_trait;
-use tokio_util::sync::CancellationToken;
 use miette::IntoDiagnostic;
+use tokio_util::sync::CancellationToken;
 
+use tedge_api::plugin::BuiltPlugin;
+use tedge_api::plugin::HandleTypes;
+use tedge_api::plugin::PluginExt;
 use tedge_api::Address;
 use tedge_api::Plugin;
 use tedge_api::PluginBuilder;
 use tedge_api::PluginConfiguration;
 use tedge_api::PluginDirectory;
 use tedge_api::PluginError;
-use tedge_api::plugin::BuiltPlugin;
-use tedge_api::plugin::HandleTypes;
-use tedge_api::plugin::PluginExt;
 use tedge_lib::mainloop::MainloopStopper;
 use tedge_lib::measurement::Measurement;
 use tedge_lib::measurement::MeasurementValue;
@@ -66,7 +66,6 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for InotifyPluginBuilder {
         Ok(InotifyPlugin::new(addr, config).finish())
     }
 }
-
 
 struct InotifyPlugin {
     addr: Address<MeasurementReceiver>,
@@ -157,7 +156,7 @@ async fn main_inotify(
                             let value = MeasurementValue::Text(path.display().to_string());
                             let measurement = Measurement::new(mask_to_string(event.mask).to_string(), value);
 
-                            let _ = state.addr.send(measurement).await;
+                            let _ = state.addr.send_and_wait(measurement).await;
                         } else {
                             // what happened? Got a descriptor for a file that we don't watch?
                         }
