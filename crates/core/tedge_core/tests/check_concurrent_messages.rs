@@ -82,14 +82,14 @@ impl Plugin for SpammyPlugin {
     async fn start(&mut self) -> Result<(), PluginError> {
         for _ in 0..MESSAGE_COUNT {
             self.target
-                .send(Spam)
+                .send_and_wait(Spam)
                 .await
                 .expect("Could not send message");
         }
 
         tokio::time::sleep(Duration::from_millis(100)).await;
         self.core_target
-            .send(tedge_api::message::StopCore)
+            .send_and_wait(tedge_api::message::StopCore)
             .await
             .expect("Sending to core");
 
