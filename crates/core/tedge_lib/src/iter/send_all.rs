@@ -1,8 +1,8 @@
 use futures::FutureExt;
 
-use tedge_api::address::ReplyReceiver;
 use tedge_api::address::Address;
 use tedge_api::address::ReceiverBundle;
+use tedge_api::address::ReplyReceiver;
 use tedge_api::plugin::Message;
 
 pub trait IntoSendAll<'addr, M: Message, RB: ReceiverBundle>
@@ -47,13 +47,15 @@ where
     RB: tedge_api::address::Contains<M>,
 {
     type Item = std::pin::Pin<
-        Box<dyn futures::future::Future<Output = Result<ReplyReceiver<M::Reply>, M>> + Send + 'addr>,
+        Box<
+            dyn futures::future::Future<Output = Result<ReplyReceiver<M::Reply>, M>> + Send + 'addr,
+        >,
     >;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().map(|(msg, address)| {
-            async { address.send(msg).await }.boxed()
-        })
+        self.inner
+            .next()
+            .map(|(msg, address)| async { address.send_and_wait(msg).await }.boxed())
     }
 }
 
@@ -102,7 +104,7 @@ where
 
         self.inner.next().map(|(msg, address)| {
             async move {
-                let reply_recv = address.send(msg).await?.wait_for_reply(timeout);
+                let reply_recv = address.send_and_wait(msg).await?.wait_for_reply(timeout);
                 match reply_recv.await {
                     Err(err) => Ok(SendResult::ReplyError(err)),
                     Ok(msg) => Ok(SendResult::ReplyReceived(msg)),
