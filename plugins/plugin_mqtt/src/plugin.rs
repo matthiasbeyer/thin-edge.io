@@ -99,8 +99,7 @@ impl Plugin for MqttPlugin {
             Ok(())
         };
 
-        crate::error::MqttShutdownError::build_for(client_shutdown_err, stop_err)
-            .into_diagnostic()
+        crate::error::MqttShutdownError::build_for(client_shutdown_err, stop_err).into_diagnostic()
     }
 }
 
@@ -163,7 +162,10 @@ async fn mqtt_main(
     Ok(())
 }
 
-async fn handle_incoming_message(state: &State, message: paho_mqtt::Message) -> Result<(), PluginError> {
+async fn handle_incoming_message(
+    state: &State,
+    message: paho_mqtt::Message,
+) -> Result<(), PluginError> {
     debug!("Received MQTT message");
     let incoming = crate::message::IncomingMessage {
         payload: message.payload().to_vec(),
@@ -173,7 +175,7 @@ async fn handle_incoming_message(state: &State, message: paho_mqtt::Message) -> 
     };
 
     debug!("Sending incoming message to target plugin");
-    let _ = state.target_addr.send(incoming).await;
+    let _ = state.target_addr.send_and_wait(incoming).await;
     Ok(())
 }
 
@@ -188,7 +190,11 @@ impl Handle<OutgoingMessage> for MqttPlugin {
         if let Some(client) = self.client.as_ref() {
             let msg = paho_mqtt::Message::new(&message.topic, message.payload, message.qos.into());
             debug!("Publishing message on {}", message.topic);
-            client.publish(msg).await.into_diagnostic().context("Failed to publish message")?;
+            client
+                .publish(msg)
+                .await
+                .into_diagnostic()
+                .context("Failed to publish message")?;
             debug!("Publishing message succeeded");
             Ok(())
         } else {
