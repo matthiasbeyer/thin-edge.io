@@ -120,7 +120,7 @@ impl Handle<tedge_lib::measurement::Measurement> for MqttMeasurementBridgePlugin
         let outgoing =
             plugin_mqtt::OutgoingMessage::new(json_msg.as_bytes().to_vec(), self.topic.clone());
 
-        match self.mqtt_plugin_addr.send(outgoing).await {
+        match self.mqtt_plugin_addr.send_and_wait(outgoing).await {
             Ok(_) => trace!("Message forwarded to MQTT plugin"),
             Err(_) => {
                 trace!("Message not send");
