@@ -16,8 +16,8 @@ use crate::communication::PluginInfo;
 use crate::configuration::InstanceConfiguration;
 use crate::configuration::PluginInstanceConfiguration;
 use crate::configuration::PluginKind;
-use crate::errors::TedgeApplicationError;
 use crate::errors::Result;
+use crate::errors::TedgeApplicationError;
 use crate::plugin_task::PluginTask;
 use crate::task::Task;
 use crate::TedgeApplication;
@@ -43,14 +43,26 @@ struct PluginTaskPrep {
 }
 
 impl Reactor {
+    /// Run the application
+    ///
+    /// This function implements running the application. That includes the complete lifecycle of
+    /// the application, the plugins that need to be started and stopped accordingly as well as
+    /// crash safety concerns.
     pub async fn run(self) -> Result<()> {
         let channel_size = self.0.config().communication_buffer_size().get();
 
+        // find all PluginBuilder objects that are registered and specified in the configuration to
+        // be used to build Plugin instances with.
+        //
+        // This is then collected into a CorePluginDirectory, our "addressbook type" that can be
+        // used to retrieve addresses for message passing.
         let directory_iter = self.0
             .config()
             .plugins()
             .iter()
             .map(|(pname, pconfig)| {
+                // fetch the types the plugin claims to handle from the plugin builder identified
+                // by the "kind" in the configuration of the instance
                 let handle_types = self.0
                     .plugin_builders()
                     .get(pconfig.kind().as_ref())
@@ -70,6 +82,7 @@ impl Reactor {
 
         let mut directory = CorePluginDirectory::collect_from(directory_iter, core_sender)?;
 
+        // Start preparing the plugin instantiation...
         let plugin_instantiation_prep = self
             .0
             .config()
@@ -92,6 +105,7 @@ impl Reactor {
 
         let directory = Arc::new(directory);
 
+        // ... and then instantiate the plugins requested by the user
         let instantiated_plugins = plugin_instantiation_prep
             .into_iter()
             .map(|(pname, pconfig, receiver)| {
@@ -111,6 +125,8 @@ impl Reactor {
             .collect::<Result<Vec<_>>>()?;
         debug!("Plugins instantiated");
 
+        // Now we need to make sure we start the "CoreTask", which is responsible for handling the
+        // communication within the core itself.
         let running_core = {
             // we clone the cancellation_token here, because the core must be able to use the
             // "root" token to stop all plugins
@@ -119,6 +135,7 @@ impl Reactor {
         };
         debug!("Core task instantiated");
 
+        // ...and of course we need to start all the plugins.
         let running_plugins = instantiated_plugins
             .into_iter()
             .map(|prep| {
@@ -136,9 +153,15 @@ impl Reactor {
             .collect::<Vec<Result<()>>>();
         debug!("Plugin tasks instantiated");
 
+        // and then we wait until all communication is finished.
+        //
+        // There are two ways how this could return: Either one plugin requests the core to shut
+        // down, which it then will, or the user requests a shutdown via Sigint (Ctrl-C), which
+        // notifies the cancellation tokens in the application and plugins.
         debug!("Entering main loop");
         let (plugin_res, core_res) = tokio::join!(running_plugins, running_core);
 
+        // After we finished the run, we collect all results and return them to the caller
         plugin_res
             .into_iter() // result type conversion
             .collect::<Result<Vec<()>>>()
