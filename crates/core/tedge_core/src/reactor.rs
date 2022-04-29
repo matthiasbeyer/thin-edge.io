@@ -26,7 +26,7 @@ use crate::TedgeApplication;
 ///
 /// This type is only introduced for more seperation-of-concerns in the codebase
 /// `Reactor::run()` is simply `TedgeApplication::run()`.
-pub struct Reactor(pub TedgeApplication);
+pub struct Reactor(pub(crate) TedgeApplication);
 
 impl std::fmt::Debug for Reactor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
