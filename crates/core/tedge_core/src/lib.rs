@@ -27,6 +27,15 @@ use crate::errors::Result;
 pub use crate::communication::PluginDirectory;
 
 /// A TedgeApplication
+///
+/// This is the main entry point for building a thin-edge application. It provides functions for
+/// setting up the application and then run it.
+///
+/// # Details
+///
+/// This type implements only the setup functionality, how to construct an application object. The
+/// implementation of the orchestration and lifecycle of the application is implemented in
+/// [`crate::reactor::Reactor`]. Note that this is solely for code seperation.
 pub struct TedgeApplication {
     config_path: PathBuf,
     config: TedgeConfiguration,
@@ -41,6 +50,8 @@ impl std::fmt::Debug for TedgeApplication {
 }
 
 impl TedgeApplication {
+    /// Retrieve a [`TedgeApplicationBuilder`] object that can be used to construct a
+    /// [`TedgeApplication`] object easily.
     pub fn builder() -> TedgeApplicationBuilder {
         TedgeApplicationBuilder {
             cancellation_token: CancellationToken::new(),
@@ -68,10 +79,13 @@ impl TedgeApplication {
     ///
     /// This function runs as long as there is no shutdown signalled to the application.
     pub async fn run(self) -> Result<()> {
+        // This `Reactor` type is only used to seperate the public-interface implementing parts of
+        // this crate from the orchestration and lifecycle management code bits.
         crate::reactor::Reactor(self).run().await
     }
 
     /// Check whether all configured plugin kinds exist (are available in registered plugins)
+    /// and that the configurations for the individual plugins are actually valid.
     #[tracing::instrument(skip(self))]
     pub async fn verify_configurations(&self) -> Vec<(String, Result<()>)> {
         use futures::stream::StreamExt;
@@ -107,12 +121,22 @@ impl TedgeApplication {
     }
 }
 
+/// Helper type for constructing a [`TedgeApplication`]
 pub struct TedgeApplicationBuilder {
     cancellation_token: CancellationToken,
     plugin_builders: HashMap<String, (HandleTypes, Box<dyn PluginBuilder<PluginDirectory>>)>,
 }
 
 impl TedgeApplicationBuilder {
+    /// Register a [`tedge_api::PluginBuilder`]
+    ///
+    /// This function can be used to register a [`tedge_api::PluginBuilder`] within the
+    /// [`TedgeApplication`] which is about to be built.
+    ///
+    /// Registering a [`PluginBuilder`] does not mean that a plugin from this builder will be
+    /// running once the application starts up, but merely that the application _knows_ about this
+    /// plugin builder and is able to construct a plugin with this builder, if necessary (e.g. if
+    /// configured in a configuration file).
     pub fn with_plugin_builder<PB: PluginBuilder<PluginDirectory>>(mut self, builder: PB) -> Result<Self> {
         let handle_types = PB::kind_message_types();
         let kind_name = PB::kind_name();
@@ -126,6 +150,9 @@ impl TedgeApplicationBuilder {
         Ok(self)
     }
 
+    /// Finalize the [`TedgeApplication`] by instantiating it with a `TedgeConfiguration`]
+    ///
+    /// This instantiates the application object, but does not run it.
     pub async fn with_config_from_path(
         self,
         config_path: impl AsRef<Path>,
