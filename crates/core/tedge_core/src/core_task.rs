@@ -10,6 +10,11 @@ use tracing::{debug, warn};
 
 use crate::errors::Result;
 
+/// Helper type in the crate implementation for handling the actual message passing
+///
+/// This actually implements [`tedge_api::Plugin`] as well, as this is the representation of the
+/// core that can receive messages. These messages are no different than the messages sent between
+/// [`tedge_api::Plugin`] implementations, so this must implement that trait as well.
 pub struct CoreTask {
     cancellation_token: CancellationToken,
     receiver: MessageReceiver,
