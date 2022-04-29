@@ -85,16 +85,6 @@ impl PluginInfo {
     }
 }
 
-impl Clone for PluginInfo {
-    fn clone(&self) -> Self {
-        PluginInfo {
-            types: self.types.clone(),
-            receiver: None,
-            sender: self.sender.clone(),
-        }
-    }
-}
-
 pub struct PluginDirectory {
     core: Arc<CorePluginDirectory>,
     plugin_name: String,
