@@ -1,8 +1,9 @@
-pub struct MainloopStopper(pub(super) tokio::sync::oneshot::Sender<()>);
+pub struct MainloopStopper(pub(super) tedge_api::CancellationToken);
 
 impl MainloopStopper {
     pub fn stop(self) -> Result<(), ()> {
-        self.0.send(()).map_err(|_| ())
+        self.0.cancel();
+        Ok(())
     }
 }
 

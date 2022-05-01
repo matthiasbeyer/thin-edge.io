@@ -4,6 +4,7 @@
 use std::sync::Arc;
 
 use tedge_api::error::PluginError;
+use tedge_api::CancellationToken;
 use tracing::debug;
 use tracing::error;
 use tracing::trace;
@@ -11,7 +12,7 @@ use tracing::trace;
 pub struct MainloopTick<State: Sized> {
     pub(crate) state: State,
     pub(crate) logging: bool,
-    pub(crate) stopper: tokio::sync::oneshot::Receiver<()>,
+    pub(crate) stopper: CancellationToken,
     pub(crate) duration: std::time::Duration,
 }
 
@@ -26,7 +27,7 @@ where
     }
 
     #[tracing::instrument(skip_all)]
-    pub async fn run<Func, Fut>(mut self, func: Func) -> Result<(), PluginError>
+    pub async fn run<Func, Fut>(self, func: Func) -> Result<(), PluginError>
     where
         Func: Fn(Arc<State>) -> Fut,
         Fut: futures::future::Future<Output = Result<(), PluginError>>,
@@ -58,7 +59,7 @@ where
                     }
                 },
 
-                _ = &mut self.stopper => {
+                _ = self.stopper.cancelled() => {
                     if self.logging {
                         trace!("stopping...");
                     }

@@ -20,25 +20,25 @@ impl Mainloop {
     where
         State: Sized,
     {
-        let (sender, receiver) = tokio::sync::oneshot::channel();
+        let token = tedge_api::CancellationToken::new();
         let mainloop = MainloopTick {
             state,
             logging: false,
-            stopper: receiver,
+            stopper: token.clone(),
             duration,
         };
-        let stopper = MainloopStopper(sender);
+        let stopper = MainloopStopper(token);
 
         (stopper, mainloop)
     }
 
     pub fn detach<State>(state: State) -> (MainloopStopper, MainloopDetach<State>) {
-        let (sender, receiver) = tokio::sync::oneshot::channel();
+        let token = tedge_api::CancellationToken::new();
         let mainloop = MainloopDetach {
             state,
-            stopper: receiver,
+            stopper: token.clone(),
         };
-        let stopper = MainloopStopper(sender);
+        let stopper = MainloopStopper(token);
 
         (stopper, mainloop)
     }
