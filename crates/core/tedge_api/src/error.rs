@@ -9,6 +9,7 @@ pub type PluginError = Box<dyn Diagnostic + Send + Sync + 'static>;
 pub enum DirectoryError {
     /// The given plugin name does not exist in the configuration
     #[error("Plugin named '{}' not found", .0)]
+    #[diagnostic(help("Please double check the name of your plugin is correct"))]
     PluginNameNotFound(String),
 
     /// The given plugin does not support all requested message types
