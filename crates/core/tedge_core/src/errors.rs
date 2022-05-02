@@ -80,7 +80,7 @@ pub struct PluginKindUnknownError {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[error("Failed to verify config of plugin '{name}'")]
+#[error("Failed to verify configuration of plugin '{name}'")]
 pub struct PluginConfigVerificationError {
     pub name: String,
     pub error: tedge_api::error::PluginError,
