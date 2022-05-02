@@ -71,7 +71,7 @@ impl Plugin for SelfSendPlugin {
     #[allow(unreachable_code)]
     async fn start(&mut self) -> Result<(), PluginError> {
         tracing::info!("Sending StopCore now");
-        self.core_addr.send(tedge_api::message::StopCore).await.expect("Sending StopCore failed");
+        self.core_addr.send_and_wait(tedge_api::message::StopCore).await.expect("Sending StopCore failed");
         Ok(())
     }
 
