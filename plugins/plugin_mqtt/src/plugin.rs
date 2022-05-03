@@ -111,7 +111,7 @@ struct State {
 
 async fn mqtt_main(
     mut state: State,
-    mut stopper: tokio::sync::oneshot::Receiver<()>,
+    stopper: tedge_api::CancellationToken,
 ) -> Result<(), PluginError> {
     use futures::stream::StreamExt;
 
@@ -153,7 +153,7 @@ async fn mqtt_main(
                 }
             }
 
-            _cancel = &mut stopper => {
+            _cancel = stopper.cancelled() => {
                 break
             }
         }

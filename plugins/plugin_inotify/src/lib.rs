@@ -137,7 +137,7 @@ impl Plugin for InotifyPlugin {
 
 async fn main_inotify(
     mut state: State,
-    mut stopper: tokio::sync::oneshot::Receiver<()>,
+    stopper: tedge_api::CancellationToken,
 ) -> Result<(), PluginError> {
     use futures::stream::StreamExt;
 
@@ -173,7 +173,7 @@ async fn main_inotify(
                 }
             },
 
-            _ = &mut stopper => {
+            _ = stopper.cancelled() => {
                 debug!("Stopping main loop");
                 break;
             },
