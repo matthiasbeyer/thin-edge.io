@@ -616,6 +616,7 @@ dependencies = [
  "clap 2.34.0",
  "criterion-plot",
  "csv",
+ "futures",
  "itertools",
  "lazy_static",
  "num-traits",
@@ -628,6 +629,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "tinytemplate",
+ "tokio",
  "walkdir",
 ]
 
@@ -3366,6 +3368,7 @@ name = "tedge_core"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "criterion",
  "env_logger 0.9.0",
  "futures",
  "miette",
