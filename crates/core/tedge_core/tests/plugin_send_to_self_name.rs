@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use futures::future::FutureExt;
-use miette::IntoDiagnostic;
 use tedge_api::CoreMessages;
 use tedge_api::Plugin;
 use tedge_api::Address;
@@ -18,7 +17,6 @@ pub struct SelfSendPluginBuilder;
 struct Msg;
 
 impl tedge_api::Message for Msg {
-    type Reply = tedge_api::message::NoReply;
 }
 
 tedge_api::make_receiver_bundle!(struct MsgRecv(Msg));
@@ -80,7 +78,7 @@ impl Plugin for SelfSendPlugin {
 
 #[async_trait]
 impl tedge_api::plugin::Handle<Msg> for SelfSendPlugin {
-    async fn handle_message(&self, _: Msg, _: tedge_api::address::ReplySender<<Msg as tedge_api::Message>::Reply>) -> Result<(), miette::Error> {
+    async fn handle_message(&self, _: Msg, _: tedge_api::address::ReplySenderFor<Msg>) -> Result<(), miette::Error> {
         unimplemented!() // will never be called in this test
     }
 

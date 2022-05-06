@@ -160,7 +160,6 @@ mod tests {
         pub struct SupportedMessage;
 
         impl tedge_api::Message for SupportedMessage {
-            type Reply = tedge_api::message::NoReply;
         }
 
         impl tedge_api::plugin::PluginDeclaration for Plug {
@@ -172,9 +171,7 @@ mod tests {
             async fn handle_message(
                 &self,
                 _message: SupportedMessage,
-                _sender: tedge_api::address::ReplySender<
-                    <SupportedMessage as tedge_api::Message>::Reply,
-                >,
+                _sender: tedge_api::address::ReplySenderFor<SupportedMessage>,
             ) -> Result<(), PluginError> {
                 Ok(())
             }
@@ -198,7 +195,6 @@ mod tests {
     struct UnsupportedMessage;
 
     impl tedge_api::Message for UnsupportedMessage {
-        type Reply = tedge_api::message::NoReply;
     }
 
 
@@ -206,7 +202,6 @@ mod tests {
     struct OtherUnsupportedMessage;
 
     impl tedge_api::Message for OtherUnsupportedMessage {
-        type Reply = tedge_api::message::NoReply;
     }
 
     tedge_api::make_receiver_bundle!(pub struct UnsupportedMessageReceiver(UnsupportedMessage));

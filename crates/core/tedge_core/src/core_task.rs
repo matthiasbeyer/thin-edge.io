@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use tedge_api::{
-    address::{MessageReceiver, ReplySender},
+    address::{MessageReceiver, ReplySenderFor},
     message::StopCore,
-    plugin::{Handle, Message, PluginExt},
+    plugin::{Handle, PluginExt},
     Plugin, PluginError,
 };
 use tokio_util::sync::CancellationToken;
@@ -109,7 +109,7 @@ impl Handle<StopCore> for RunningCore {
     async fn handle_message(
         &self,
         _message: StopCore,
-        _sender: ReplySender<<StopCore as Message>::Reply>,
+        _sender: ReplySenderFor<StopCore>,
     ) -> std::result::Result<(), PluginError> {
         let _ = self.sender.send(CoreInternalMessage::Stop).await;
         Ok(())

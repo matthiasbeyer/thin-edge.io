@@ -6,7 +6,7 @@ use tedge_api::PluginBuilder;
 use tedge_api::PluginConfiguration;
 use tedge_api::PluginDirectory;
 use tedge_api::PluginError;
-use tedge_api::address::ReplySender;
+use tedge_api::address::ReplySenderFor;
 use tedge_api::plugin::Handle;
 use tedge_api::plugin::Message;
 use tedge_api::plugin::PluginExt;
@@ -73,7 +73,6 @@ impl Plugin for HandlePanicPlugin {
 struct DoPanic;
 
 impl Message for DoPanic {
-    type Reply = tedge_api::message::NoReply;
 }
 
 #[async_trait::async_trait]
@@ -81,7 +80,7 @@ impl Handle<DoPanic> for HandlePanicPlugin {
     async fn handle_message(
         &self,
         _message: DoPanic,
-        _sender: ReplySender<tedge_api::message::NoReply>,
+        _sender: ReplySenderFor<DoPanic>,
     ) -> Result<(), PluginError> {
         panic!("Oh noez!")
     }
