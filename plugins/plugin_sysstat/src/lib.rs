@@ -1,5 +1,6 @@
 mod builder;
 mod config;
+mod error;
 mod main;
 mod plugin;
 

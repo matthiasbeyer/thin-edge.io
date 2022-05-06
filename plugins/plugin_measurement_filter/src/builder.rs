@@ -41,7 +41,7 @@ where
             .clone()
             .try_into()
             .map(|_: MeasurementFilterConfig| ())
-            .map_err(|_| miette::miette!("Failed to parse filter configuration"))
+            .map_err(crate::error::Error::from)
             .map_err(PluginError::from)
     }
 
@@ -53,7 +53,7 @@ where
     ) -> Result<BuiltPlugin, PluginError> {
         let config = config
             .try_into::<MeasurementFilterConfig>()
-            .map_err(|_| miette::miette!("Failed to parse filter configuration"))?;
+            .map_err(crate::error::Error::from)?;
 
         let main_addr = plugin_dir.get_address_for(&config.target)?;
         let filtered_addr = config

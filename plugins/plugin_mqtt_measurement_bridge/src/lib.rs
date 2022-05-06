@@ -1,6 +1,11 @@
 use async_trait::async_trait;
 use miette::Context;
 use miette::IntoDiagnostic;
+use tedge_api::Plugin;
+use tedge_api::PluginBuilder;
+use tedge_api::PluginConfiguration;
+use tedge_api::PluginDirectory;
+use tedge_api::PluginError;
 use tedge_api::address::Address;
 use tedge_api::address::ReplySender;
 use tedge_api::plugin::BuiltPlugin;
@@ -8,11 +13,6 @@ use tedge_api::plugin::Handle;
 use tedge_api::plugin::HandleTypes;
 use tedge_api::plugin::Message;
 use tedge_api::plugin::PluginExt;
-use tedge_api::Plugin;
-use tedge_api::PluginBuilder;
-use tedge_api::PluginConfiguration;
-use tedge_api::PluginDirectory;
-use tedge_api::PluginError;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::trace;
@@ -24,6 +24,16 @@ impl MqttMeasurementBridgePluginBuilder {
         MqttMeasurementBridgePluginBuilder
     }
 }
+
+#[derive(Debug, miette::Diagnostic, thiserror::Error)]
+enum Error {
+    #[error("Failed to parse configuration")]
+    ConfigParseFailed(toml::de::Error),
+
+    #[error("Failed to send message")]
+    FailedToSendMessage,
+}
+
 
 #[async_trait]
 impl<PD> PluginBuilder<PD> for MqttMeasurementBridgePluginBuilder
@@ -49,7 +59,8 @@ where
             .clone()
             .try_into()
             .map(|_: MqttMeasurementBridgeConfig| ())
-            .map_err(|_| miette::miette!("Failed to parse mqtt-measurement-bridge configuration"))
+            .map_err(Error::ConfigParseFailed)
+            .map_err(tedge_api::error::PluginError::from)
     }
 
     async fn instantiate(
@@ -60,7 +71,7 @@ where
     ) -> Result<BuiltPlugin, PluginError> {
         let config = config
             .try_into::<MqttMeasurementBridgeConfig>()
-            .map_err(|_| miette::miette!("Failed to parse mqtt configuration"))?;
+            .map_err(Error::ConfigParseFailed)?;
 
         let addr = plugin_dir.get_address_for(&config.mqtt_plugin_name)?;
         Ok(MqttMeasurementBridgePlugin::new(addr, config.topic.clone()).finish())
@@ -124,8 +135,8 @@ impl Handle<tedge_lib::measurement::Measurement> for MqttMeasurementBridgePlugin
             Ok(_) => trace!("Message forwarded to MQTT plugin"),
             Err(_) => {
                 trace!("Message not send");
-                return Err(miette::miette!("Failed to send message"));
-            }
+                return Err(Error::FailedToSendMessage).into_diagnostic()
+            },
         }
         Ok(())
     }

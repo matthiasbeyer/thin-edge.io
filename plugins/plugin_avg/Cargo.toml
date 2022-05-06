@@ -10,8 +10,10 @@ async-trait = "0.1"
 humantime-serde = "1"
 miette = "4.4"
 serde = { version = "1.0.136", features = ["derive"] }
+thiserror = "1"
 tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
 tokio-util = "0.7.0"
+toml = "0.5"
 tracing = "0.1"
 
 tedge_api = { path = "../../crates/core/tedge_api" }

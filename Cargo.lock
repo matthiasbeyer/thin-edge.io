@@ -2141,8 +2141,10 @@ dependencies = [
  "serde",
  "tedge_api",
  "tedge_lib",
+ "thiserror",
  "tokio",
  "tokio-util 0.7.0",
+ "toml",
  "tracing",
 ]
 
@@ -2156,8 +2158,10 @@ dependencies = [
  "miette",
  "serde",
  "tedge_api",
+ "thiserror",
  "tokio",
  "tokio-util 0.7.0",
+ "toml",
  "tracing",
 ]
 
@@ -2173,8 +2177,10 @@ dependencies = [
  "serde",
  "tedge_api",
  "tedge_lib",
+ "thiserror",
  "tokio",
  "tokio-util 0.7.0",
+ "toml",
  "tracing",
 ]
 
@@ -2187,7 +2193,9 @@ dependencies = [
  "miette",
  "serde",
  "tedge_api",
+ "thiserror",
  "tokio-util 0.7.0",
+ "toml",
  "tracing",
 ]
 
@@ -2201,6 +2209,7 @@ dependencies = [
  "serde_with",
  "tedge_api",
  "tedge_lib",
+ "thiserror",
  "tokio",
  "tokio-util 0.7.0",
  "toml",
@@ -2223,6 +2232,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-util 0.7.0",
+ "toml",
  "tracing",
 ]
 
@@ -2238,8 +2248,10 @@ dependencies = [
  "serde_json",
  "tedge_api",
  "tedge_lib",
+ "thiserror",
  "tokio",
  "tokio-util 0.7.0",
+ "toml",
  "tracing",
 ]
 
@@ -2277,6 +2289,7 @@ dependencies = [
  "sysinfo",
  "tedge_api",
  "tedge_lib",
+ "thiserror",
  "tokio",
  "tokio-util 0.7.0",
  "toml",

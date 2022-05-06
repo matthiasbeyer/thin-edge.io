@@ -43,7 +43,7 @@ where
             .clone()
             .try_into()
             .map(|_: MqttConfig| ())
-            .map_err(|_| miette::miette!("Failed to parse mqtt configuration"))
+            .map_err(crate::error::Error::ConfigParseFailed)
             .map_err(PluginError::from)
     }
 
@@ -55,7 +55,7 @@ where
     ) -> Result<BuiltPlugin, PluginError> {
         let config = config
             .try_into::<MqttConfig>()
-            .map_err(|_| miette::miette!("Failed to parse mqtt configuration"))?;
+            .map_err(crate::error::Error::ConfigParseFailed)?;
 
         let addr = plugin_dir.get_address_for(&config.target)?;
         Ok(MqttPlugin::new(config, addr).finish())

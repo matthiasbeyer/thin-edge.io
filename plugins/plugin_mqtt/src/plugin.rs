@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 
-use miette::Context;
 use miette::IntoDiagnostic;
 use tedge_api::address::Address;
 use tedge_api::address::ReplySender;
@@ -80,26 +79,21 @@ impl Plugin for MqttPlugin {
         debug!("Shutting down mqtt plugin!");
 
         // try to shutdown internal mainloop
-        let stop_err = if let Some(stopper) = self.stopper.take() {
+        if let Some(stopper) = self.stopper.take() {
             stopper
                 .stop()
-                .map_err(|e| miette::miette!("Failed to stop MQTT mainloop: {:?}", e))
-        } else {
-            Ok(())
-        };
+                .map_err(|_| crate::error::Error::FailedToStopMqttMainloop)?;
+        }
 
         // try to shutdown mqtt client
-        let client_shutdown_err = if let Some(client) = self.client.take() {
+        if let Some(client) = self.client.take() {
             client
                 .disconnect(None)
                 .await
-                .map_err(|e| miette::miette!("Failed to disconnect MQTT client: {:?}", e))
-                .map(|_| ())
-        } else {
-            Ok(())
-        };
+                .map_err(|e| crate::error::Error::FailedToDisconnectMqttClient(e))?;
+        }
 
-        crate::error::MqttShutdownError::build_for(client_shutdown_err, stop_err).into_diagnostic()
+        Ok(())
     }
 }
 
@@ -193,12 +187,13 @@ impl Handle<OutgoingMessage> for MqttPlugin {
             client
                 .publish(msg)
                 .await
-                .into_diagnostic()
-                .context("Failed to publish message")?;
+                .map_err(crate::error::Error::FailedToPublish)
+                .into_diagnostic()?;
+
             debug!("Publishing message succeeded");
             Ok(())
         } else {
-            Err(miette::miette!("No client, cannot send messages"))?
+            return Err(crate::error::Error::NoClient).into_diagnostic();
         }
     }
 }

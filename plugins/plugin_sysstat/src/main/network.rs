@@ -90,7 +90,7 @@ pub async fn main_network(state: Arc<Mutex<NetworkState>>) -> Result<(), PluginE
         .await
         .into_iter()
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|_| PluginError::from(miette::miette!("Failed to send measurement")))
+        .map_err(|_| PluginError::from(crate::error::Error::FailedToSendMeasurement))
         .map(|_| ())
 }
 

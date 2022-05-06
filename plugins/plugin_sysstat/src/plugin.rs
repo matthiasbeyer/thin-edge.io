@@ -101,7 +101,7 @@ impl Plugin for SysStatPlugin {
         while let Some(stopper) = self.stoppers.pop() {
             stopper
                 .stop()
-                .map_err(|_| miette::miette!("Failed to stop mainloop"))?
+                .map_err(|()| crate::error::Error::FailedToStopMainloop)?
         }
 
         Ok(())

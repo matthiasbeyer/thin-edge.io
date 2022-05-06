@@ -67,7 +67,7 @@ pub async fn main_load(state: Arc<Mutex<LoadState>>) -> Result<(), PluginError> 
         .await
         .into_iter()
         .map(|res| {
-            res.map_err(|_| PluginError::from(miette::miette!("Failed to send measurement")))
+            res.map_err(|_| PluginError::from(crate::error::Error::FailedToSendMeasurement))
                 .map(|_| ())
         })
         .collect::<Result<Vec<_>, PluginError>>()

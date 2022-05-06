@@ -37,6 +37,13 @@ struct LogConfig {
     acknowledge: bool,
 }
 
+#[derive(Debug, miette::Diagnostic, thiserror::Error)]
+enum Error {
+    #[error("Failed to parse configuration")]
+    ConfigParseFailed(#[from] toml::de::Error),
+}
+
+
 #[async_trait]
 impl<PD, MB> PluginBuilder<PD> for LogPluginBuilder<MB>
 where
@@ -63,7 +70,7 @@ where
             .clone()
             .try_into()
             .map(|_: LogConfig| ())
-            .map_err(|_| miette::miette!("Failed to parse log configuration"))
+            .map_err(Error::from)
             .map_err(PluginError::from)
     }
 
@@ -75,7 +82,7 @@ where
     ) -> Result<BuiltPlugin, PluginError> {
         let config = config
             .try_into::<LogConfig>()
-            .map_err(|_| miette::miette!("Failed to parse log configuration"))?;
+            .map_err(Error::from)?;
 
         Ok(LogPlugin::<MB>::new(config).finish())
     }
