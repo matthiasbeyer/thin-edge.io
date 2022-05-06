@@ -2,9 +2,8 @@ use async_trait::async_trait;
 
 use miette::IntoDiagnostic;
 use tedge_api::address::Address;
-use tedge_api::address::ReplySender;
+use tedge_api::address::ReplySenderFor;
 use tedge_api::plugin::Handle;
-use tedge_api::plugin::Message;
 use tedge_api::Plugin;
 use tedge_api::PluginError;
 use tracing::debug;
@@ -178,7 +177,7 @@ impl Handle<OutgoingMessage> for MqttPlugin {
     async fn handle_message(
         &self,
         message: OutgoingMessage,
-        _sender: ReplySender<<OutgoingMessage as Message>::Reply>,
+        _sender: ReplySenderFor<OutgoingMessage>,
     ) -> Result<(), PluginError> {
         debug!("Received outgoing message");
         if let Some(client) = self.client.as_ref() {

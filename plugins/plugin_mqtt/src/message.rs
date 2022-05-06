@@ -34,7 +34,6 @@ impl IncomingMessage {
 }
 
 impl tedge_api::plugin::Message for IncomingMessage {
-    type Reply = tedge_api::message::NoReply; // for now
 }
 
 tedge_api::make_receiver_bundle!(pub struct MqttMessageReceiver(IncomingMessage));
@@ -62,5 +61,4 @@ impl OutgoingMessage {
 }
 
 impl tedge_api::plugin::Message for OutgoingMessage {
-    type Reply = tedge_api::message::NoReply; // for now
 }
