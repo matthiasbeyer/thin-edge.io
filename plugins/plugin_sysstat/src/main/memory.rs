@@ -134,7 +134,7 @@ pub async fn main_memory(state: Arc<Mutex<MemoryState>>) -> Result<(), PluginErr
         .zip(state.send_to.iter())
         .send_all()
         .collect::<futures::stream::FuturesUnordered<_>>()
-        .collect::<Vec<Result<tedge_lib::iter::SendResult<_>, _>>>()
+        .collect::<Vec<Result<_, _>>>()
         .await
         .into_iter()
         .map(|res| {

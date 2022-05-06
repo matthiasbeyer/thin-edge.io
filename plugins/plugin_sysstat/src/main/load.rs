@@ -61,7 +61,7 @@ pub async fn main_load(state: Arc<Mutex<LoadState>>) -> Result<(), PluginError> 
         .zip(state.send_to.iter())
         .send_all()
         .collect::<futures::stream::FuturesUnordered<_>>()
-        .collect::<Vec<Result<tedge_lib::iter::SendResult<_>, _>>>()
+        .collect::<Vec<Result<_, _>>>()
         .await
         .into_iter()
         .map(|res| {

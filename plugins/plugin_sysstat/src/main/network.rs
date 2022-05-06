@@ -84,7 +84,7 @@ pub async fn main_network(state: Arc<Mutex<NetworkState>>) -> Result<(), PluginE
     messages.into_iter()
         .send_all()
         .collect::<futures::stream::FuturesUnordered<_>>()
-        .collect::<Vec<Result<tedge_lib::iter::SendResult<_>, _>>>()
+        .collect::<Vec<Result<_, _>>>()
         .await
         .into_iter()
         .collect::<Result<Vec<_>, _>>()
