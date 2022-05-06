@@ -2,10 +2,9 @@ use async_trait::async_trait;
 use tracing::debug;
 
 use tedge_api::address::Address;
-use tedge_api::address::ReplySender;
+use tedge_api::address::ReplySenderFor;
 use tedge_api::error::PluginError;
 use tedge_api::plugin::Handle;
-use tedge_api::plugin::Message;
 use tedge_api::plugin::Plugin;
 use tedge_lib::measurement::Measurement;
 use tracing::trace;
@@ -60,7 +59,7 @@ impl Handle<Measurement> for MeasurementFilterPlugin {
     async fn handle_message(
         &self,
         message: Measurement,
-        _sender: ReplySender<<Measurement as Message>::Reply>,
+        _sender: ReplySenderFor<Measurement>,
     ) -> Result<(), PluginError> {
         trace!("Extracting with {:?} from {:?}", self.extractor, message);
         if let Some(value) = message.extract(&self.extractor.0) {
