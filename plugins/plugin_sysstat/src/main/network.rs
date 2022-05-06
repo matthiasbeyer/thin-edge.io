@@ -58,7 +58,6 @@ pub async fn main_network(state: Arc<Mutex<NetworkState>>) -> Result<(), PluginE
 
     let lock = state.lock().await;
     let state = lock.deref();
-    let timeout_duration = std::time::Duration::from_millis(state.interval);
 
     let messages = state
         .sys
@@ -84,7 +83,6 @@ pub async fn main_network(state: Arc<Mutex<NetworkState>>) -> Result<(), PluginE
 
     messages.into_iter()
         .send_all()
-        .wait_for_reply(timeout_duration)
         .collect::<futures::stream::FuturesUnordered<_>>()
         .collect::<Vec<Result<tedge_lib::iter::SendResult<_>, _>>>()
         .await

@@ -97,7 +97,6 @@ pub async fn main_process(state: Arc<Mutex<ProcessState>>) -> Result<(), PluginE
     messages
         .into_iter()
         .send_all()
-        .wait_for_reply(timeout_duration)
         .collect::<futures::stream::FuturesUnordered<_>>()
         .collect::<Vec<Result<_, _>>>()
         .await
