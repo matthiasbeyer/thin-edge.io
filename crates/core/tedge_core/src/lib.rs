@@ -2,7 +2,10 @@
 //!
 
 use std::collections::HashMap;
+use std::path::Path;
+use std::path::PathBuf;
 
+use miette::IntoDiagnostic;
 use tedge_api::PluginBuilder;
 use tedge_api::plugin::HandleTypes;
 use tokio_util::sync::CancellationToken;
@@ -25,6 +28,7 @@ pub use crate::communication::PluginDirectory;
 
 /// A TedgeApplication
 pub struct TedgeApplication {
+    config_path: PathBuf,
     config: TedgeConfiguration,
     cancellation_token: CancellationToken,
     plugin_builders: HashMap<String, (HandleTypes, Box<dyn PluginBuilder<PluginDirectory>>)>,
@@ -42,6 +46,10 @@ impl TedgeApplication {
             cancellation_token: CancellationToken::new(),
             plugin_builders: HashMap::new(),
         }
+    }
+
+    pub(crate) fn config_path(&self) -> &Path {
+        &self.config_path
     }
 
     pub(crate) fn config(&self) -> &TedgeConfiguration {
@@ -75,18 +83,20 @@ impl TedgeApplication {
             .map(|(plugin_name, plugin_cfg): (&String, &PluginInstanceConfiguration)| async {
                     if let Some((_, builder)) = self.plugin_builders().get(plugin_cfg.kind().as_ref()) {
                         debug!("Verifying {}", plugin_cfg.kind().as_ref());
-                        let res = builder
-                            .verify_configuration(plugin_cfg.configuration())
+                        let res = plugin_cfg
+                            .configuration()
+                            .verify_with_builder(builder, self.config_path())
                             .await
-                            .map_err(TedgeApplicationError::PluginConfigVerificationFailed);
-
+                            .into_diagnostic()
+                            .map_err(TedgeApplicationError::PluginConfigVerificationFailed)
+                            .map(|_| ());
                         (plugin_name.to_string(), res)
                     } else {
                         (
                             plugin_name.to_string(),
                             Err(TedgeApplicationError::UnknownPluginKind(
                                 plugin_cfg.kind().as_ref().to_string(),
-                            )),
+                            ))
                         )
                     }
                 },
@@ -116,12 +126,17 @@ impl TedgeApplicationBuilder {
         Ok(self)
     }
 
-    pub fn with_config(
+    pub async fn with_config_from_path(
         self,
-        config: TedgeConfiguration,
+        config_path: impl AsRef<Path>,
     ) -> Result<(TedgeApplicationCancelSender, TedgeApplication)> {
+        let config_str = tokio::fs::read_to_string(&config_path)
+            .await
+            .map_err(TedgeApplicationError::ConfigReadFailed)?;
+        let config = toml::de::from_str(&config_str)?;
         let cancellation = TedgeApplicationCancelSender(self.cancellation_token.clone());
         let app = TedgeApplication {
+            config_path: config_path.as_ref().to_path_buf(),
             config,
             cancellation_token: self.cancellation_token,
             plugin_builders: self.plugin_builders,
@@ -156,85 +171,9 @@ impl TedgeApplicationCancelSender {
 
 #[cfg(test)]
 mod tests {
-    use miette::Result;
-    use miette::IntoDiagnostic;
-
-    use super::*;
-
-    mod dummy {
-        use async_trait::async_trait;
-        use tedge_api::{Plugin, PluginBuilder, PluginConfiguration, PluginError};
-        use tedge_api::plugin::{BuiltPlugin, PluginExt, HandleTypes};
-
-        use crate::communication::PluginDirectory;
-
-        pub struct DummyPluginBuilder;
-
-        #[async_trait::async_trait]
-        impl PluginBuilder<PluginDirectory> for DummyPluginBuilder {
-            fn kind_name() -> &'static str {
-                "dummy_plugin"
-            }
-
-            async fn verify_configuration(
-                &self,
-                _config: &PluginConfiguration,
-            ) -> Result<(), tedge_api::error::PluginError> {
-                Ok(())
-            }
-
-            async fn instantiate(
-                &self,
-                _config: PluginConfiguration,
-                _cancellation_token: tedge_api::CancellationToken,
-                _plugin_dir: &PluginDirectory,
-            ) -> Result<BuiltPlugin, PluginError> {
-                Ok(DummyPlugin.finish())
-            }
-
-            fn kind_message_types() -> HandleTypes
-                where Self:Sized
-            {
-                DummyPlugin::get_handled_types()
-            }
-
-        }
-
-        pub struct DummyPlugin;
-
-        impl tedge_api::plugin::PluginDeclaration for DummyPlugin {
-            type HandledMessages = ();
-        }
-
-        #[async_trait]
-        impl Plugin for DummyPlugin {
-            async fn start(&mut self) -> Result<(), PluginError> {
-                Ok(())
-            }
-
-            async fn shutdown(&mut self) -> Result<(), PluginError> {
-                Ok(())
-            }
-        }
-    }
-
-    const CONFIGURATION: &str = r#"
-        communication_buffer_size = 1
-        plugin_shutdown_timeout_ms = 1000
-        [plugins]
-        [plugins.testplug]
-        kind = "dummy_plugin"
-        [plugins.testplug.configuration]
-    "#;
-
-    #[tokio::test]
-    async fn test_creating_tedge_application() -> Result<()> {
-        let config = toml::de::from_str(CONFIGURATION).into_diagnostic()?;
-
-        let (_, _) = TedgeApplication::builder()
-            .with_plugin_builder(dummy::DummyPluginBuilder {})?
-            .with_config(config)?;
-
-        Ok(())
+    #[test]
+    fn test_deser_empty_plugin_config() {
+        let s = "";
+        let _: tedge_api::PluginConfiguration = toml::de::from_str(s).unwrap();
     }
 }

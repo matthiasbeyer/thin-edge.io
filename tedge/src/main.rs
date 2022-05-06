@@ -1,11 +1,9 @@
 use std::collections::HashSet;
-use std::path::Path;
 
 use clap::Parser;
 use miette::IntoDiagnostic;
 
 use tedge_api::PluginBuilder;
-use tedge_core::configuration::TedgeConfiguration;
 use tedge_core::TedgeApplication;
 use tedge_core::TedgeApplicationCancelSender;
 use tedge_lib::measurement::Measurement;
@@ -113,10 +111,7 @@ async fn main() -> miette::Result<()> {
 
     match args.command {
         cli::CliCommand::Run { config } => {
-            let config = get_config(&config).await?;
-            info!("Configuration loaded.");
-
-            let (cancel_sender, application) = application.with_config(config)?;
+            let (cancel_sender, application) = application.with_config_from_path(config).await?;
             info!("Application built");
 
             debug!("Verifying the configuration");
@@ -126,10 +121,7 @@ async fn main() -> miette::Result<()> {
             run(cancel_sender, application).await
         }
         cli::CliCommand::ValidateConfig { config } => {
-            let config = get_config(&config).await?;
-            info!("Configuration loaded.");
-
-            let (_, application) = application.with_config(config)?;
+            let (_, application) = application.with_config_from_path(config).await?;
             info!("Application built");
 
             debug!("Only going to validate the configuration");
@@ -147,13 +139,6 @@ async fn main() -> miette::Result<()> {
             Ok(())
         }
     }
-}
-
-async fn get_config(config_path: &Path) -> miette::Result<TedgeConfiguration> {
-    tokio::fs::read_to_string(config_path)
-        .await
-        .into_diagnostic()
-        .and_then(|c| toml::de::from_str(&c).into_diagnostic())
 }
 
 async fn run(

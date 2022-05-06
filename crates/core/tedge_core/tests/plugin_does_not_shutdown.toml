@@ -1,0 +1,8 @@
+communication_buffer_size = 10
+
+plugin_shutdown_timeout_ms = 2000
+
+[plugins]
+[plugins.noshut]
+kind = "noshutdown"
+[plugins.noshut.configuration]

@@ -1,0 +1,4 @@
+name = "logging"
+level = "trace"
+acknowledge = false
+setup_logger = false

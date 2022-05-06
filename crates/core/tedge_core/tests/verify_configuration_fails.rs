@@ -6,7 +6,6 @@ use tedge_api::PluginConfiguration;
 use tedge_api::PluginDirectory;
 use tedge_api::PluginError;
 use tedge_api::PluginExt;
-use tedge_core::configuration::TedgeConfiguration;
 use tedge_core::TedgeApplication;
 use tedge_core::errors::TedgeApplicationError;
 
@@ -64,22 +63,19 @@ impl Plugin for VerifyConfigFailsPlugin {
 async fn test_verify_fails_plugin() -> Result<(), Box<(dyn std::error::Error + 'static)>> {
     let _ = tracing_subscriber::fmt::try_init();
 
-    const CONF: &'static str = r#"
-        communication_buffer_size = 10
+    let config_file_path = {
+        let dir = std::env::current_exe().unwrap().parent().unwrap().join("../../../");
+        let mut name = std::path::PathBuf::from(std::file!());
+        name.set_extension("toml");
+        let filepath = dir.join(name);
+        assert!(filepath.exists(), "Config file does not exist: {}", filepath.display());
+        filepath
+    };
 
-        plugin_shutdown_timeout_ms = 2000
-
-        [plugins]
-
-        [plugins.no_verify_plugin]
-        kind = "verify_config_fails"
-        [plugins.no_verify_plugin.configuration]
-    "#;
-
-    let config: TedgeConfiguration = toml::de::from_str(CONF)?;
     let (_cancel_sender, application) = TedgeApplication::builder()
         .with_plugin_builder(VerifyConfigFailsPluginBuilder {})?
-        .with_config(config)?;
+        .with_config_from_path(config_file_path)
+        .await?;
 
     match application.run().await {
         Err(TedgeApplicationError::PluginConfigVerificationFailed(e)) => {
