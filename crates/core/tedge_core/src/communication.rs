@@ -1,10 +1,10 @@
-use std::any::TypeId;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
 
 use tedge_api::address::MessageSender;
 use tedge_api::error::DirectoryError;
+use tedge_api::message::MessageType;
 use tedge_api::plugin::PluginDirectory as ApiPluginDirectory;
 use tedge_api::Address;
 
@@ -45,7 +45,7 @@ impl CorePluginDirectory {
             .ok_or_else(|| DirectoryError::PluginNameNotFound(name.to_string()))?;
 
         if !plug.types.is_superset(&types) {
-            let unsupported_types = types.difference(&plug.types).map(|tpl| tpl.0).collect();
+            let unsupported_types = types.difference(&plug.types).map(|mty| mty.name()).collect();
             Err(DirectoryError::PluginDoesNotSupport(
                 name.to_string(),
                 unsupported_types,
@@ -69,13 +69,13 @@ impl CorePluginDirectory {
 
 #[derive(Debug)]
 pub(crate) struct PluginInfo {
-    pub(crate) types: HashSet<(&'static str, TypeId)>,
+    pub(crate) types: HashSet<MessageType>,
     pub(crate) receiver: Option<tedge_api::address::MessageReceiver>,
     pub(crate) sender: tedge_api::address::MessageSender,
 }
 
 impl PluginInfo {
-    pub(crate) fn new(types: HashSet<(&'static str, TypeId)>, channel_size: usize) -> Self {
+    pub(crate) fn new(types: HashSet<MessageType>, channel_size: usize) -> Self {
         let (sender, receiver) = tokio::sync::mpsc::channel(channel_size);
         Self {
             types,
@@ -214,6 +214,8 @@ mod tests {
     tedge_api::make_receiver_bundle!(pub struct AllUnsupportedMessageReceiver(UnsupportedMessage, OtherUnsupportedMessage));
     tedge_api::make_receiver_bundle!(pub struct SomeSupportedMessageReceiver(UnsupportedMessage, OtherUnsupportedMessage, testplugin::SupportedMessage));
 
+    use tedge_api::message::MessageType;
+
     use super::*;
     use crate::configuration::TedgeConfiguration;
 
@@ -249,7 +251,7 @@ mod tests {
                         .get_types()
                         .into_iter()
                         .cloned()
-                        .collect::<HashSet<(&'static str, TypeId)>>()
+                        .collect::<HashSet<MessageType>>()
                 })
                 .ok_or_else(|| {
                     TedgeApplicationError::UnknownPluginKind(pconfig.kind().as_ref().to_string())

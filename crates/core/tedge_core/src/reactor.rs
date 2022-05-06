@@ -1,10 +1,10 @@
-use std::any::TypeId;
 use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
 
 use futures::StreamExt;
 
+use tedge_api::message::MessageType;
 use tedge_api::plugin::BuiltPlugin;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
@@ -47,27 +47,26 @@ impl Reactor {
     pub async fn run(self) -> Result<()> {
         let channel_size = self.0.config().communication_buffer_size().get();
 
-        let directory_iter = self.0.config().plugins().iter().map(|(pname, pconfig)| {
-            let handle_types = self
-                .0
-                .plugin_builders()
-                .get(pconfig.kind().as_ref())
-                .map(|(handle_types, _)| {
-                    handle_types
-                        .get_types()
-                        .into_iter()
-                        .cloned()
-                        .collect::<HashSet<(&'static str, TypeId)>>()
-                })
-                .ok_or_else(|| {
-                    TedgeApplicationError::UnknownPluginKind(pconfig.kind().as_ref().to_string())
-                })?;
+        let directory_iter = self.0
+            .config()
+            .plugins()
+            .iter()
+            .map(|(pname, pconfig)| {
+                let handle_types = self.0
+                    .plugin_builders()
+                    .get(pconfig.kind().as_ref())
+                    .map(|(handle_types, _)| {
+                        handle_types.get_types()
+                            .into_iter()
+                            .cloned()
+                            .collect::<HashSet<MessageType>>()
+                    })
+                    .ok_or_else(|| {
+                        TedgeApplicationError::UnknownPluginKind(pconfig.kind().as_ref().to_string())
+                    })?;
 
-            Ok((
-                pname.to_string(),
-                PluginInfo::new(handle_types, channel_size),
-            ))
-        });
+                    Ok((pname.to_string(), PluginInfo::new(handle_types, channel_size)))
+            });
         let (core_sender, core_receiver) = tokio::sync::mpsc::channel(channel_size);
 
         let mut directory = CorePluginDirectory::collect_from(directory_iter, core_sender)?;
