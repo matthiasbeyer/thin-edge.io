@@ -87,12 +87,8 @@ pub struct PluginConfigVerificationError {
 }
 
 impl miette::Diagnostic for PluginConfigVerificationError {
-    fn related<'a>(&'a self) -> Option<Box<dyn Iterator<Item = &'a dyn miette::Diagnostic> + 'a>> {
-        Some(Box::new(std::iter::once_with(|| {
-            let err: &dyn miette::Diagnostic = &*self.error;
-
-            err
-        })))
+    fn diagnostic_source(&self) -> Option<&dyn miette::Diagnostic> {
+        Some(&*self.error)
     }
 }
 
@@ -127,12 +123,8 @@ pub struct PluginBuilderInstantiationError {
 }
 
 impl miette::Diagnostic for PluginBuilderInstantiationError {
-    fn related<'a>(&'a self) -> Option<Box<dyn Iterator<Item = &'a dyn miette::Diagnostic> + 'a>> {
-        Some(Box::new(std::iter::once_with(|| {
-            let err: &dyn miette::Diagnostic = &*self.error;
-
-            err
-        })))
+    fn diagnostic_source(&self) -> Option<&dyn miette::Diagnostic> {
+        Some(&*self.error)
     }
 }
 
@@ -181,12 +173,8 @@ pub struct PluginStartFailed {
 }
 
 impl miette::Diagnostic for PluginStartFailed {
-    fn related<'a>(&'a self) -> Option<Box<dyn Iterator<Item = &'a dyn miette::Diagnostic> + 'a>> {
-        Some(Box::new(std::iter::once_with(|| {
-            let err: &dyn miette::Diagnostic = &*self.error;
-
-            err
-        })))
+    fn diagnostic_source(&self) -> Option<&dyn miette::Diagnostic> {
+        Some(&*self.error)
     }
 }
 
@@ -229,12 +217,8 @@ pub struct PluginMessageHandlerFailed {
 }
 
 impl miette::Diagnostic for PluginMessageHandlerFailed {
-    fn related<'a>(&'a self) -> Option<Box<dyn Iterator<Item = &'a dyn miette::Diagnostic> + 'a>> {
-        Some(Box::new(std::iter::once_with(|| {
-            let err: &dyn miette::Diagnostic = &*self.error;
-
-            err
-        })))
+    fn diagnostic_source(&self) -> Option<&dyn miette::Diagnostic> {
+        Some(&*self.error)
     }
 }
 
@@ -259,11 +243,7 @@ pub struct PluginStopFailed {
 }
 
 impl miette::Diagnostic for PluginStopFailed {
-    fn related<'a>(&'a self) -> Option<Box<dyn Iterator<Item = &'a dyn miette::Diagnostic> + 'a>> {
-        Some(Box::new(std::iter::once_with(|| {
-            let err: &dyn miette::Diagnostic = &*self.error;
-
-            err
-        })))
+    fn diagnostic_source(&self) -> Option<&dyn miette::Diagnostic> {
+        Some(&*self.error)
     }
 }
