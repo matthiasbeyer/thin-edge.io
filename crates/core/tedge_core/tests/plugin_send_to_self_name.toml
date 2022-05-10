@@ -1,0 +1,6 @@
+communication_buffer_size = 10
+plugin_shutdown_timeout_ms = 2000
+
+[plugins.selfsender]
+kind = "selfsend"
+[plugins.selfsender.configuration]

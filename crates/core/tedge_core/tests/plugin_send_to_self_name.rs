@@ -11,9 +11,6 @@ use tedge_api::PluginError;
 use tedge_api::plugin::HandleTypes;
 use tedge_api::plugin::PluginExt;
 use tedge_core::TedgeApplication;
-use tedge_core::configuration::TedgeConfiguration;
-
-const PLUGIN_INSTANCE_NAME: &str = "selfsender";
 
 pub struct SelfSendPluginBuilder;
 
@@ -45,7 +42,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for SelfSendPluginBuilder {
         _cancellation_token: tedge_api::CancellationToken,
         plugin_dir: &PD,
     ) -> Result<tedge_api::plugin::BuiltPlugin, PluginError> {
-        let _addr: Address<MsgRecv> = plugin_dir.get_address_for(PLUGIN_INSTANCE_NAME)?;
+        let _addr: Address<MsgRecv> = plugin_dir.get_address_for("selfsender")?;
         tracing::info!("Fetching own address worked");
         let core_addr = plugin_dir.get_address_for_core();
         Ok(SelfSendPlugin { core_addr }.finish())
@@ -99,19 +96,19 @@ fn test_send_to_self_via_name_does_work() -> Result<(), Box<(dyn std::error::Err
         .unwrap();
 
     let res = rt.block_on(async {
-        let conf = format!(r#"
-            communication_buffer_size = 10
-            plugin_shutdown_timeout_ms = 2000
+        let config_file_path = {
+            let dir = std::env::current_exe().unwrap().parent().unwrap().join("../../../");
+            let mut name = std::path::PathBuf::from(std::file!());
+            name.set_extension("toml");
+            let filepath = dir.join(name);
+            assert!(filepath.exists(), "Config file does not exist: {}", filepath.display());
+            filepath
+        };
 
-            [plugins.{name}]
-            kind = "selfsend"
-            [plugins.{name}.configuration]
-        "#, name = PLUGIN_INSTANCE_NAME);
-
-        let config: TedgeConfiguration = toml::de::from_str(&conf).into_diagnostic()?;
         let (cancel_sender, application) = TedgeApplication::builder()
             .with_plugin_builder(SelfSendPluginBuilder {})?
-            .with_config(config)?;
+            .with_config_from_path(config_file_path)
+            .await?;
 
         let mut run_fut = tokio::spawn(application.run());
 
