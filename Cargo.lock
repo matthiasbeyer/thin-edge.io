@@ -2256,6 +2256,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "plugin_notification"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "float-cmp 0.9.0",
+ "log",
+ "miette",
+ "nom",
+ "serde",
+ "serde_with",
+ "tedge_api",
+ "tedge_lib",
+ "tokio-util 0.7.0",
+ "toml",
+ "tracing",
+]
+
+[[package]]
 name = "plugin_sm"
 version = "0.5.2"
 dependencies = [
@@ -3276,6 +3294,7 @@ dependencies = [
  "plugin_measurement_filter",
  "plugin_mqtt",
  "plugin_mqtt_measurement_bridge",
+ "plugin_notification",
  "plugin_sysstat",
  "tedge_api",
  "tedge_core",

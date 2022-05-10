@@ -15,7 +15,7 @@ configuration_file = "./example-config-logging.toml"
 kind = "measurement_filter"
 
 [plugins.filter-high-cpu.configuration]
-target = "mqttbridge"
+target = "cpu_notification"
 filtered_target = "logging"
 extractor = "global_processor_info.cpu_usage"
 more_than = 12.0
@@ -86,4 +86,14 @@ kind = "mqtt_measurement_bridge"
 [plugins.mqttbridge.configuration]
 mqtt_plugin_name = "plugmqtt"
 topic = "pubs"
+
+
+[plugins.cpu_notification]
+kind = "notification"
+
+[plugins.cpu_notification.configuration]
+forward_to = "mqttbridge"
+notify = "logging"
+raise = "info"
+raise_message = "There was a measurement about the CPU"
 
