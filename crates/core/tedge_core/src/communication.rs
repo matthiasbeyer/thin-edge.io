@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use tedge_api::address::MessageSender;
@@ -37,15 +36,32 @@ impl CorePluginDirectory {
         &self,
         name: &str,
     ) -> Result<Address<MB>, DirectoryError> {
-        let types = MB::get_ids().into_iter().collect();
+        // list of types that is requested to be supported by the address
+        let types = MB::get_ids().into_iter().collect::<Vec<_>>();
 
+        // list of types the plugin supports
         let plug = self
             .plugins
             .get(name)
             .ok_or_else(|| DirectoryError::PluginNameNotFound(name.to_string()))?;
 
-        if !plug.types.is_superset(&types) {
-            let unsupported_types = types.difference(&plug.types).map(|mty| mty.name()).collect();
+        let all_types_supported = {
+            // all requested types
+            types.iter().all(|mb_type: &MessageType| {
+                // must be satisfied in the supported types
+                plug.types
+                    .iter()
+                    .any(|plugin_type: &MessageType| plugin_type.satisfy(mb_type))
+            })
+        };
+
+        if !all_types_supported {
+            let unsupported_types = types
+                .iter()
+                .filter(|mty| !plug.types.iter().any(|pty| pty.satisfy(mty)))
+                .map(|mty| mty.name())
+                .collect();
+
             Err(DirectoryError::PluginDoesNotSupport(
                 name.to_string(),
                 unsupported_types,
@@ -69,13 +85,13 @@ impl CorePluginDirectory {
 
 #[derive(Debug)]
 pub(crate) struct PluginInfo {
-    pub(crate) types: HashSet<MessageType>,
+    pub(crate) types: Vec<MessageType>,
     pub(crate) receiver: Option<tedge_api::address::MessageReceiver>,
     pub(crate) sender: tedge_api::address::MessageSender,
 }
 
 impl PluginInfo {
-    pub(crate) fn new(types: HashSet<MessageType>, channel_size: usize) -> Self {
+    pub(crate) fn new(types: Vec<MessageType>, channel_size: usize) -> Self {
         let (sender, receiver) = tokio::sync::mpsc::channel(channel_size);
         Self {
             types,
@@ -197,7 +213,6 @@ mod tests {
     impl tedge_api::Message for UnsupportedMessage {
     }
 
-
     #[derive(Debug)]
     struct OtherUnsupportedMessage;
 
@@ -246,7 +261,7 @@ mod tests {
                         .get_types()
                         .into_iter()
                         .cloned()
-                        .collect::<HashSet<MessageType>>()
+                        .collect::<Vec<MessageType>>()
                 })
                 .ok_or_else(|| {
                     TedgeApplicationError::UnknownPluginKind(pconfig.kind().as_ref().to_string())
@@ -266,9 +281,8 @@ mod tests {
     fn test_not_supported_error_msg_mentions_unsupported_type() {
         let directory = make_directory();
 
-        let addr = directory.get_address_for::<UnsupportedMessageReceiver>(
-            testplugin::TEST_PLUGIN_NAME,
-        );
+        let addr =
+            directory.get_address_for::<UnsupportedMessageReceiver>(testplugin::TEST_PLUGIN_NAME);
         match addr {
             Err(DirectoryError::PluginDoesNotSupport(plug_name, types)) => {
                 assert_eq!(plug_name, testplugin::TEST_PLUGIN_NAME);
@@ -281,14 +295,12 @@ mod tests {
         }
     }
 
-
     #[test]
     fn test_not_supported_error_msg_mentions_other_unsupported_type() {
         let directory = make_directory();
 
-        let addr = directory.get_address_for::<OtherUnsupportedMessageReceiver>(
-            testplugin::TEST_PLUGIN_NAME,
-        );
+        let addr = directory
+            .get_address_for::<OtherUnsupportedMessageReceiver>(testplugin::TEST_PLUGIN_NAME);
         match addr {
             Err(DirectoryError::PluginDoesNotSupport(plug_name, types)) => {
                 assert_eq!(plug_name, testplugin::TEST_PLUGIN_NAME);
@@ -305,15 +317,18 @@ mod tests {
     fn test_not_supported_error_msg_mentions_all_unsupported_types() {
         let directory = make_directory();
 
-        let addr = directory.get_address_for::<AllUnsupportedMessageReceiver>(
-            testplugin::TEST_PLUGIN_NAME,
-        );
+        let addr = directory
+            .get_address_for::<AllUnsupportedMessageReceiver>(testplugin::TEST_PLUGIN_NAME);
         match addr {
             Err(DirectoryError::PluginDoesNotSupport(plug_name, types)) => {
                 assert_eq!(plug_name, testplugin::TEST_PLUGIN_NAME);
                 assert_eq!(types.len(), 2);
-                assert!(types.iter().any(|e| *e == std::any::type_name::<UnsupportedMessage>()));
-                assert!(types.iter().any(|e| *e == std::any::type_name::<OtherUnsupportedMessage>()));
+                assert!(types
+                    .iter()
+                    .any(|e| *e == std::any::type_name::<UnsupportedMessage>()));
+                assert!(types
+                    .iter()
+                    .any(|e| *e == std::any::type_name::<OtherUnsupportedMessage>()));
             }
 
             Err(other) => panic!("Expected PluginDoesNotSupport error, got {:?}", other),
@@ -325,16 +340,21 @@ mod tests {
     fn test_not_supported_error_msg_does_not_mention_supported_message() {
         let directory = make_directory();
 
-        let addr = directory.get_address_for::<SomeSupportedMessageReceiver>(
-            testplugin::TEST_PLUGIN_NAME,
-        );
+        let addr =
+            directory.get_address_for::<SomeSupportedMessageReceiver>(testplugin::TEST_PLUGIN_NAME);
         match addr {
             Err(DirectoryError::PluginDoesNotSupport(plug_name, types)) => {
                 assert_eq!(plug_name, testplugin::TEST_PLUGIN_NAME);
                 assert_eq!(types.len(), 2);
-                assert!(types.iter().any(|e| *e == std::any::type_name::<UnsupportedMessage>()));
-                assert!(types.iter().any(|e| *e == std::any::type_name::<OtherUnsupportedMessage>()));
-                assert!(types.iter().all(|e| *e != std::any::type_name::<testplugin::SupportedMessage>()));
+                assert!(types
+                    .iter()
+                    .any(|e| *e == std::any::type_name::<UnsupportedMessage>()));
+                assert!(types
+                    .iter()
+                    .any(|e| *e == std::any::type_name::<OtherUnsupportedMessage>()));
+                assert!(types
+                    .iter()
+                    .all(|e| *e != std::any::type_name::<testplugin::SupportedMessage>()));
             }
 
             Err(other) => panic!("Expected PluginDoesNotSupport error, got {:?}", other),

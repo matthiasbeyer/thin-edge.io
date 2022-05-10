@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -59,7 +58,7 @@ impl Reactor {
                         handle_types.get_types()
                             .into_iter()
                             .cloned()
-                            .collect::<HashSet<MessageType>>()
+                            .collect::<Vec<MessageType>>()
                     })
                     .ok_or_else(|| {
                         TedgeApplicationError::UnknownPluginKind(pconfig.kind().as_ref().to_string())
