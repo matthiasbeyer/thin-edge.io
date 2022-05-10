@@ -15,6 +15,7 @@ use crate::errors::Result;
 use crate::errors::TedgeApplicationError;
 use crate::task::Task;
 
+/// Type for handling the lifecycle of one individual Plugin instance
 pub struct PluginTask {
     plugin_name: String,
     plugin: BuiltPlugin,
@@ -51,6 +52,11 @@ impl PluginTask {
 
 #[async_trait::async_trait]
 impl Task for PluginTask {
+
+    /// Run the PluginTask
+    ///
+    /// This handles the complete lifecycle of one [`tedge_api::Plugin`] instance. That includes
+    /// message passing as well as the crash-safety of that instance.
     #[tracing::instrument]
     async fn run(mut self) -> Result<()> {
         // In this implementation, we have the problem that all messages sent to a plugin should be
@@ -90,6 +96,13 @@ impl Task for PluginTask {
     }
 }
 
+/// Handle the setup phase of the Plugin instance
+///
+/// This makes sure the [`tedge_api::Plugin::start`] function is called in a crash-safe way. That
+/// means if the implementation of that function panics, this will simply return an error and not
+/// take down the rest of the application.
+///
+/// If the starting of the plugin failed, this will error as well, of course.
 async fn plugin_setup(plugin: Arc<RwLock<BuiltPlugin>>, plugin_name: &str) -> Result<()> {
     let mut plug = plugin.write().await;
     // we can use AssertUnwindSafe here because we're _not_ using the plugin after a panic has
@@ -113,6 +126,13 @@ async fn plugin_setup(plugin: Arc<RwLock<BuiltPlugin>>, plugin_name: &str) -> Re
     }
 }
 
+/// Run the "main loop" for the Plugin instance
+///
+/// This runs the main part of the lifecycle of the Plugin instance: Waiting for messages from
+/// other plugins and passing them to the instance handled here in a concurrent way.
+///
+/// If the application is cancelled by the user (via the CancellationToken), this function takes
+/// care of stopping the "main loop" as well and returns cleanly.
 async fn plugin_mainloop(
     plugin: Arc<RwLock<BuiltPlugin>>,
     plugin_name: &str,
@@ -175,6 +195,12 @@ async fn plugin_mainloop(
     Ok(())
 }
 
+/// Handle the shutdown procedure of the Plugin instance
+///
+/// This function takes care of calling [`tedge_api::Plugin::shutdown`] and makes sure that if the
+/// implementation of that function panics, it does not take down the rest of the application.
+///
+/// A shutdown timeout (as configured by the user) is applied as well.
 async fn plugin_shutdown(
     plugin: Arc<RwLock<BuiltPlugin>>,
     plugin_name: &str,

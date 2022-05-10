@@ -9,6 +9,11 @@ use tedge_api::Address;
 
 use crate::errors::TedgeApplicationError;
 
+/// Type for taking care of addresses
+///
+/// In a way, this is the address book type of thinedge. This associates a name of a plugin
+/// instance with an [`tedge_api::Address`] object that can be used to send messages to this plugin
+/// instance.
 pub struct CorePluginDirectory {
     plugins: HashMap<String, PluginInfo>,
     sender: MessageSender,
@@ -32,6 +37,8 @@ impl CorePluginDirectory {
         self.plugins.get_mut(name.as_ref())
     }
 
+    /// Get the address of a plugin named `name`, which must be able to receive messages of the
+    /// types specified in `MB`.
     fn get_address_for<MB: tedge_api::address::ReceiverBundle>(
         &self,
         name: &str,
@@ -71,10 +78,15 @@ impl CorePluginDirectory {
         }
     }
 
+    /// Get the [`tedge_api::Address`] object that can be used to send messages to the core itself
     fn get_address_for_core(&self) -> Address<tedge_api::CoreMessages> {
         Address::new(self.sender.clone())
     }
 
+    /// Construct a PluginDirectory object for a plugin named `plugin_name`
+    ///
+    /// This function is used to construct a `PluginDirectory` object that can be passed to the
+    /// plugin named `plugin_name`.
     pub fn for_plugin_named(self: Arc<Self>, plugin_name: &str) -> PluginDirectory {
         PluginDirectory {
             core: self.clone(),
@@ -83,10 +95,16 @@ impl CorePluginDirectory {
     }
 }
 
+/// Helper type for information about a plugin instance
 #[derive(Debug)]
 pub(crate) struct PluginInfo {
+    /// The types of messages the plugin claims to handle
     pub(crate) types: Vec<MessageType>,
+
+    /// A receiver for receiving messages sent to the plugin
     pub(crate) receiver: Option<tedge_api::address::MessageReceiver>,
+
+    /// A sender to send messages to the plugin
     pub(crate) sender: tedge_api::address::MessageSender,
 }
 
@@ -101,12 +119,26 @@ impl PluginInfo {
     }
 }
 
+/// `PluginDirectory` for one specific plugin named `plugin_name`
+///
+/// This `PluginDirectory` is a wrapper for `CorePluginDirectory`. It implements the
+/// [`tedge_api::plugin::PluginDirectory`] interface that a `PluginBuilder` implementation can
+/// then use to fetch addresses from.
+///
+/// The [`tedge_api::plugin::PluginDirectory::get_address_for`]
+/// and [`tedge_api::plugin::PluginDirectory::get_address_for_core`]
+/// functions are simply forwarded to the corresponding `CorePluginDirectory` functions.
+///
+/// The [`tedge_api::plugin::PluginDirectory::get_address_for_self`] function is a wrapper for
+/// [`tedge_api::plugin::PluginDirectory::get_address_for`], but the plugin calling this function
+/// does not need to know its own name.
 pub struct PluginDirectory {
     core: Arc<CorePluginDirectory>,
     plugin_name: String,
 }
 
 impl ApiPluginDirectory for PluginDirectory {
+    /// Forwarded to the corresponding `CorePluginDirectory` function
     fn get_address_for<RB: tedge_api::address::ReceiverBundle>(
         &self,
         name: &str,
@@ -114,10 +146,13 @@ impl ApiPluginDirectory for PluginDirectory {
         self.core.get_address_for::<RB>(name)
     }
 
+    /// Forwarded to the corresponding `CorePluginDirectory` function
     fn get_address_for_core(&self) -> Address<tedge_api::CoreMessages> {
         self.core.get_address_for_core()
     }
 
+    /// Call [`tedge_api::plugin::PluginDirectory::get_address_for`] with the name of the plugin
+    /// itself.
     fn get_address_for_self<RB: tedge_api::address::ReceiverBundle>(
         &self,
     ) -> Result<Address<RB>, DirectoryError> {
