@@ -48,7 +48,6 @@ pub async fn main_load(state: Arc<Mutex<LoadState>>) -> Result<(), PluginError> 
     let mut state = lock.deref_mut();
     state.sys.refresh_cpu(); // assuming that this is the required refresh call
     let state = lock.deref();
-    let timeout_duration = std::time::Duration::from_millis(state.interval);
     let load = state.sys.load_average();
 
     let mut hm = HashMap::new();
@@ -61,9 +60,8 @@ pub async fn main_load(state: Arc<Mutex<LoadState>>) -> Result<(), PluginError> 
     std::iter::repeat(message)
         .zip(state.send_to.iter())
         .send_all()
-        .wait_for_reply(timeout_duration)
         .collect::<futures::stream::FuturesUnordered<_>>()
-        .collect::<Vec<Result<tedge_lib::iter::SendResult<_>, _>>>()
+        .collect::<Vec<Result<_, _>>>()
         .await
         .into_iter()
         .map(|res| {

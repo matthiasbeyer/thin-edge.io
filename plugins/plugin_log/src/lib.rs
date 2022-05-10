@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use async_trait::async_trait;
 
-use tedge_api::address::ReplySender;
+use tedge_api::address::ReplySenderFor;
 use tedge_api::plugin::BuiltPlugin;
 use tedge_api::plugin::DoesHandle;
 use tedge_api::plugin::Handle;
@@ -138,7 +138,7 @@ where
     async fn handle_message(
         &self,
         message: M,
-        _sender: ReplySender<M::Reply>,
+        _sender: ReplySenderFor<M>,
     ) -> Result<(), PluginError> {
         match self.config.level {
             log::Level::Trace => {

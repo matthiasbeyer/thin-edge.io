@@ -2,7 +2,8 @@ use futures::FutureExt;
 
 use tedge_api::address::Address;
 use tedge_api::address::ReceiverBundle;
-use tedge_api::address::ReplyReceiver;
+use tedge_api::address::ReplyReceiverFor;
+use tedge_api::plugin::AcceptsReplies;
 use tedge_api::plugin::Message;
 
 pub trait IntoSendAll<'addr, M: Message, RB: ReceiverBundle>
@@ -48,7 +49,7 @@ where
 {
     type Item = std::pin::Pin<
         Box<
-            dyn futures::future::Future<Output = Result<ReplyReceiver<M::Reply>, M>> + Send + 'addr,
+            dyn futures::future::Future<Output = Result<ReplyReceiverFor<M>, M>> + Send + 'addr,
         >,
     >;
 
@@ -90,7 +91,7 @@ where
 impl<'addr, M, RB, I> Iterator for SendAllWaitForReply<'addr, M, RB, I>
 where
     I: Iterator<Item = (M, &'addr Address<RB>)>,
-    M: Message,
+    M: AcceptsReplies,
     RB: 'addr,
     RB: ReceiverBundle,
     RB: tedge_api::address::Contains<M>,

@@ -131,7 +131,6 @@ mod sending {
     #[derive(Debug)]
     pub struct SendingMessage;
     impl tedge_api::plugin::Message for SendingMessage {
-        type Reply = tedge_api::message::NoReply;
     }
 
     tedge_api::make_receiver_bundle!(pub struct SendingMessages(SendingMessage));

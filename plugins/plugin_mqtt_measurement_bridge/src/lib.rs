@@ -7,11 +7,10 @@ use tedge_api::PluginConfiguration;
 use tedge_api::PluginDirectory;
 use tedge_api::PluginError;
 use tedge_api::address::Address;
-use tedge_api::address::ReplySender;
+use tedge_api::address::ReplySenderFor;
 use tedge_api::plugin::BuiltPlugin;
 use tedge_api::plugin::Handle;
 use tedge_api::plugin::HandleTypes;
-use tedge_api::plugin::Message;
 use tedge_api::plugin::PluginExt;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
@@ -122,7 +121,7 @@ impl Handle<tedge_lib::measurement::Measurement> for MqttMeasurementBridgePlugin
     async fn handle_message(
         &self,
         message: tedge_lib::measurement::Measurement,
-        _sender: ReplySender<<tedge_lib::measurement::Measurement as Message>::Reply>,
+        _sender: ReplySenderFor<tedge_lib::measurement::Measurement>,
     ) -> Result<(), PluginError> {
         let json_msg = serde_json::to_string(&message)
             .into_diagnostic()

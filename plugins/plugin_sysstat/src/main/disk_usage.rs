@@ -53,7 +53,6 @@ pub async fn main_disk_usage(state: Arc<Mutex<DiskUsageState>>) -> Result<(), Pl
         state.sys.refresh_disks_list();
     }
 
-    let timeout_duration = std::time::Duration::from_millis(lock.deref().interval);
     lock.deref_mut().sys.refresh_disks();
     lock.deref()
         .sys
@@ -62,7 +61,6 @@ pub async fn main_disk_usage(state: Arc<Mutex<DiskUsageState>>) -> Result<(), Pl
         .map(|disk| async {
             measure_to_messages(lock.deref(), &lock.deref().send_to, disk)?
                 .send_all()
-                .wait_for_reply(timeout_duration)
                 .collect::<futures::stream::FuturesUnordered<_>>()
                 .collect::<Vec<Result<_, _>>>()
                 .await

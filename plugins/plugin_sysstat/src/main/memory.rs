@@ -84,7 +84,6 @@ pub async fn main_memory(state: Arc<Mutex<MemoryState>>) -> Result<(), PluginErr
     let mut state = lock.deref_mut();
     state.sys.refresh_memory();
     let state = lock.deref();
-    let timeout_duration = std::time::Duration::from_millis(state.interval);
     let mut hm = HashMap::new();
 
     macro_rules! measure {
@@ -134,9 +133,8 @@ pub async fn main_memory(state: Arc<Mutex<MemoryState>>) -> Result<(), PluginErr
     std::iter::repeat(measurement)
         .zip(state.send_to.iter())
         .send_all()
-        .wait_for_reply(timeout_duration)
         .collect::<futures::stream::FuturesUnordered<_>>()
-        .collect::<Vec<Result<tedge_lib::iter::SendResult<_>, _>>>()
+        .collect::<Vec<Result<_, _>>>()
         .await
         .into_iter()
         .map(|res| {

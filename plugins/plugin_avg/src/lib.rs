@@ -4,8 +4,7 @@ use async_trait::async_trait;
 use tedge_api::plugin::PluginExt;
 use tokio_util::sync::CancellationToken;
 
-use tedge_api::address::ReplySender;
-use tedge_api::message::NoReply;
+use tedge_api::address::ReplySenderFor;
 use tedge_api::plugin::Handle;
 use tedge_api::Address;
 use tedge_api::Plugin;
@@ -142,7 +141,7 @@ impl Handle<Measurement> for AvgPlugin {
     async fn handle_message(
         &self,
         message: Measurement,
-        _reply: ReplySender<NoReply>,
+        _reply: ReplySenderFor<Measurement>,
     ) -> Result<(), PluginError> {
         let value = match message.value() {
             MeasurementValue::Float(f) => Some(f),

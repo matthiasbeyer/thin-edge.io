@@ -23,7 +23,6 @@ impl Measurement {
 }
 
 impl tedge_api::plugin::Message for Measurement {
-    type Reply = tedge_api::message::NoReply;
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]

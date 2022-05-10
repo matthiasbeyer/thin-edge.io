@@ -4,7 +4,6 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use miette::IntoDiagnostic;
 use tedge_api::make_receiver_bundle;
-use tedge_api::message::NoReply;
 use tedge_api::plugin::Handle;
 use tedge_api::plugin::HandleTypes;
 use tedge_api::plugin::PluginDeclaration;
@@ -25,7 +24,6 @@ const MESSAGE_COUNT: usize = 1000;
 struct Spam;
 
 impl Message for Spam {
-    type Reply = NoReply;
 }
 
 pub struct SpammyPluginBuilder;
@@ -161,7 +159,7 @@ impl Handle<Spam> for SpammedPlugin {
     async fn handle_message(
         &self,
         _message: Spam,
-        _sender: tedge_api::address::ReplySender<<Spam as Message>::Reply>,
+        _sender: tedge_api::address::ReplySenderFor<Spam>,
     ) -> Result<(), PluginError> {
         tokio::time::sleep(Duration::from_millis(100)).await;
         self.sender.send(()).await.unwrap();
