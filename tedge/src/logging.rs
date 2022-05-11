@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
@@ -5,7 +7,10 @@ use tracing_subscriber::Layer;
 
 use crate::cli::LoggingSpec;
 
-pub(crate) fn setup_logging(spec: Option<LoggingSpec>) -> miette::Result<()> {
+pub(crate) fn setup_logging(
+    spec: Option<LoggingSpec>,
+    chrome_logging: Option<&PathBuf>,
+) -> miette::Result<LogGuard> {
     let env_filter = match spec {
         None => {
             let filter = EnvFilter::builder()
@@ -42,6 +47,17 @@ pub(crate) fn setup_logging(spec: Option<LoggingSpec>) -> miette::Result<()> {
         }
     };
 
+    let (opt_chrome_layer, chrome_log_guard) = chrome_logging
+        .map(|path| {
+            tracing_chrome::ChromeLayerBuilder::new()
+                .file(path)
+                .include_args(true)
+                .include_locations(true)
+                .build()
+        })
+        .map(|(layer, guard)| (Some(layer), Some(guard)))
+        .unwrap_or_default();
+
     let stdout_log = if let Some(env_filter) = env_filter {
         Some(tracing_subscriber::fmt::layer().with_filter(env_filter))
     } else {
@@ -49,6 +65,7 @@ pub(crate) fn setup_logging(spec: Option<LoggingSpec>) -> miette::Result<()> {
     };
 
     let subscriber = tracing_subscriber::registry::Registry::default()
+        .with(opt_chrome_layer)
         .with(stdout_log);
 
     tracing::subscriber::set_global_default(subscriber)
@@ -58,6 +75,13 @@ pub(crate) fn setup_logging(spec: Option<LoggingSpec>) -> miette::Result<()> {
         tracing::warn!("Logging level set to WARN. Only warnings and errors will be reported.");
     }
 
-    Ok(())
+    Ok(LogGuard { chrome_log_guard })
 }
 
+/// Helper type for keeping the tracing_chrome::FlushGuard alive if we trace with tracing_chrome
+///
+/// Only there for its Drop implementation
+pub struct LogGuard {
+    #[allow(dead_code)]
+    chrome_log_guard: Option<tracing_chrome::FlushGuard>,
+}

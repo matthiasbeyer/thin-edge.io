@@ -13,6 +13,7 @@ miette = { version = "4.4", features = ["fancy"] }
 cfg-if = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.11", features = ["env-filter"] }
+tracing-chrome = "0.6"
 cfg_table = "1.0.0"
 
 tedge_api = { path = "../crates/core/tedge_api" }
