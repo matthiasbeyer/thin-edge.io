@@ -10,6 +10,7 @@ use tracing::error;
 use tracing::info;
 use tracing::trace;
 use tracing::warn;
+use tracing::Instrument;
 
 use crate::errors::Result;
 use crate::errors::TedgeApplicationError;
@@ -52,7 +53,6 @@ impl PluginTask {
 
 #[async_trait::async_trait]
 impl Task for PluginTask {
-
     /// Run the PluginTask
     ///
     /// This handles the complete lifecycle of one [`tedge_api::Plugin`] instance. That includes
@@ -73,8 +73,13 @@ impl Task for PluginTask {
         //
         let plugin = Arc::new(RwLock::new(self.plugin));
 
-        trace!("Setup for plugin '{}'", self.plugin_name);
-        plugin_setup(plugin.clone(), &self.plugin_name).await?;
+        plugin_setup(plugin.clone(), &self.plugin_name)
+            .in_current_span()
+            .instrument(tracing::trace_span!(
+                "Setup for plugin '{name}'",
+                name = %self.plugin_name
+            ))
+            .await?;
         trace!("Setup for plugin '{}' finished", self.plugin_name);
 
         trace!("Mainloop for plugin '{}'", self.plugin_name);
@@ -87,12 +92,15 @@ impl Task for PluginTask {
                 plugin_msg_receiver,
                 task_cancel_token,
             )
+            .instrument(tracing::trace_span!("Plugin mainloop", name = %self.plugin_name))
             .await?;
         }
         trace!("Mainloop for plugin '{}' finished", self.plugin_name);
 
         info!("Shutting down {}", self.plugin_name);
-        plugin_shutdown(plugin, &self.plugin_name, self.shutdown_timeout).await
+        plugin_shutdown(plugin, &self.plugin_name, self.shutdown_timeout)
+            .instrument(tracing::trace_span!("Plugin shutdown", name = %self.plugin_name))
+            .await
     }
 }
 
@@ -103,12 +111,18 @@ impl Task for PluginTask {
 /// take down the rest of the application.
 ///
 /// If the starting of the plugin failed, this will error as well, of course.
+#[tracing::instrument(skip(plugin))]
 async fn plugin_setup(plugin: Arc<RwLock<BuiltPlugin>>, plugin_name: &str) -> Result<()> {
-    let mut plug = plugin.write().await;
+    let mut plug = plugin
+        .write()
+        .instrument(tracing::trace_span!("Aquiring write lock for plugin"))
+        .await;
+
     // we can use AssertUnwindSafe here because we're _not_ using the plugin after a panic has
     // happened.
     match std::panic::AssertUnwindSafe(plug.plugin_mut().start())
         .catch_unwind()
+        .instrument(tracing::trace_span!("Calling Plugin::start", name = %plugin_name))
         .await
     {
         Err(_) => {
@@ -133,6 +147,7 @@ async fn plugin_setup(plugin: Arc<RwLock<BuiltPlugin>>, plugin_name: &str) -> Re
 ///
 /// If the application is cancelled by the user (via the CancellationToken), this function takes
 /// care of stopping the "main loop" as well and returns cleanly.
+#[tracing::instrument(skip(plugin, plugin_msg_receiver))]
 async fn plugin_mainloop(
     plugin: Arc<RwLock<BuiltPlugin>>,
     plugin_name: &str,
@@ -156,7 +171,13 @@ async fn plugin_mainloop(
 
                         tokio::spawn(async move {
                             let read_plug = plug.read().await;
-                            match std::panic::AssertUnwindSafe(read_plug.handle_message(msg)).catch_unwind().await {
+                            let handle_message_span = tracing::trace_span!("Calling Plugin::handle_message()", name = %pname, msg = ?msg);
+                            let handled_message = std::panic::AssertUnwindSafe(read_plug.handle_message(msg))
+                                .catch_unwind()
+                                .instrument(handle_message_span)
+                                .await;
+
+                            match handled_message {
                                 Err(_) => {
                                     // panic happened in handle_message() implementation
 
@@ -167,7 +188,7 @@ async fn plugin_mainloop(
                                 Ok(Ok(_)) => debug!("Plugin handled message successfully"),
                                 Ok(Err(e)) => warn!("Plugin failed to handle message: {:?}", e),
                             }
-                        });
+                        }.in_current_span());
                     },
 
                     None => {
@@ -201,17 +222,33 @@ async fn plugin_mainloop(
 /// implementation of that function panics, it does not take down the rest of the application.
 ///
 /// A shutdown timeout (as configured by the user) is applied as well.
+#[tracing::instrument(skip(plugin))]
 async fn plugin_shutdown(
     plugin: Arc<RwLock<BuiltPlugin>>,
     plugin_name: &str,
     shutdown_timeout: std::time::Duration,
 ) -> Result<()> {
-    let shutdown_fut = tokio::spawn(async move {
-        let mut write_plug = plugin.write().await;
-        write_plug.plugin_mut().shutdown().await
-    });
+    let shutdown_fut = tokio::spawn(
+        async move {
+            let mut write_plug = plugin
+                .write()
+                .instrument(tracing::trace_span!("Aquiring write lock for plugin"))
+                .await;
 
-    match tokio::time::timeout(shutdown_timeout, shutdown_fut).await {
+            write_plug
+                .plugin_mut()
+                .shutdown()
+                .instrument(tracing::trace_span!(""))
+                .await
+        }
+        .in_current_span(),
+    );
+
+    let timeouted_shutdown = tokio::time::timeout(shutdown_timeout, shutdown_fut)
+        .instrument(tracing::trace_span!("Timeouted Plugin shutdown", name = %plugin_name, timeout = ?shutdown_timeout))
+        .await;
+
+    match timeouted_shutdown {
         Err(_timeout) => {
             error!("Shutting down {} timeouted", plugin_name);
             Err(TedgeApplicationError::PluginShutdownTimeout(
