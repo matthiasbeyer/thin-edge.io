@@ -22,6 +22,12 @@ pub(crate) struct Cli {
     #[clap(long)]
     pub(crate) chrome_logging: Option<PathBuf>,
 
+    /// Enable tracy compatible tracing output
+    ///
+    /// If set, "tracy" compatible tracing output will be produced
+    #[clap(long)]
+    pub(crate) tracy_logging: bool,
+
     #[clap(subcommand)]
     pub(crate) command: CliCommand,
 }

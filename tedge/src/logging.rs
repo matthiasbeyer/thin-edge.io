@@ -10,6 +10,7 @@ use crate::cli::LoggingSpec;
 pub(crate) fn setup_logging(
     spec: Option<LoggingSpec>,
     chrome_logging: Option<&PathBuf>,
+    tracy_logging: bool,
 ) -> miette::Result<LogGuard> {
     let env_filter = match spec {
         None => {
@@ -58,6 +59,8 @@ pub(crate) fn setup_logging(
         .map(|(layer, guard)| (Some(layer), Some(guard)))
         .unwrap_or_default();
 
+    let opt_tracy_layer = tracy_logging.then(|| tracing_tracy::TracyLayer::new());
+
     let stdout_log = if let Some(env_filter) = env_filter {
         Some(tracing_subscriber::fmt::layer().with_filter(env_filter))
     } else {
@@ -66,6 +69,7 @@ pub(crate) fn setup_logging(
 
     let subscriber = tracing_subscriber::registry::Registry::default()
         .with(opt_chrome_layer)
+        .with(opt_tracy_layer)
         .with(stdout_log);
 
     tracing::subscriber::set_global_default(subscriber)
