@@ -6,7 +6,7 @@ use tedge_api::{
     Plugin, PluginError,
 };
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, warn};
+use tracing::{debug, trace, warn, Instrument};
 
 use crate::errors::Result;
 
@@ -39,6 +39,7 @@ impl CoreTask {
         }
     }
 
+    #[tracing::instrument]
     pub(crate) async fn run(mut self) -> Result<()> {
         let running_core = RunningCore {
             sender: self.internal_sender,
@@ -49,10 +50,12 @@ impl CoreTask {
         loop {
             tokio::select! {
                 _cancel = self.cancellation_token.cancelled() => {
+                    debug!("Cancelled main loop");
                     break;
                 },
 
                 internal_message = self.internal_receiver.recv() => {
+                    trace!("Received message");
                     match internal_message {
                         msg @ None | msg @ Some(CoreInternalMessage::Stop) => {
                             if msg.is_none() {
@@ -67,8 +70,9 @@ impl CoreTask {
                 },
 
                 next_message = self.receiver.recv(), if !receiver_closed => {
+                    trace!("Received message");
                     match next_message {
-                        Some(msg) => match built_plugin.handle_message(msg).await {
+                        Some(msg) => match built_plugin.handle_message(msg).instrument(tracing::trace_span!("Handling message")).await {
                             Ok(_) => debug!("Core handled message successfully"),
                             Err(e) => warn!("Core failed to handle message: {:?}", e),
                         },
@@ -95,7 +99,7 @@ impl tedge_api::plugin::PluginDeclaration for RunningCore {
 }
 
 enum CoreInternalMessage {
-    Stop
+    Stop,
 }
 
 #[async_trait]
@@ -116,8 +120,8 @@ impl Handle<StopCore> for RunningCore {
         _message: StopCore,
         _sender: ReplySenderFor<StopCore>,
     ) -> std::result::Result<(), PluginError> {
+        trace!("Received StopCore message, going to stop the core now");
         let _ = self.sender.send(CoreInternalMessage::Stop).await;
         Ok(())
     }
 }
-
