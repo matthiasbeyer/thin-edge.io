@@ -13,7 +13,6 @@ miette = { version = "4.4", features = ["fancy"] }
 cfg-if = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
-console-subscriber = { version = "0.1", optional = true }
 cfg_table = "1.0.0"
 
 tedge_api = { path = "../crates/core/tedge_api" }
@@ -45,7 +44,6 @@ default = [
     "builtin_plugin_notification",
 ]
 
-core_debugging = ["console-subscriber"]
 core_logging = ["tracing-subscriber"]
 builtin_plugin_avg = ["plugin_avg"]
 builtin_plugin_log = ["plugin_log"]

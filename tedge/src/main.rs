@@ -18,10 +18,6 @@ mod logging;
 #[tokio::main]
 #[tracing::instrument]
 async fn main() -> miette::Result<()> {
-    #[cfg(feature = "core_debugging")]
-    {
-        console_subscriber::init();
-    }
     let args = crate::cli::Cli::parse();
     crate::logging::setup_logging(args.verbose, args.debug)?;
     info!("Tedge booting...");

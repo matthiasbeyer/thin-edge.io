@@ -1,6 +1,6 @@
 #[allow(unused)]
 pub(crate) fn setup_logging(verbose: bool, debugging: bool) -> miette::Result<()> {
-    #[cfg(all(feature = "core_logging", not(feature = "core_debugging")))]
+    #[cfg(feature = "core_logging")]
     {
         use tracing_subscriber::filter::EnvFilter;
         use tracing_subscriber::filter::LevelFilter;
