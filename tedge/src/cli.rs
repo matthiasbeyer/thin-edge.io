@@ -7,14 +7,34 @@ use std::path::PathBuf;
     about = clap::crate_description!()
 )]
 pub(crate) struct Cli {
-    #[clap(short, long)]
-    pub(crate) verbose: bool,
+    /// Enable logging
+    ///
+    /// If not specified, only WARN and ERROR messages will be logged.
+    /// If set to "off" or "false", no logging will be done at all.
+    ///
+    /// This setting overwrites the logging specification set via the RUST_LOG env variable.
+    #[clap(short, long, arg_enum)]
+    pub(crate) logging: Option<LoggingSpec>,
 
-    #[clap(short, long)]
-    pub(crate) debug: bool,
+    /// Enable chrome compatible tracing output
+    ///
+    /// If set, chrome-compatible tracing output will be written to the file specified.
+    #[clap(long)]
+    pub(crate) chrome_logging: Option<PathBuf>,
 
     #[clap(subcommand)]
     pub(crate) command: CliCommand,
+}
+
+#[derive(Copy, Clone, Debug, clap::ArgEnum)]
+pub(crate) enum LoggingSpec {
+    False,
+    Off,
+    Trace,
+    Debug,
+    Info,
+    Warn,
+    Error
 }
 
 #[derive(Debug, clap::Subcommand)]

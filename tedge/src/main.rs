@@ -19,7 +19,7 @@ mod logging;
 #[tracing::instrument]
 async fn main() -> miette::Result<()> {
     let args = crate::cli::Cli::parse();
-    crate::logging::setup_logging(args.verbose, args.debug)?;
+    crate::logging::setup_logging(args.logging)?;
     info!("Tedge booting...");
     debug!("Tedge CLI: {:?}", args);
 
