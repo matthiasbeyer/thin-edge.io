@@ -39,7 +39,6 @@ impl CoreTask {
         }
     }
 
-    #[tracing::instrument]
     pub(crate) async fn run(mut self) -> Result<()> {
         let running_core = RunningCore {
             sender: self.internal_sender,
