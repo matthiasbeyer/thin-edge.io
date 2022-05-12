@@ -1,7 +1,29 @@
+use tedge_api::AsConfig;
+use tedge_api::ConfigKind;
 use tracing::trace;
 
 #[derive(Debug, serde_with::DeserializeFromStr)]
 pub struct Extractor(pub(crate) Vec<Token>);
+
+impl AsConfig for Extractor {
+    fn as_config() -> tedge_api::ConfigDescription {
+        tedge_api::ConfigDescription::new(
+            "Extractor".to_string(),
+            ConfigKind::String,
+            Some(indoc::indoc!{r#"
+                A path to extract a value from a measurement
+
+                # Examples
+
+                To extract the member "celcius" from a measurement named "temperature":
+
+                ```
+                temperature.celcius
+                ```
+            "#})
+        )
+    }
+}
 
 impl From<Extractor> for String {
     fn from(e: Extractor) -> String {

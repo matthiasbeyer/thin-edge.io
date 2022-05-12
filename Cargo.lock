@@ -2312,6 +2312,7 @@ name = "plugin_measurement_filter"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "indoc",
  "miette",
  "serde",
  "serde_with",
