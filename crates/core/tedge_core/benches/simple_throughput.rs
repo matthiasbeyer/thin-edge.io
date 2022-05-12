@@ -3,7 +3,6 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
 use criterion::{BatchSize, BenchmarkId};
-use tedge_api::message::NoReply;
 use tedge_api::plugin::{Handle, HandleTypes};
 use tedge_api::PluginConfiguration;
 use tedge_api::PluginDirectory;
@@ -11,8 +10,6 @@ use tedge_api::PluginError;
 use tedge_api::PluginExt;
 use tedge_api::{make_receiver_bundle, PluginBuilder};
 use tedge_api::{Address, Message, Plugin};
-use tedge_core::configuration::TedgeConfiguration;
-use tedge_core::errors::TedgeApplicationError;
 use tedge_core::TedgeApplication;
 use tokio::sync::{Mutex, Notify};
 
@@ -20,7 +17,6 @@ use tokio::sync::{Mutex, Notify};
 struct Measurement(u64);
 
 impl Message for Measurement {
-    type Reply = NoReply;
 }
 
 pub struct ProducerPluginBuilder(Mutex<Option<tokio::sync::mpsc::Receiver<u64>>>);
@@ -124,7 +120,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for ReceiverPluginBuilder {
         &self,
         _config: PluginConfiguration,
         _cancellation_token: tedge_api::CancellationToken,
-        plugin_dir: &PD,
+        _plugin_dir: &PD,
     ) -> Result<tedge_api::plugin::BuiltPlugin, PluginError> {
         Ok(ReceiverPlugin(self.0.clone(), Mutex::new(vec![])).finish())
     }
@@ -160,7 +156,7 @@ impl Handle<Measurement> for ReceiverPlugin {
     async fn handle_message(
         &self,
         message: Measurement,
-        _sender: tedge_api::address::ReplySender<<Measurement as Message>::Reply>,
+        _sender: tedge_api::address::ReplySenderFor<Measurement>,
     ) -> Result<(), PluginError> {
         let mut vals = self.1.lock().await;
         vals.push(message.0);
@@ -188,27 +184,20 @@ async fn start_application(
 ) -> Result<(), Box<(dyn std::error::Error + Sync + Send + 'static)>> {
     let _ = tracing_subscriber::fmt::try_init();
 
-    const CONF: &'static str = r#"
-        communication_buffer_size = 10
+    let config_file_path = {
+        let dir = std::env::current_exe().unwrap().parent().unwrap().join("../../../");
+        let mut name = std::path::PathBuf::from(std::file!());
+        name.set_extension("toml");
+        let filepath = dir.join(name);
+        assert!(filepath.exists(), "Config file does not exist: {}", filepath.display());
+        filepath
+    };
 
-        plugin_shutdown_timeout_ms = 200000
-
-        [plugins]
-
-        [plugins.prod]
-        kind = "producer"
-        [plugins.prod.configuration]
-
-        [plugins.destination]
-        kind = "receiver"
-        [plugins.destination.configuration]
-    "#;
-
-    let config: TedgeConfiguration = toml::de::from_str(CONF)?;
     let (cancel_sender, application) = TedgeApplication::builder()
         .with_plugin_builder(ProducerPluginBuilder(Mutex::new(Some(receiver))))?
         .with_plugin_builder(ReceiverPluginBuilder(sender))?
-        .with_config(config)?;
+        .with_config_from_path(config_file_path)
+        .await?;
 
     let app = application.run();
     tokio::pin!(app);

@@ -1,0 +1,14 @@
+communication_buffer_size = 10
+
+plugin_shutdown_timeout_ms = 200000
+
+[plugins]
+
+[plugins.prod]
+kind = "producer"
+[plugins.prod.configuration]
+
+[plugins.destination]
+kind = "receiver"
+[plugins.destination.configuration]
+
