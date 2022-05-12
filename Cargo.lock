@@ -2872,6 +2872,7 @@ dependencies = [
  "tokio-util 0.7.0",
  "toml",
  "tracing",
+ "type-uuid",
 ]
 
 [[package]]
@@ -3396,6 +3397,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "type-uuid"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "15043bca41f43205c9b0055d365a405d81b8e4a8ff99c36b263cf79ad1f4c051"
+dependencies = [
+ "type-uuid-derive",
+]
+
+[[package]]
+name = "type-uuid-derive"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e090ee857961c746ecf7fb596022493ffaad54d189061df49f7a0cf17796dc1"
+dependencies = [
+ "quote 1.0.18",
+ "syn 1.0.93",
+ "uuid",
+]
+
+[[package]]
 name = "typed-arena"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3488,6 +3509,12 @@ name = "utf-8"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09cc8ee72d2a9becf2f2febe0205bbed8fc6615b7cb429ad062dc7b7ddd036a9"
+
+[[package]]
+name = "uuid"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
 
 [[package]]
 name = "value-bag"

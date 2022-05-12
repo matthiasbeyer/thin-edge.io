@@ -1,5 +1,6 @@
 use downcast_rs::{impl_downcast, DowncastSync};
 use serde::Serialize;
+use type_uuid::{TypeUuid, TypeUuidDynamic};
 
 use crate::address::AnyMessageBox;
 
@@ -7,7 +8,10 @@ use crate::address::AnyMessageBox;
 ///
 /// This trait is a marker trait for all types that can be used as messages which can be sent
 /// between plugins in thin-edge.
-pub trait Message: Send + std::fmt::Debug + DynMessage + DowncastSync + 'static {}
+pub trait Message:
+    Send + std::fmt::Debug + DynMessage + DowncastSync + TypeUuidDynamic + 'static
+{
+}
 
 impl_downcast!(sync Message);
 
@@ -33,7 +37,8 @@ pub trait AcceptsReplies: Message {
 /// otherwise.
 ///
 /// To construct it, you will need to have a message and call [`AnyMessage::from_message`]
-#[derive(Debug)]
+#[derive(Debug, TypeUuid)]
+#[uuid = "e7e5c87b-2022-4687-8650-DEADBEEEEEEF"]
 pub struct AnyMessage(pub(crate) AnyMessageBox);
 
 impl std::ops::Deref for AnyMessage {
@@ -136,7 +141,8 @@ impl MessageType {
 }
 
 /// A message to tell the core to stop thin-edge
-#[derive(Debug)]
+#[derive(Debug, TypeUuid)]
+#[uuid = "812b7235-671f-4722-b01a-333578b2a4ea"]
 pub struct StopCore;
 
 impl Message for StopCore {}
@@ -145,16 +151,20 @@ crate::make_receiver_bundle!(pub struct CoreMessages(StopCore));
 
 #[cfg(test)]
 mod tests {
+    use type_uuid::TypeUuid;
+
     use crate::Message;
 
     use super::{AnyMessage, MessageType};
 
-    #[derive(Debug)]
+    #[derive(Debug, TypeUuid)]
+    #[uuid = "0c2ed228-5ff0-4ba5-a0d3-3648f7eb6558"]
     struct Bar;
 
     impl Message for Bar {}
 
-    #[derive(Debug)]
+    #[derive(Debug, TypeUuid)]
+    #[uuid = "8c3beacb-327d-422d-a914-47006d521ba5"]
     struct Foo;
 
     impl Message for Foo {}

@@ -96,8 +96,10 @@ pub trait PluginBuilder<PD: PluginDirectory>: Sync + Send + 'static {
     ///
     /// ```no_run
     /// # use tedge_api::{Plugin, plugin::BuiltPlugin, PluginError, PluginExt, PluginDirectory, PluginBuilder, PluginConfiguration};
+    /// # use type_uuid::TypeUuid;
     ///
-    /// #[derive(Debug)]
+    /// #[derive(Debug, TypeUuid)]
+    /// #[uuid = "46f5d318-4158-4726-83dd-9b310cae3328"]
     /// struct MyMessage;
     /// impl tedge_api::Message for MyMessage { }
     ///
@@ -217,8 +219,10 @@ pub trait PluginBuilder<PD: PluginDirectory>: Sync + Send + 'static {
     /// # use tedge_api::PluginBuilder;
     /// # use tedge_api::PluginDirectory;
     /// # use tedge_api::PluginExt;
+    /// # use type_uuid::TypeUuid;
     ///
-    /// #[derive(Debug)]
+    /// #[derive(Debug, TypeUuid)]
+    /// #[uuid = "39046e3e-05ad-4b16-bbf1-8c2d2da5b668"]
     /// struct MyMessage;
     /// impl tedge_api::Message for MyMessage { }
     ///
@@ -383,8 +387,10 @@ impl HandleTypes {
     /// # use tedge_api::address::ReplySenderFor;
     /// # use tedge_api::PluginError;
     /// # use tedge_api::PluginExt;
+    /// # use type_uuid::TypeUuid;
     ///
-    /// #[derive(Debug)]
+    /// #[derive(Debug, TypeUuid)]
+    /// #[uuid = "1276aa9c-5e04-4ab3-a987-61d89765ab33"]
     /// struct Heartbeat;
     ///
     /// impl tedge_api::Message for Heartbeat { }
@@ -671,12 +677,14 @@ mod tests {
 
     use super::{Plugin, PluginBuilder};
     use static_assertions::assert_obj_safe;
+    use type_uuid::TypeUuid;
 
     // Object Safety
     assert_obj_safe!(PluginBuilder<()>);
     assert_obj_safe!(Plugin);
 
-    #[derive(Debug)]
+    #[derive(Debug, TypeUuid)]
+    #[uuid = "44d61fba-0055-4333-86bf-e96e06f7aea8"]
     struct Blub;
 
     impl Message for Blub {}
