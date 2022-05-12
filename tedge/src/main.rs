@@ -32,7 +32,6 @@ async fn main() -> miette::Result<()> {
             cfg_if::cfg_if! {
                 if #[cfg(feature = $cfg)] {
                     let kind_name: &'static str = <$pluginbuilder as PluginBuilder<tedge_core::PluginDirectory>>::kind_name();
-                    info!("Registering plugin builder for plugins of type {}", kind_name);
                     if !plugin_kinds.insert(kind_name) {
                         miette::bail!("Plugin kind '{}' was already registered, cannot register!", kind_name)
                     }
