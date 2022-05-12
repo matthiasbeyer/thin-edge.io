@@ -1,6 +1,31 @@
+use downcast_rs::{impl_downcast, DowncastSync};
 use serde::Serialize;
 
-use crate::{address::AnyMessageBox, plugin::Message};
+use crate::address::AnyMessageBox;
+
+/// An object that can be sent between [`Plugin`]s
+///
+/// This trait is a marker trait for all types that can be used as messages which can be sent
+/// between plugins in thin-edge.
+pub trait Message: Send + std::fmt::Debug + DynMessage + DowncastSync + 'static {}
+
+impl_downcast!(sync Message);
+
+/// A bag of messages making it easier to work with dynamic messages
+pub trait DynMessage {
+    /// Get the type name of this message
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
+}
+
+impl<M: 'static> DynMessage for M {}
+
+/// Register that the [`Message`] can receive replies of kind `R`: [`Message`]
+pub trait AcceptsReplies: Message {
+    /// The reply type that can be sent to implementing messages as replies
+    type Reply: Message;
+}
 
 /// A message that can contain any other message
 ///

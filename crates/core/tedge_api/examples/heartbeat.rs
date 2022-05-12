@@ -4,8 +4,8 @@ use async_trait::async_trait;
 use futures::FutureExt;
 use tedge_api::{
     address::ReplySenderFor,
-    message::MessageType,
-    plugin::{AcceptsReplies, BuiltPlugin, Handle, Message, PluginDeclaration, PluginExt},
+    message::{AcceptsReplies, Message, MessageType},
+    plugin::{BuiltPlugin, Handle, PluginDeclaration, PluginExt},
     Address, CancellationToken, Plugin, PluginBuilder, PluginConfiguration, PluginDirectory,
     PluginError,
 };

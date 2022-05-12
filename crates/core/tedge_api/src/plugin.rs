@@ -15,7 +15,7 @@ use crate::{
     address::{InternalMessage, ReceiverBundle, ReplySenderFor},
     config::ConfigDescription,
     error::{DirectoryError, PluginError},
-    message::{CoreMessages, MessageType},
+    message::{CoreMessages, Message, MessageType},
     Address,
 };
 
@@ -99,7 +99,7 @@ pub trait PluginBuilder<PD: PluginDirectory>: Sync + Send + 'static {
     ///
     /// #[derive(Debug)]
     /// struct MyMessage;
-    /// impl tedge_api::plugin::Message for MyMessage { }
+    /// impl tedge_api::Message for MyMessage { }
     ///
     /// struct MyPluginBuilder;
     /// struct MyPlugin; // + some impl Plugin for MyPlugin
@@ -220,7 +220,7 @@ pub trait PluginBuilder<PD: PluginDirectory>: Sync + Send + 'static {
     ///
     /// #[derive(Debug)]
     /// struct MyMessage;
-    /// impl tedge_api::plugin::Message for MyMessage { }
+    /// impl tedge_api::Message for MyMessage { }
     ///
     ///
     /// struct MyPluginBuilder;
@@ -387,7 +387,7 @@ impl HandleTypes {
     /// #[derive(Debug)]
     /// struct Heartbeat;
     ///
-    /// impl tedge_api::plugin::Message for Heartbeat { }
+    /// impl tedge_api::Message for Heartbeat { }
     ///
     /// struct HeartbeatPlugin;
     ///
@@ -434,30 +434,6 @@ impl HandleTypes {
     {
         HandleTypes(P::HandledMessages::get_ids())
     }
-}
-
-/// An object that can be sent between [`Plugin`]s
-///
-/// This trait is a marker trait for all types that can be used as messages which can be sent
-/// between plugins in thin-edge.
-pub trait Message: Send + std::fmt::Debug + DynMessage + DowncastSync + 'static {}
-
-impl_downcast!(sync Message);
-
-/// A bag of messages making it easier to work with dynamic messages
-pub trait DynMessage {
-    /// Get the type name of this message
-    fn type_name(&self) -> &'static str {
-        std::any::type_name::<Self>()
-    }
-}
-
-impl<M: 'static> DynMessage for M {}
-
-/// Register that the [`Message`] can receive replies of kind `R`: [`Message`]
-pub trait AcceptsReplies: Message {
-    /// The reply type that can be sent to implementing messages as replies
-    type Reply: Message;
 }
 
 /// A bundle of messages
@@ -691,7 +667,7 @@ impl_does_handle_tuple!(M10 M9 M8 M7 M6 M5 M4 M3 M2 M1);
 
 #[cfg(test)]
 mod tests {
-    use crate::{plugin::DynMessage, Message};
+    use crate::{message::DynMessage, Message};
 
     use super::{Plugin, PluginBuilder};
     use static_assertions::assert_obj_safe;

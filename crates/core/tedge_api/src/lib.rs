@@ -8,7 +8,7 @@
 
 /// All the parts required to write a plugin
 pub mod plugin;
-pub use plugin::{Message, Plugin, PluginBuilder, PluginConfiguration, PluginDirectory, PluginExt};
+pub use plugin::{Plugin, PluginBuilder, PluginConfiguration, PluginDirectory, PluginExt};
 
 /// Generic representation of a configuration
 pub mod config;
@@ -24,7 +24,7 @@ pub use error::PluginError;
 
 /// Predefined messages
 pub mod message;
-pub use message::CoreMessages;
+pub use message::{Message, CoreMessages};
 
 /// Cancellation token used by `tedge_api`
 ///

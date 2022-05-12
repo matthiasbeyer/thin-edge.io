@@ -5,8 +5,7 @@ use tokio::sync::RwLock;
 use tracing::{instrument, trace};
 
 use crate::{
-    message::MessageType,
-    plugin::{AcceptsReplies, Message},
+    message::{Message, MessageType, AcceptsReplies},
 };
 
 #[doc(hidden)]
@@ -410,7 +409,7 @@ mod tests {
     use crate::{
         address::{InnerMessageSender, ReplyReceiverFor, ReplySenderFor},
         make_receiver_bundle,
-        plugin::{AcceptsReplies, Message},
+        message::{AcceptsReplies, Message},
         Address,
     };
 
