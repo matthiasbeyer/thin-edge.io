@@ -76,7 +76,7 @@ impl Task for PluginTask {
         plugin_setup(plugin.clone(), &self.plugin_name)
             .in_current_span()
             .instrument(tracing::trace_span!(
-                "Setup for plugin '{name}'",
+                "core.plugin_task.setup",
                 name = %self.plugin_name
             ))
             .await?;
@@ -92,14 +92,14 @@ impl Task for PluginTask {
                 plugin_msg_receiver,
                 task_cancel_token,
             )
-            .instrument(tracing::trace_span!("Plugin mainloop", name = %self.plugin_name))
+            .instrument(tracing::trace_span!("core.plugin_task.mainloop", name = %self.plugin_name))
             .await?;
         }
         trace!("Mainloop for plugin '{}' finished", self.plugin_name);
 
         info!("Shutting down {}", self.plugin_name);
         plugin_shutdown(plugin, &self.plugin_name, self.shutdown_timeout)
-            .instrument(tracing::trace_span!("Plugin shutdown", name = %self.plugin_name))
+            .instrument(tracing::trace_span!("core.plugin_task.shutdown", name = %self.plugin_name))
             .await
     }
 }
@@ -115,14 +115,14 @@ impl Task for PluginTask {
 async fn plugin_setup(plugin: Arc<RwLock<BuiltPlugin>>, plugin_name: &str) -> Result<()> {
     let mut plug = plugin
         .write()
-        .instrument(tracing::trace_span!("Aquiring write lock for plugin"))
+        .instrument(tracing::trace_span!("core.plugin_task.setup.lock"))
         .await;
 
     // we can use AssertUnwindSafe here because we're _not_ using the plugin after a panic has
     // happened.
     match std::panic::AssertUnwindSafe(plug.plugin_mut().start())
         .catch_unwind()
-        .instrument(tracing::trace_span!("Calling Plugin::start", name = %plugin_name))
+        .instrument(tracing::trace_span!("core.plugin_task.setup.start", name = %plugin_name))
         .await
     {
         Err(_) => {
@@ -171,7 +171,7 @@ async fn plugin_mainloop(
 
                         tokio::spawn(async move {
                             let read_plug = plug.read().await;
-                            let handle_message_span = tracing::trace_span!("Calling Plugin::handle_message()", name = %pname, msg = ?msg);
+                            let handle_message_span = tracing::trace_span!("core.plugin_task.mainloop.handle_message", name = %pname, msg = ?msg);
                             let handled_message = std::panic::AssertUnwindSafe(read_plug.handle_message(msg))
                                 .catch_unwind()
                                 .instrument(handle_message_span)
@@ -232,20 +232,20 @@ async fn plugin_shutdown(
         async move {
             let mut write_plug = plugin
                 .write()
-                .instrument(tracing::trace_span!("Aquiring write lock for plugin"))
+                .instrument(tracing::trace_span!("core.plugin_task.shutdown.lock"))
                 .await;
 
             write_plug
                 .plugin_mut()
                 .shutdown()
-                .instrument(tracing::trace_span!(""))
+                .instrument(tracing::trace_span!("core.plugin_task.shutdown.shutdown"))
                 .await
         }
         .in_current_span(),
     );
 
     let timeouted_shutdown = tokio::time::timeout(shutdown_timeout, shutdown_fut)
-        .instrument(tracing::trace_span!("Timeouted Plugin shutdown", name = %plugin_name, timeout = ?shutdown_timeout))
+        .instrument(tracing::trace_span!("core.plugin_task.shutdown.timeout", name = %plugin_name, timeout = ?shutdown_timeout))
         .await;
 
     match timeouted_shutdown {
