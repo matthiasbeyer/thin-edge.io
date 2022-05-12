@@ -8,7 +8,9 @@ use tedge_api::plugin::BuiltPlugin;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::error;
+use tracing::info_span;
 use tracing::trace;
+use tracing::trace_span;
 use tracing::Instrument;
 
 use crate::communication::CorePluginDirectory;
@@ -118,15 +120,17 @@ impl Reactor {
         let instantiated_plugins = plugin_instantiation_prep
             .into_iter()
             .map(|(pname, pconfig, receiver)| {
-                debug!("Instantiating '{name}'", name = pname);
-                self.instantiate_plugin(
-                    pname,
-                    self.0.config_path(),
-                    pconfig,
-                    directory.clone(),
-                    receiver,
-                    self.0.cancellation_token().child_token(),
-                )
+                {
+                    self.instantiate_plugin(
+                        pname,
+                        self.0.config_path(),
+                        pconfig,
+                        directory.clone(),
+                        receiver,
+                        self.0.cancellation_token().child_token(),
+                    )
+                }
+                .instrument(info_span!("plugin.instantiate", name = %pname))
             })
             .collect::<futures::stream::FuturesUnordered<_>>()
             .collect::<Vec<Result<_>>>()
@@ -134,7 +138,7 @@ impl Reactor {
             .await
             .into_iter()
             .collect::<Result<Vec<_>>>()?;
-        debug!("Plugins instantiated");
+        trace!("Plugins instantiated");
 
         // Now we need to make sure we start the "CoreTask", which is responsible for handling the
         // communication within the core itself.
@@ -144,7 +148,7 @@ impl Reactor {
             let core_cancel_token = self.0.cancellation_token().clone();
             crate::core_task::CoreTask::new(core_cancel_token, core_receiver)
                 .run()
-                .instrument(tracing::debug_span!("core.mainloop.coretask"))
+                .instrument(tracing::info_span!("core.mainloop.coretask"))
         };
         debug!("Core task instantiated");
 
@@ -160,12 +164,17 @@ impl Reactor {
                     self.0.config().plugin_shutdown_timeout(),
                 )
             })
-            .map(Task::run)
+            .map(|plug_task| {
+                let plugin_name = plug_task.plugin_name().to_string();
+                plug_task
+                    .run()
+                    .instrument(info_span!("plugin.mainloop", plugin.name = %plugin_name))
+            })
             .map(Box::pin)
             .collect::<futures::stream::FuturesUnordered<_>>() // main loop
             .collect::<Vec<Result<()>>>()
-            .instrument(tracing::debug_span!("core.mainloop.plugins"));
-        debug!("Plugin tasks instantiated");
+            .instrument(tracing::info_span!("core.mainloop.plugins"));
+        trace!("Plugin tasks instantiated");
 
         // and then we wait until all communication is finished.
         //
@@ -182,7 +191,10 @@ impl Reactor {
     }
 
     fn get_config_for_plugin<'a>(&'a self, plugin_name: &str) -> Option<&'a InstanceConfiguration> {
-        trace!("Searching config for plugin: {}", plugin_name);
+        trace!(
+            plugin.name = plugin_name,
+            "Searching config for plugin instance"
+        );
         self.0
             .config()
             .plugins()
@@ -194,7 +206,10 @@ impl Reactor {
         &'a self,
         plugin_kind: &PluginKind,
     ) -> Option<&'a Box<dyn tedge_api::PluginBuilder<PluginDirectory>>> {
-        trace!("Searching builder for plugin: {}", plugin_kind.as_ref());
+        trace!(
+            plugin.kind = plugin_kind.as_ref(),
+            "Searching builder for plugin kind"
+        );
         self.0
             .plugin_builders()
             .get(plugin_kind.as_ref())
@@ -210,7 +225,6 @@ impl Reactor {
         plugin_msg_receiver: tedge_api::address::MessageReceiver,
         cancellation_token: CancellationToken,
     ) -> Result<PluginTaskPrep> {
-        trace!("Finding plugin builder");
         let builder = self
             .find_plugin_builder(plugin_config.kind())
             .ok_or_else(|| {
@@ -218,14 +232,16 @@ impl Reactor {
                 TedgeApplicationError::UnknownPluginKind(kind_name)
             })?;
 
-        trace!("Finding plugin configuration");
         let config = self.get_config_for_plugin(plugin_name).ok_or_else(|| {
             let pname = plugin_name.to_string();
             TedgeApplicationError::PluginConfigMissing(pname)
         })?;
 
-        let verify_guard = tracing::trace_span!("core.config_verification").entered();
-        let config = match config.verify_with_builder(builder, root_config_path).await {
+        let config = match config
+            .verify_with_builder(builder, root_config_path)
+            .instrument(trace_span!("core.config_verification"))
+            .await
+        {
             Err(e) => {
                 error!(
                     "Verification of configuration failed for plugin '{}'",
@@ -235,16 +251,8 @@ impl Reactor {
             }
             Ok(cfg) => cfg,
         };
-        drop(verify_guard);
 
         let cancel_token = self.0.cancellation_token.child_token();
-
-        let _instantiate_guard = tracing::trace_span!(
-            "core.instantiate_plugins",
-            name = plugin_name,
-            kind = plugin_config.kind().as_ref(),
-        )
-        .entered();
 
         builder
             .instantiate(
@@ -252,7 +260,11 @@ impl Reactor {
                 cancel_token,
                 &directory.for_plugin_named(plugin_name),
             )
-            .in_current_span()
+            .instrument(trace_span!(
+                "core.instantiate_plugins",
+                name = plugin_name,
+                kind = plugin_config.kind().as_ref(),
+            ))
             .await
             .map_err(TedgeApplicationError::PluginInstantiationFailed)
             .map(|plugin| {
