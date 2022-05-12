@@ -14,5 +14,6 @@ tracing = "0.1"
 tokio-util = "0.7.0"
 thiserror = "1"
 toml = "0.5"
+indoc = "1.0.6"
 
 tedge_api = { path = "../../crates/core/tedge_api" }

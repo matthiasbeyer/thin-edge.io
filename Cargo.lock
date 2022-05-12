@@ -2296,6 +2296,7 @@ name = "plugin_log"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "indoc",
  "log",
  "miette",
  "serde",
