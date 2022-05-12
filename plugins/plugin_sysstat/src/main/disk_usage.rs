@@ -7,6 +7,7 @@ use futures::StreamExt;
 use sysinfo::DiskExt;
 use sysinfo::SystemExt;
 use tokio::sync::Mutex;
+use tracing::Instrument;
 
 use tedge_api::Address;
 use tedge_api::PluginError;
@@ -21,6 +22,7 @@ use crate::config::HasBaseConfig;
 use crate::main::State;
 use crate::main::StateFromConfig;
 
+#[derive(Debug)]
 pub struct DiskUsageState {
     interval: u64,
     send_to: Arc<Vec<Address<MeasurementReceiver>>>,
@@ -46,6 +48,7 @@ impl StateFromConfig for DiskUsageState {
     }
 }
 
+#[tracing::instrument(name = "plugin.sysstat.main-diskusage", skip(state))]
 pub async fn main_disk_usage(state: Arc<Mutex<DiskUsageState>>) -> Result<(), PluginError> {
     let mut lock = state.lock().await;
     {
@@ -73,6 +76,7 @@ pub async fn main_disk_usage(state: Arc<Mutex<DiskUsageState>>) -> Result<(), Pl
         })
         .collect::<futures::stream::FuturesUnordered<_>>()
         .collect::<Vec<Result<Vec<()>, PluginError>>>()
+        .instrument(tracing::debug_span!("plugin.sysstat.main-diskusage.sending_measurements"))
         .await
         .into_iter()
         .collect::<Result<Vec<_>, PluginError>>()

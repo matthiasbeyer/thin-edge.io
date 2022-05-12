@@ -12,6 +12,7 @@ use tokio::sync::Mutex;
 use tedge_api::Address;
 use tedge_api::PluginError;
 use tedge_lib::iter::IntoSendAll;
+use tracing::Instrument;
 
 use crate::config::AllNetworkStatConfig;
 use crate::config::HasBaseConfig;
@@ -20,6 +21,7 @@ use crate::main::State;
 use crate::main::StateFromConfig;
 use crate::plugin::MeasurementReceiver;
 
+#[derive(Debug)]
 pub struct NetworkState {
     interval: u64,
     send_to: Arc<Vec<Address<MeasurementReceiver>>>,
@@ -53,6 +55,7 @@ impl StateFromConfig for NetworkState {
     }
 }
 
+#[tracing::instrument(name = "plugin.sysstat.main-networks", skip(state))]
 pub async fn main_network(state: Arc<Mutex<NetworkState>>) -> Result<(), PluginError> {
     use sysinfo::NetworkExt;
 
@@ -85,6 +88,7 @@ pub async fn main_network(state: Arc<Mutex<NetworkState>>) -> Result<(), PluginE
         .send_all()
         .collect::<futures::stream::FuturesUnordered<_>>()
         .collect::<Vec<Result<_, _>>>()
+        .instrument(tracing::debug_span!("plugin.sysstat.main-networks.sending_measurements"))
         .await
         .into_iter()
         .collect::<Result<Vec<_>, _>>()

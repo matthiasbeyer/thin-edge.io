@@ -12,12 +12,14 @@ use tedge_api::PluginError;
 use tedge_lib::iter::IntoSendAll;
 use tedge_lib::measurement::Measurement;
 use tedge_lib::measurement::MeasurementValue;
+use tracing::Instrument;
 
 use crate::config::HasBaseConfig;
 use crate::main::State;
 use crate::main::StateFromConfig;
 use crate::plugin::MeasurementReceiver;
 
+#[derive(Debug)]
 pub struct LoadState {
     interval: u64,
     send_to: Arc<Vec<Address<MeasurementReceiver>>>,
@@ -43,6 +45,7 @@ impl StateFromConfig for LoadState {
     }
 }
 
+#[tracing::instrument(name = "plugin.sysstat.main-load", skip(state))]
 pub async fn main_load(state: Arc<Mutex<LoadState>>) -> Result<(), PluginError> {
     let mut lock = state.lock().await;
     let mut state = lock.deref_mut();
@@ -62,6 +65,7 @@ pub async fn main_load(state: Arc<Mutex<LoadState>>) -> Result<(), PluginError> 
         .send_all()
         .collect::<futures::stream::FuturesUnordered<_>>()
         .collect::<Vec<Result<_, _>>>()
+        .instrument(tracing::debug_span!("plugin.sysstat.main-load.sending_measurements"))
         .await
         .into_iter()
         .map(|res| {
