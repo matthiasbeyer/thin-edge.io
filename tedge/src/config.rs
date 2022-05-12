@@ -110,12 +110,12 @@ pub fn as_terminal_doc<'a>(desc: &'a ConfigDescription, arena: &'a Arena<'a>) ->
                                     let mut doc = arena
                                         .nil()
                                         .append(match member_conf {
-                                            EnumVariantRepresentation::String(_) => arena.text(
+                                            EnumVariantRepresentation::String(rep) => arena.text(
                                                 Color::Green
                                                     .bold()
                                                     .paint(&format!(
                                                         "{:?}",
-                                                        member_name.to_lowercase()
+                                                        rep.to_lowercase()
                                                     ))
                                                     .to_string(),
                                             ),
