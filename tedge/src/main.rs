@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::collections::HashSet;
 
 use clap::Parser;
@@ -5,6 +6,7 @@ use miette::IntoDiagnostic;
 
 use tedge_api::PluginBuilder;
 use tedge_core::TedgeApplication;
+use tedge_core::TedgeApplicationBuilder;
 use tedge_core::TedgeApplicationCancelSender;
 use tedge_lib::measurement::Measurement;
 use tedge_lib::notification::Notification;
@@ -15,6 +17,37 @@ use tracing::info;
 mod cli;
 mod config;
 mod logging;
+
+/// Helper type for registering PluginBuilder instances and doc-printing functions
+struct Registry {
+    app_builder: TedgeApplicationBuilder,
+    plugin_kinds: HashSet<String>,
+    doc_printers: HashMap<String, Box<dyn FnOnce()>>,
+}
+
+macro_rules! register_plugin {
+    ($registry:ident, $cfg:tt, $pluginbuilder:ty, $pbinstance:expr) => {{
+        cfg_if::cfg_if! {
+            if #[cfg(feature = $cfg)] {
+                let kind_name: &'static str = <$pluginbuilder as PluginBuilder<tedge_core::PluginDirectory>>::kind_name();
+                info!("Registering plugin builder for plugins of type {}", kind_name);
+                let mut registry = $registry;
+                if !registry.plugin_kinds.insert(kind_name.to_string()) {
+                    miette::bail!("Plugin kind '{}' was already registered, cannot register!", kind_name)
+                }
+
+                Registry {
+                    app_builder: registry.app_builder.with_plugin_builder($pbinstance)?,
+                    plugin_kinds: registry.plugin_kinds,
+                    doc_printers: registry.doc_printers,
+                }
+            } else {
+                tracing::trace!("Not supporting plugins of type {}", std::stringify!($pluginbuilder));
+                $registry
+            }
+        }
+    }}
+}
 
 #[tokio::main]
 #[tracing::instrument]
@@ -28,39 +61,25 @@ async fn main() -> miette::Result<()> {
     info!("Tedge booting...");
     debug!("Tedge CLI: {:?}", args);
 
-    let application = TedgeApplication::builder();
-    let mut plugin_kinds = HashSet::new();
+    let registry = Registry {
+        app_builder: TedgeApplication::builder(),
+        plugin_kinds: HashSet::new(),
+        doc_printers: HashMap::new(),
+    };
     info!("Building application");
 
-    macro_rules! register_plugin {
-        ($app:ident, $cfg:tt, $pluginbuilder:ty, $pbinstance:expr) => {{
-            cfg_if::cfg_if! {
-                if #[cfg(feature = $cfg)] {
-                    let kind_name: &'static str = <$pluginbuilder as PluginBuilder<tedge_core::PluginDirectory>>::kind_name();
-                    info!("Registering plugin builder for plugins of type {}", kind_name);
-                    if !plugin_kinds.insert(kind_name) {
-                        miette::bail!("Plugin kind '{}' was already registered, cannot register!", kind_name)
-                    }
-                    $app.with_plugin_builder($pbinstance)?
-                } else {
-                    tracing::trace!("Not supporting plugins of type {}", std::stringify!($pluginbuilder));
-                    $app
-                }
-            }
-        }}
-    }
 
-    let application = {
+    let registry = {
         cfg_table::cfg_table! {
             [not(feature = "mqtt")] => register_plugin!(
-                application,
+                registry,
                 "builtin_plugin_log",
                 plugin_log::LogPluginBuilder<(Measurement, Notification)>,
                 plugin_log::LogPluginBuilder::<(Measurement, Notification)>::new()
             ),
 
             [feature = "mqtt"] => register_plugin!(
-                application,
+                registry,
                 "builtin_plugin_log",
                 plugin_log::LogPluginBuilder<(Measurement, Notification, plugin_mqtt::IncomingMessage)>,
                 plugin_log::LogPluginBuilder::<(Measurement, Notification, plugin_mqtt::IncomingMessage)>::new()
@@ -68,50 +87,50 @@ async fn main() -> miette::Result<()> {
         }
     };
 
-    let application = register_plugin!(
-        application,
+    let registry = register_plugin!(
+        registry,
         "builtin_plugin_avg",
         plugin_avg::AvgPluginBuilder,
         plugin_avg::AvgPluginBuilder
     );
-    let application = register_plugin!(
-        application,
+    let registry = register_plugin!(
+        registry,
         "builtin_plugin_sysstat",
         plugin_sysstat::SysStatPluginBuilder,
         plugin_sysstat::SysStatPluginBuilder
     );
-    let application = register_plugin!(
-        application,
+    let registry = register_plugin!(
+        registry,
         "builtin_plugin_inotify",
         plugin_inotify::InotifyPluginBuilder,
         plugin_inotify::InotifyPluginBuilder
     );
-    let application = register_plugin!(
-        application,
+    let registry = register_plugin!(
+        registry,
         "builtin_plugin_httpstop",
         plugin_httpstop::HttpStopPluginBuilder,
         plugin_httpstop::HttpStopPluginBuilder
     );
-    let application = register_plugin!(
-        application,
+    let registry = register_plugin!(
+        registry,
         "builtin_plugin_measurement_filter",
         plugin_measurement_filter::MeasurementFilterPluginBuilder,
         plugin_measurement_filter::MeasurementFilterPluginBuilder
     );
-    let application = register_plugin!(
-        application,
+    let registry = register_plugin!(
+        registry,
         "mqtt",
         plugin_mqtt::MqttPluginBuilder,
         plugin_mqtt::MqttPluginBuilder::new()
     );
-    let application = register_plugin!(
-        application,
+    let registry = register_plugin!(
+        registry,
         "mqtt",
         plugin_mqtt_measurement_bridge::MqttMeasurementBridgePluginBuilder,
         plugin_mqtt_measurement_bridge::MqttMeasurementBridgePluginBuilder::new()
     );
-    let application = register_plugin!(
-        application,
+    let registry = register_plugin!(
+        registry,
         "builtin_plugin_notification",
         plugin_notification::NotificationPluginBuilder,
         plugin_notification::NotificationPluginBuilder
@@ -119,7 +138,7 @@ async fn main() -> miette::Result<()> {
 
     match args.command {
         cli::CliCommand::Run { config } => {
-            let (cancel_sender, application) = application.with_config_from_path(config).await?;
+            let (cancel_sender, application) = registry.app_builder.with_config_from_path(config).await?;
             info!("Application built");
 
             debug!("Verifying the configuration");
@@ -129,7 +148,7 @@ async fn main() -> miette::Result<()> {
             run(cancel_sender, application).await
         }
         cli::CliCommand::ValidateConfig { config } => {
-            let (_, application) = application.with_config_from_path(config).await?;
+            let (_, application) = registry.app_builder.with_config_from_path(config).await?;
             info!("Application built");
 
             debug!("Only going to validate the configuration");
@@ -141,7 +160,7 @@ async fn main() -> miette::Result<()> {
             use std::io::Write;
 
             let mut out = std::io::stdout();
-            for name in application.plugin_kind_names() {
+            for name in registry.app_builder.plugin_kind_names() {
                 writeln!(out, "{}", name).into_diagnostic()?;
             }
             Ok(())
