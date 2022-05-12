@@ -7,7 +7,7 @@ use tedge_api::{
 };
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error};
+use tracing::{debug, error, Instrument};
 
 #[derive(serde::Deserialize, Debug)]
 struct HttpStopConfig {
@@ -81,6 +81,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct HttpStopPlugin {
     cancellation_token: CancellationToken,
     bind: std::net::SocketAddr,
@@ -95,6 +96,7 @@ impl tedge_api::plugin::PluginDeclaration for HttpStopPlugin {
 
 #[async_trait::async_trait]
 impl Plugin for HttpStopPlugin {
+    #[tracing::instrument(name = "plugin.httpstop.start", skip(self))]
     async fn start(&mut self) -> Result<(), PluginError> {
         debug!("Setting up HttpStopPlugin");
         let addr = self.core.clone();
@@ -112,19 +114,26 @@ impl Plugin for HttpStopPlugin {
                 cancellation_token.cancelled().await;
             });
 
-        self.join_handle = Some(tokio::spawn(serv));
+        self.join_handle = Some(tokio::spawn(
+            serv.instrument(tracing::debug_span!("plugin.httpstop.server")),
+        ));
         Ok(())
     }
 
+    #[tracing::instrument(name = "plugin.httpstop.shutdown", skip(self))]
     async fn shutdown(&mut self) -> Result<(), PluginError> {
         debug!("Shutting down HttpStopPlugin");
         if let Some(join_handle) = self.join_handle.take() {
-            let _ = join_handle.await.map_err(Error::FailedToStopMainloop)?;
+            let _ = join_handle
+                .instrument(tracing::debug_span!("plugin.httpstop.server.shutdown"))
+                .await
+                .map_err(Error::FailedToStopMainloop)?;
         }
         Ok(())
     }
 }
 
+#[tracing::instrument(name = "plugin.httpstop.server.request_handler")]
 async fn request_handler(
     addr: Address<CoreMessages>,
     _: Request<Body>,
