@@ -72,9 +72,15 @@ impl CoreTask {
                 next_message = self.receiver.recv(), if !receiver_closed => {
                     trace!("Received message");
                     match next_message {
-                        Some(msg) => match built_plugin.handle_message(msg).instrument(tracing::trace_span!("Handling message")).await {
-                            Ok(_) => debug!("Core handled message successfully"),
-                            Err(e) => warn!("Core failed to handle message: {:?}", e),
+                        Some(msg) => {
+                            let handle_msg_res = built_plugin.handle_message(msg)
+                                .instrument(tracing::trace_span!("core.core_task.handle_message"))
+                                .await;
+
+                            match handle_msg_res {
+                                Ok(_) => debug!("Core handled message successfully"),
+                                Err(e) => warn!("Core failed to handle message: {:?}", e),
+                            }
                         },
 
                         None => {
