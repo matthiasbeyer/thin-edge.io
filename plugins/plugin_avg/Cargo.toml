@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 async-trait = "0.1"
-humantime-serde = "1"
 miette = "4.4"
 serde = { version = "1.0.136", features = ["derive"] }
 thiserror = "1"
