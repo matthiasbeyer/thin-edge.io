@@ -13,6 +13,7 @@ use crate::builder::MeasurementReceiver;
 use crate::extractor::Extractable;
 use crate::filter::Filterable;
 
+#[derive(Debug)]
 pub struct MeasurementFilterPlugin {
     target: Address<MeasurementReceiver>,
     filtered_target: Option<Address<MeasurementReceiver>>,
@@ -56,14 +57,15 @@ impl Plugin for MeasurementFilterPlugin {
 
 #[async_trait]
 impl Handle<Measurement> for MeasurementFilterPlugin {
+    #[tracing::instrument(name = "plugin.measurement_filter.handle_message", level = "trace")]
     async fn handle_message(
         &self,
         message: Measurement,
         _sender: ReplySenderFor<Measurement>,
     ) -> Result<(), PluginError> {
-        trace!("Extracting with {:?} from {:?}", self.extractor, message);
+        trace!(plugin.extractor = ?self.extractor, ?message, "Extracting from message");
         if let Some(value) = message.extract(&self.extractor.0) {
-            trace!("Applying filter {:?} to value {:?}", self.filter, value);
+            trace!(plugin.filter = ?self.filter, ?value, "Applying filter");
             if value.apply_filter(&self.filter) {
                 let _ = self.target.send_and_wait(message).await;
             } else {
