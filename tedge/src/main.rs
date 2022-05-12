@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::io::Write;
 
 use clap::Parser;
 use miette::IntoDiagnostic;
 
+use pretty::Arena;
 use tedge_api::PluginBuilder;
 use tedge_core::TedgeApplication;
 use tedge_core::TedgeApplicationBuilder;
@@ -22,7 +24,7 @@ mod logging;
 struct Registry {
     app_builder: TedgeApplicationBuilder,
     plugin_kinds: HashSet<String>,
-    doc_printers: HashMap<String, Box<dyn FnOnce()>>,
+    doc_printers: HashMap<String, Box<dyn FnOnce() -> Result<(), miette::Error>>>,
 }
 
 macro_rules! register_plugin {
@@ -35,6 +37,29 @@ macro_rules! register_plugin {
                 if !registry.plugin_kinds.insert(kind_name.to_string()) {
                     miette::bail!("Plugin kind '{}' was already registered, cannot register!", kind_name)
                 }
+
+                let kind_name_str = kind_name.to_string();
+                registry.doc_printers.insert(kind_name.to_string(), Box::new(move || {
+                    let mut stdout = std::io::stdout();
+                    if let Some(config_desc) = <$pluginbuilder as PluginBuilder<tedge_core::PluginDirectory>>::kind_configuration() {
+                        let terminal_width = term_size::dimensions().map(|(w, _)| w).unwrap_or(80);
+                        let arena = Arena::new();
+
+                        let rendered_doc = crate::config::as_terminal_doc(&config_desc, &arena);
+
+                        let mut output = String::new();
+                        rendered_doc.render_fmt(terminal_width, &mut output).into_diagnostic()?;
+
+                        writeln!(stdout, " ----- Documentation for {}", kind_name_str)
+                                .into_diagnostic()?;
+
+                        writeln!(stdout, "{}", output).into_diagnostic()?;
+                    } else {
+                        writeln!(stdout, " Documentation for {} is unavailable", kind_name)
+                            .into_diagnostic()?;
+                    }
+                    Ok(())
+                }));
 
                 Registry {
                     app_builder: registry.app_builder.with_plugin_builder($pbinstance)?,
@@ -67,7 +92,6 @@ async fn main() -> miette::Result<()> {
         doc_printers: HashMap::new(),
     };
     info!("Building application");
-
 
     let registry = {
         cfg_table::cfg_table! {
@@ -138,7 +162,8 @@ async fn main() -> miette::Result<()> {
 
     match args.command {
         cli::CliCommand::Run { config } => {
-            let (cancel_sender, application) = registry.app_builder.with_config_from_path(config).await?;
+            let (cancel_sender, application) =
+                registry.app_builder.with_config_from_path(config).await?;
             info!("Application built");
 
             debug!("Verifying the configuration");
@@ -163,6 +188,23 @@ async fn main() -> miette::Result<()> {
             for name in registry.app_builder.plugin_kind_names() {
                 writeln!(out, "{}", name).into_diagnostic()?;
             }
+            Ok(())
+        }
+        cli::CliCommand::Doc { plugin_name } => {
+            let mut registry = registry;
+            if let Some(plugin_name) = plugin_name {
+                let printer = registry
+                    .doc_printers
+                    .remove(&plugin_name)
+                    .ok_or_else(|| miette::miette!("Plugin named '{}' not found", plugin_name))?;
+
+                (printer)()?;
+            } else {
+                for printer in registry.doc_printers.into_values() {
+                    printer()?;
+                }
+            }
+
             Ok(())
         }
     }
