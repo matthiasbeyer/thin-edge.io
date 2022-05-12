@@ -43,6 +43,10 @@ where
         "mqtt_measurement_bridge"
     }
 
+    fn kind_configuration() -> Option<tedge_api::ConfigDescription> {
+        Some(<MqttMeasurementBridgeConfig as tedge_api::AsConfig>::as_config())
+    }
+
     fn kind_message_types() -> HandleTypes
     where
         Self: Sized,
@@ -77,9 +81,12 @@ where
     }
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, tedge_api::Config)]
 struct MqttMeasurementBridgeConfig {
+    /// The name of the mqtt plugin to send the measurements to
     mqtt_plugin_name: String,
+
+    /// The topic to send the measurements onto
     topic: String,
 }
 
