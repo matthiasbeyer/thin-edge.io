@@ -80,11 +80,14 @@ pub struct MessageType {
     kind: MessageKind,
 }
 
+#[derive(Clone, PartialEq, Debug)]
+struct Uuid([u8; 16]);
+
 #[derive(Debug, Clone, Serialize)]
 enum MessageKind {
     Wildcard,
     #[serde(skip)]
-    Typed(std::any::TypeId),
+    Typed(Uuid),
 }
 
 impl MessageType {
@@ -109,26 +112,26 @@ impl MessageType {
 
     /// Get the [`MessageType`] for a `M`:[`Message`]
     #[must_use]
-    pub fn for_message<M: Message>() -> Self {
-        let id = std::any::TypeId::of::<M>();
+    pub fn for_message<M: Message + TypeUuid>() -> Self {
+        let id = M::UUID;
         MessageType {
             name: std::any::type_name::<M>(),
-            kind: if id == std::any::TypeId::of::<AnyMessage>() {
+            kind: if id == AnyMessage::UUID {
                 MessageKind::Wildcard
             } else {
-                MessageKind::Typed(id)
+                MessageKind::Typed(Uuid(id))
             },
         }
     }
 
     pub(crate) fn from_message(msg: &dyn Message) -> Self {
-        let id = msg.type_id();
+        let id = msg.uuid();
         MessageType {
             name: msg.type_name(),
-            kind: if id == std::any::TypeId::of::<AnyMessage>() {
+            kind: if id == AnyMessage::UUID {
                 MessageKind::Wildcard
             } else {
-                MessageKind::Typed(id)
+                MessageKind::Typed(Uuid(id))
             },
         }
     }

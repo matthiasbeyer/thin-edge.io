@@ -6,6 +6,7 @@
 
 use futures::future::BoxFuture;
 use std::any::Any;
+use type_uuid::TypeUuid;
 
 use downcast_rs::{impl_downcast, DowncastSync};
 
@@ -420,19 +421,19 @@ impl HandleTypes {
     /// #     type HandledMessages = (Heartbeat,);
     /// # }
     ///
-    /// println!("{:#?}", HeartbeatPlugin::get_handled_types());
+    /// println!("{:#x?}", HeartbeatPlugin::get_handled_types());
     /// // This will print something akin to:
     /// //
-    /// // HandleTypes(
-    /// //  [
-    /// //      (
-    /// //          "rust_out::main::_doctest_main_src_plugin_rs_102_0::Heartbeat",
-    /// //          TypeId {
-    /// //              t: 15512189350087767644,
-    /// //          },
-    /// //      ),
-    /// //  ],
-    /// // )
+    /// //   HandleTypes(
+    /// //       [
+    /// //           MessageType {
+    /// //               name: "rust_out::main::_doctest_main_src_plugin_rs_373_0::Heartbeat",
+    /// //               kind: Typed(
+    /// //                   Uuid([ 0x12, 0x76, 0xaa, 0x9c, 0x5e, 0x4, 0x4a, 0xb3, 0xa9, 0x87, 0x61, 0xd8, 0x97, 0x65, 0xab, 0x33, ])
+    /// //               ),
+    /// //           },
+    /// //       ],
+    /// //   )
     /// ```
     pub fn declare_handlers_for<P: PluginDeclaration>() -> HandleTypes
     where
@@ -534,7 +535,7 @@ pub trait DoesHandle<M: MessageBundle> {
 macro_rules! impl_does_handle_tuple {
     () => {};
     ($cur:ident $($rest:tt)*) => {
-        impl<$cur: Message, $($rest: Message,)* PLUG: Plugin + Handle<$cur> $(+ Handle<$rest>)*> DoesHandle<($cur, $($rest),*)> for PLUG {
+        impl<$cur: Message + TypeUuid, $($rest: Message + TypeUuid,)* PLUG: Plugin + Handle<$cur> $(+ Handle<$rest>)*> DoesHandle<($cur, $($rest),*)> for PLUG {
             fn into_built_plugin(self) -> BuiltPlugin {
                 fn handle_message<'a, $cur: Message, $($rest: Message,)* PLUG: Plugin + Handle<$cur> $(+ Handle<$rest>)*>(
                     plugin: &'a dyn Any,
@@ -583,6 +584,8 @@ macro_rules! impl_does_handle_tuple {
         impl_does_handle_tuple!($($rest)*);
     };
 }
+
+impl_does_handle_tuple!(M10 M9 M8 M7 M6 M5 M4 M3 M2 M1);
 
 impl MessageBundle for () {
     fn get_ids() -> Vec<MessageType> {
@@ -655,7 +658,7 @@ macro_rules! impl_msg_bundle_tuple {
         ($cur, impl_msg_bundle_tuple!(@rec_tuple $($rest)*))
     };
     ($cur:ident $($rest:tt)*) => {
-        impl<$cur: Message, $($rest: Message),*> MessageBundle for ($cur,$($rest),*) {
+        impl<$cur: Message + TypeUuid, $($rest: Message + TypeUuid),*> MessageBundle for ($cur,$($rest),*) {
             fn get_ids() -> Vec<MessageType> {
                 vec![
                     MessageType::for_message::<$cur>(),
@@ -669,7 +672,6 @@ macro_rules! impl_msg_bundle_tuple {
 }
 
 impl_msg_bundle_tuple!(M10 M9 M8 M7 M6 M5 M4 M3 M2 M1);
-impl_does_handle_tuple!(M10 M9 M8 M7 M6 M5 M4 M3 M2 M1);
 
 #[cfg(test)]
 mod tests {
