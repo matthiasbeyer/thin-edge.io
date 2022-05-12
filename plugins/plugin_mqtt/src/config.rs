@@ -1,4 +1,4 @@
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, tedge_api::Config)]
 pub struct MqttConfig {
     /// MQTT host to connect to
     pub host: String,
@@ -13,9 +13,12 @@ pub struct MqttConfig {
 }
 
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, tedge_api::Config)]
 pub struct Subscription {
+    /// The topic to connect to
     pub(crate) topic: String,
+
+    /// The Quality of Service to use for the subscribed topic
     pub(crate) qos: QoS,
 }
 
@@ -29,6 +32,23 @@ pub enum QoS {
 
     #[serde(rename = "exactly_once")]
     ExactlyOnce,
+}
+
+impl tedge_api::AsConfig for QoS {
+    fn as_config() -> tedge_api::ConfigDescription {
+        tedge_api::ConfigDescription::new(
+            "Qos".to_string(),
+            tedge_api::ConfigKind::Enum(
+                tedge_api::config::ConfigEnumKind::Untagged,
+                vec![
+                    ("String", Some("QOS 0"), tedge_api::config::EnumVariantRepresentation::String("at_most_once")),
+                    ("String", Some("QOS 1"), tedge_api::config::EnumVariantRepresentation::String("at_least_once")),
+                    ("String", Some("QOS 2"), tedge_api::config::EnumVariantRepresentation::String("exactly_once")),
+                ]
+            ),
+            None,
+        )
+    }
 }
 
 impl Into<i32> for QoS {
