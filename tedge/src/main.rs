@@ -13,6 +13,7 @@ use tracing::error;
 use tracing::info;
 
 mod cli;
+mod config;
 mod logging;
 
 #[tokio::main]
