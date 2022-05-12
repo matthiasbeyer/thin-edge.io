@@ -8,6 +8,7 @@ use tedge_api::Plugin;
 use tedge_api::PluginError;
 use tracing::debug;
 use tracing::error;
+use tracing::Instrument;
 
 use crate::config::MqttConfig;
 use crate::message::MqttMessageReceiver;
@@ -19,6 +20,16 @@ pub struct MqttPlugin {
     client: Option<paho_mqtt::AsyncClient>,
     stopper: Option<tedge_lib::mainloop::MainloopStopper>,
     target_addr: Address<MqttMessageReceiver>,
+}
+
+impl std::fmt::Debug for MqttPlugin {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MqttPlugin")
+            .field("config", &self.config)
+            .field("stopper", &self.stopper)
+            .field("target_addr", &self.target_addr)
+            .finish_non_exhaustive()
+    }
 }
 
 impl MqttPlugin {
@@ -39,6 +50,7 @@ impl tedge_api::plugin::PluginDeclaration for MqttPlugin {
 
 #[async_trait]
 impl Plugin for MqttPlugin {
+    #[tracing::instrument(name = "plugin.mqtt.start", skip(self))]
     async fn start(&mut self) -> Result<(), PluginError> {
         debug!("Setting up mqtt plugin!");
         let mut client = paho_mqtt::AsyncClient::new(self.config.host.clone())
@@ -53,7 +65,11 @@ impl Plugin for MqttPlugin {
         debug!("Starting mqtt plugin mainloop!");
         let (stopper, mainloop) = tedge_lib::mainloop::Mainloop::detach(state);
         self.stopper = Some(stopper);
-        let _ = tokio::spawn(mainloop.run(mqtt_main));
+        let _ = tokio::spawn(
+            mainloop
+                .run(mqtt_main)
+                .instrument(tracing::debug_span!("plugin.mqtt.mainloop")),
+        );
 
         let connect_opts = Some({
             paho_mqtt::connect_options::ConnectOptionsBuilder::new()
@@ -63,6 +79,7 @@ impl Plugin for MqttPlugin {
         });
         client
             .connect(connect_opts)
+            .instrument(tracing::debug_span!("plugin.mqtt.client.connect"))
             .await
             .map_err(|e| miette::miette!("Failed connecting the client: {}", e))?;
 
@@ -74,6 +91,7 @@ impl Plugin for MqttPlugin {
         Ok(())
     }
 
+    #[tracing::instrument(name = "plugin.mqtt.shutdown", skip(self))]
     async fn shutdown(&mut self) -> Result<(), PluginError> {
         debug!("Shutting down mqtt plugin!");
 
@@ -88,6 +106,7 @@ impl Plugin for MqttPlugin {
         if let Some(client) = self.client.take() {
             client
                 .disconnect(None)
+                .instrument(tracing::debug_span!("plugin.mqtt.client.disconnect"))
                 .await
                 .map_err(|e| crate::error::Error::FailedToDisconnectMqttClient(e))?;
         }
@@ -102,6 +121,15 @@ struct State {
     target_addr: Address<MqttMessageReceiver>,
 }
 
+impl std::fmt::Debug for State {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("State")
+            .field("target_addr", &self.target_addr)
+            .finish_non_exhaustive()
+    }
+}
+
+#[tracing::instrument(name = "plugin.mqtt.main", skip_all)]
 async fn mqtt_main(
     mut state: State,
     stopper: tedge_api::CancellationToken,
@@ -123,7 +151,12 @@ async fn mqtt_main(
                         // client disconnected, connect again
                         debug!("Client disconnected, reconnecting...");
                         let op = || async {
-                            if let Err(e) = state.client.reconnect().await {
+                            let reconnect_res = state.client
+                                .reconnect()
+                                .instrument(tracing::debug_span!("plugin.mqtt.main.client.reconnect"))
+                                .await;
+
+                            if let Err(e) = reconnect_res {
                                 error!("Reconnecting failed: {}", e);
                                 Err(backoff::Error::transient(()))
                             } else {
@@ -155,11 +188,12 @@ async fn mqtt_main(
     Ok(())
 }
 
+#[tracing::instrument(name = "plugin.mqtt.main.handle_incoming_message", skip(state))]
 async fn handle_incoming_message(
     state: &State,
     message: paho_mqtt::Message,
 ) -> Result<(), PluginError> {
-    debug!("Received MQTT message");
+    debug!(?message, "Received MQTT message");
     let incoming = crate::message::IncomingMessage {
         payload: message.payload().to_vec(),
         qos: message.qos(),
@@ -168,12 +202,19 @@ async fn handle_incoming_message(
     };
 
     debug!("Sending incoming message to target plugin");
-    let _ = state.target_addr.send_and_wait(incoming).await;
+    let _ = state
+        .target_addr
+        .send_and_wait(incoming)
+        .instrument(tracing::debug_span!(
+            "plugin.mqtt.main.handle_incoming_message.send_and_wait"
+        ))
+        .await;
     Ok(())
 }
 
 #[async_trait]
 impl Handle<OutgoingMessage> for MqttPlugin {
+    #[tracing::instrument(name = "plugin.mqtt.handle_message", level = "trace")]
     async fn handle_message(
         &self,
         message: OutgoingMessage,
@@ -182,9 +223,10 @@ impl Handle<OutgoingMessage> for MqttPlugin {
         debug!("Received outgoing message");
         if let Some(client) = self.client.as_ref() {
             let msg = paho_mqtt::Message::new(&message.topic, message.payload, message.qos.into());
-            debug!("Publishing message on {}", message.topic);
+            debug!(?message.topic, "Publishing message");
             client
                 .publish(msg)
+                .instrument(tracing::debug_span!("plugin.mqtt.handle_message.publish"))
                 .await
                 .map_err(crate::error::Error::FailedToPublish)
                 .into_diagnostic()?;
