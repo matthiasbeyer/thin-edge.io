@@ -58,7 +58,7 @@ impl Reactor {
         // This is then collected into a CorePluginDirectory, our "addressbook type" that can be
         // used to retrieve addresses for message passing.
         let (core_sender, core_receiver) = tokio::sync::mpsc::channel(channel_size);
-        let mut directory = tracing::debug_span!("Finding plugins, building PluginDirectory")
+        let mut directory = tracing::debug_span!("core.build_plugin_directory")
             .in_scope(|| {
                 let directory_iter = self.0.config().plugins().iter().map(|(pname, pconfig)| {
                     // fetch the types the plugin claims to handle from the plugin builder identified
@@ -90,7 +90,7 @@ impl Reactor {
             })?;
 
         // Start preparing the plugin instantiation...
-        let plugin_instantiation_prep = tracing::debug_span!("Preparing plugin instantiation")
+        let plugin_instantiation_prep = tracing::debug_span!("core.plugin_instantiation_prep")
             .in_scope(|| {
                 self.0
                     .config()
@@ -130,7 +130,7 @@ impl Reactor {
             })
             .collect::<futures::stream::FuturesUnordered<_>>()
             .collect::<Vec<Result<_>>>()
-            .instrument(tracing::debug_span!("Preparing plugin instantiation"))
+            .instrument(tracing::debug_span!("core.plugin_instantiation"))
             .await
             .into_iter()
             .collect::<Result<Vec<_>>>()?;
@@ -144,7 +144,7 @@ impl Reactor {
             let core_cancel_token = self.0.cancellation_token().clone();
             crate::core_task::CoreTask::new(core_cancel_token, core_receiver)
                 .run()
-                .instrument(tracing::debug_span!("Main loop for CoreTask"))
+                .instrument(tracing::debug_span!("core.mainloop.coretask"))
         };
         debug!("Core task instantiated");
 
@@ -164,7 +164,7 @@ impl Reactor {
             .map(Box::pin)
             .collect::<futures::stream::FuturesUnordered<_>>() // main loop
             .collect::<Vec<Result<()>>>()
-            .instrument(tracing::debug_span!("Main loop for Plugins"));
+            .instrument(tracing::debug_span!("core.mainloop.plugins"));
         debug!("Plugin tasks instantiated");
 
         // and then we wait until all communication is finished.
@@ -224,7 +224,7 @@ impl Reactor {
             TedgeApplicationError::PluginConfigMissing(pname)
         })?;
 
-        let verify_guard = tracing::trace_span!("Verifying plugin configuration").entered();
+        let verify_guard = tracing::trace_span!("core.config_verification").entered();
         let config = match config.verify_with_builder(builder, root_config_path).await {
             Err(e) => {
                 error!(
@@ -240,7 +240,7 @@ impl Reactor {
         let cancel_token = self.0.cancellation_token.child_token();
 
         let _instantiate_guard = tracing::trace_span!(
-            "Instantiating plugin '{name}' of kind {kind}",
+            "core.instantiate_plugins",
             name = plugin_name,
             kind = plugin_config.kind().as_ref(),
         )
