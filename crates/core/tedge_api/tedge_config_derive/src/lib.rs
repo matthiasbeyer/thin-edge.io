@@ -1,6 +1,6 @@
 use proc_macro::TokenStream as TS;
 use proc_macro2::TokenStream;
-use proc_macro_error::{abort, emit_error, proc_macro_error, OptionExt, ResultExt};
+use proc_macro_error::{abort, proc_macro_error, OptionExt, ResultExt};
 use quote::{quote, ToTokens, TokenStreamExt};
 use syn::{
     parse_macro_input, Attribute, DeriveInput, Ident, Lit, LitStr, Meta, MetaNameValue, NestedMeta,
