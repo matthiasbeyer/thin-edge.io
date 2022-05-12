@@ -148,6 +148,16 @@ impl<V: AsConfig> AsConfig for HashMap<String, V> {
     }
 }
 
+impl<V: AsConfig> AsConfig for HashMap<std::path::PathBuf, V> {
+    fn as_config() -> ConfigDescription {
+        ConfigDescription::new(
+            format!("Table of '{}'s", V::as_config().name()),
+            ConfigKind::HashMap(Box::new(V::as_config())),
+            None,
+        )
+    }
+}
+
 macro_rules! impl_config_kind {
     ($kind:expr; $name:expr; $doc:expr => $($typ:ty),+) => {
         $(
