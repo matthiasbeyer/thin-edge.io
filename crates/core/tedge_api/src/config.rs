@@ -128,6 +128,16 @@ pub trait AsConfig {
     fn as_config() -> ConfigDescription;
 }
 
+impl<T: AsConfig> AsConfig for Option<T> {
+    fn as_config() -> ConfigDescription {
+        ConfigDescription::new(
+            format!("An optional '{}'", T::as_config().name()),
+            ConfigKind::Wrapped(Box::new(T::as_config())),
+            None,
+        )
+    }
+}
+
 impl<T: AsConfig> AsConfig for Vec<T> {
     fn as_config() -> ConfigDescription {
         ConfigDescription::new(
