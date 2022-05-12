@@ -178,6 +178,10 @@ impl_config_kind!(ConfigKind::Float; "Float"; "A floating point value with 32 bi
 impl_config_kind!(ConfigKind::Bool; "Boolean"; "A boolean" => bool);
 impl_config_kind!(ConfigKind::String; "String"; "An UTF-8 string" => String);
 
+impl_config_kind!(ConfigKind::String; "String"; "A socket address" => std::net::SocketAddr);
+impl_config_kind!(ConfigKind::String; "String"; "An IPv4 socket address" => std::net::SocketAddrV4);
+impl_config_kind!(ConfigKind::String; "String"; "An IPv6 socket address" => std::net::SocketAddrV6);
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
