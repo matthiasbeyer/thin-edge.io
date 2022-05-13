@@ -10,7 +10,7 @@ impl AsConfig for Extractor {
         tedge_api::ConfigDescription::new(
             "Extractor".to_string(),
             ConfigKind::String,
-            Some(indoc::indoc!{r#"
+            Some(indoc::indoc! {r#"
                 A path to extract a value from a measurement
 
                 # Examples
@@ -20,7 +20,7 @@ impl AsConfig for Extractor {
                 ```
                 temperature.celcius
                 ```
-            "#})
+            "#}),
         )
     }
 }
@@ -36,12 +36,13 @@ impl std::str::FromStr for Extractor {
 
     fn from_str(s: &str) -> Result<Extractor, Self::Err> {
         // TODO: Make this implementation bullet-proof with nom or something like that
-        let v = s.split('.')
+        let v = s
+            .split('.')
             .map(Token::try_from)
             .collect::<Result<Vec<_>, _>>()?;
 
         if v.is_empty() || v.get(0).map(|t| t.is_empty()).unwrap_or(false) {
-            return Err("Empty extractor".to_string())
+            return Err("Empty extractor".to_string());
         }
 
         Ok(Extractor(v))
@@ -101,10 +102,12 @@ impl Extractable for Measurement {
         if let Some(next_token) = extractor.get(0) {
             match next_token {
                 Token::Index(_) => None,
-                Token::Key(key) => if key == self.name() {
-                    self.value().extract(&extractor[1..])
-                } else {
-                    None
+                Token::Key(key) => {
+                    if key == self.name() {
+                        self.value().extract(&extractor[1..])
+                    } else {
+                        None
+                    }
                 }
             }
         } else {
@@ -122,11 +125,11 @@ impl Extractable for tedge_lib::measurement::MeasurementValue {
                 (Token::Index(idx), MeasurementValue::List(lst)) => {
                     trace!("Fetching '{}' from {:?}", idx, lst);
                     lst.get(*idx).and_then(|v| v.extract(&extractor[1..]))
-                },
+                }
                 (Token::Key(key), MeasurementValue::Map(map)) => {
                     trace!("Fetching '{}' from {:?}", key, map);
                     map.get(key).and_then(|v| v.extract(&extractor[1..]))
-                },
+                }
 
                 (_, MeasurementValue::Bool(_)) => None,
                 (_, MeasurementValue::Float(_)) => None,
@@ -168,7 +171,11 @@ mod tests {
     #[test]
     fn test_extracting_key_index_key() {
         let ext = Extractor::from_str("foo.5.bar").unwrap().0;
-        let exp = vec![Token::Key("foo".to_string()), Token::Index(5), Token::Key("bar".to_string())];
+        let exp = vec![
+            Token::Key("foo".to_string()),
+            Token::Index(5),
+            Token::Key("bar".to_string()),
+        ];
         assert_eq!(ext, exp);
     }
 }

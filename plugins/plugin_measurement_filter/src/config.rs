@@ -34,8 +34,10 @@ mod tests {
         let c: MeasurementFilterConfig = toml::from_str(s).unwrap();
         assert_eq!(c.target, "foo");
         assert_eq!(c.filtered_target, Some("bar".to_string()));
-        assert_eq!(c.extractor.0, vec![Token::Key("foo".to_string()), Token::Key("bar".to_string())]);
+        assert_eq!(
+            c.extractor.0,
+            vec![Token::Key("foo".to_string()), Token::Key("bar".to_string())]
+        );
         assert_eq!(c.filter, Filter::Is(true));
     }
 }
-
