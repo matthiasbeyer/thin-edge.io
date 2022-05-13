@@ -19,6 +19,7 @@ use tedge_lib::measurement::Measurement;
 use tedge_lib::measurement::MeasurementValue;
 use tracing::debug;
 use tracing::trace;
+use tracing::Instrument;
 
 mod config;
 use config::*;
@@ -33,7 +34,6 @@ enum Error {
     #[error("Failed to stop Mainloop")]
     FailedToStopMainloop,
 }
-
 
 tedge_api::make_receiver_bundle!(pub struct MeasurementReceiver(Measurement));
 
@@ -78,6 +78,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for InotifyPluginBuilder {
     }
 }
 
+#[derive(Debug)]
 struct InotifyPlugin {
     addr: Address<MeasurementReceiver>,
     config: InotifyConfig,
@@ -98,6 +99,7 @@ impl InotifyPlugin {
     }
 }
 
+#[derive(Debug)]
 struct State {
     addr: Address<MeasurementReceiver>,
     fail_on_err: bool,
@@ -107,6 +109,7 @@ struct State {
 
 #[async_trait]
 impl Plugin for InotifyPlugin {
+    #[tracing::instrument(name = "plugin.inotify.start", skip(self))]
     async fn start(&mut self) -> Result<(), PluginError> {
         let mut inotify = inotify::Inotify::init().into_diagnostic()?;
 
@@ -130,22 +133,24 @@ impl Plugin for InotifyPlugin {
         let (stopper, mainloop) = tedge_lib::mainloop::Mainloop::detach(state);
         self.stopper = Some(stopper);
 
-        let _ = tokio::spawn(mainloop.run(main_inotify));
+        let _ = tokio::spawn(
+            mainloop.run(main_inotify).instrument(tracing::debug_span!("plugin.inotify.mainloop")),
+        );
         trace!("Mainloop spawned");
         Ok(())
     }
 
+    #[tracing::instrument(name = "plugin.inotify.shutdown", skip(self))]
     async fn shutdown(&mut self) -> Result<(), PluginError> {
         trace!("Shutdown");
         if let Some(stopper) = self.stopper.take() {
-            stopper
-                .stop()
-                .map_err(|()| Error::FailedToStopMainloop)?
+            stopper.stop().map_err(|()| Error::FailedToStopMainloop)?
         }
         Ok(())
     }
 }
 
+#[tracing::instrument(name = "plugin.inotify.main", skip_all)]
 async fn main_inotify(
     mut state: State,
     stopper: tedge_api::CancellationToken,
@@ -162,7 +167,7 @@ async fn main_inotify(
             next_event = stream.next() => {
                 match next_event {
                     Some(Ok(event)) => {
-                        debug!("Received inotify event = {:?}", event);
+                        debug!(?event, "Received inotify event");
                         if let Some(path) = state.watches.get(&event.wd) {
                             let value = MeasurementValue::Text(path.display().to_string());
                             let measurement = Measurement::new(mask_to_string(event.mask).to_string(), value);
@@ -174,7 +179,7 @@ async fn main_inotify(
                     },
 
                     Some(Err(err)) => {
-                        debug!("Received inotify event = {:?}", err);
+                        debug!(?err, "Received inotify event");
                         if state.fail_on_err {
                             return Err(err).into_diagnostic()
                         }

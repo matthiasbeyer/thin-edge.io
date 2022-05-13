@@ -14,6 +14,7 @@ use tedge_api::PluginError;
 use tedge_lib::iter::IntoSendAll;
 use tedge_lib::measurement::Measurement;
 use tedge_lib::measurement::MeasurementValue;
+use tracing::Instrument;
 
 use crate::config::AllProcessConfig;
 use crate::config::HasBaseConfig;
@@ -22,6 +23,7 @@ use crate::main::State;
 use crate::main::StateFromConfig;
 use crate::plugin::MeasurementReceiver;
 
+#[derive(Debug)]
 pub struct ProcessState {
     interval: u64,
     send_to: Arc<Vec<Address<MeasurementReceiver>>>,
@@ -69,6 +71,7 @@ impl StateFromConfig for ProcessState {
     }
 }
 
+#[tracing::instrument(name = "plugin.sysstat.main-process", skip(state))]
 pub async fn main_process(state: Arc<Mutex<ProcessState>>) -> Result<(), PluginError> {
     let mut lock = state.lock().await;
     let mut state = lock.deref();
@@ -99,6 +102,7 @@ pub async fn main_process(state: Arc<Mutex<ProcessState>>) -> Result<(), PluginE
         .send_all()
         .collect::<futures::stream::FuturesUnordered<_>>()
         .collect::<Vec<Result<_, _>>>()
+        .instrument(tracing::debug_span!("plugin.sysstat.main-process.sending_measurements"))
         .await
         .into_iter()
         .collect::<Result<Vec<_>, _>>()

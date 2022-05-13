@@ -13,6 +13,7 @@ use tokio::sync::Mutex;
 use tedge_api::Address;
 use tedge_api::PluginError;
 use tedge_lib::iter::IntoSendAll;
+use tracing::Instrument;
 
 use crate::config::HasBaseConfig;
 use crate::config::PhysicalCoreCountConfig;
@@ -21,6 +22,7 @@ use crate::main::State;
 use crate::main::StateFromConfig;
 use crate::plugin::MeasurementReceiver;
 
+#[derive(Debug)]
 pub struct CPUState {
     interval: u64,
     sys: sysinfo::System,
@@ -66,6 +68,7 @@ impl StateFromConfig for CPUState {
     }
 }
 
+#[tracing::instrument(name = "plugin.sysstat.main-cpu", skip(state))]
 pub async fn main_cpu(state: Arc<Mutex<CPUState>>) -> Result<(), PluginError> {
     let mut lock = state.lock().await;
     let mut state = lock.deref_mut();
@@ -157,6 +160,7 @@ pub async fn main_cpu(state: Arc<Mutex<CPUState>>) -> Result<(), PluginError> {
         .send_all()
         .collect::<futures::stream::FuturesUnordered<_>>()
         .collect::<Vec<Result<_, _>>>()
+        .instrument(tracing::debug_span!("plugin.sysstat.main-cpu.sending_measurements"))
         .await
         .into_iter()
         .collect::<Result<Vec<_>, _>>()

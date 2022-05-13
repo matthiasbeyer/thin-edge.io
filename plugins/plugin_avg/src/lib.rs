@@ -17,6 +17,7 @@ use tedge_lib::measurement::Measurement;
 use tedge_lib::measurement::MeasurementValue;
 
 use tokio::sync::RwLock;
+use tracing::Instrument;
 
 pub struct AvgPluginBuilder;
 
@@ -64,9 +65,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for AvgPluginBuilder {
         _cancellation_token: CancellationToken,
         plugin_dir: &PD,
     ) -> Result<tedge_api::plugin::BuiltPlugin, PluginError> {
-        let config = config
-            .try_into::<AvgConfig>()
-            .map_err(Error::from)?;
+        let config = config.try_into::<AvgConfig>().map_err(Error::from)?;
 
         let address = plugin_dir.get_address_for::<MeasurementReceiver>(&config.target)?;
         Ok(AvgPlugin::new(address, config).finish())
@@ -82,6 +81,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for AvgPluginBuilder {
 
 tedge_api::make_receiver_bundle!(struct MeasurementReceiver(Measurement));
 
+#[derive(Debug)]
 struct AvgPlugin {
     addr: Address<MeasurementReceiver>,
     config: AvgConfig,
@@ -104,6 +104,7 @@ impl AvgPlugin {
     }
 }
 
+#[derive(Debug)]
 struct State {
     target: Address<MeasurementReceiver>,
     report_zero: bool,
@@ -112,6 +113,7 @@ struct State {
 
 #[async_trait]
 impl Plugin for AvgPlugin {
+    #[tracing::instrument(name = "plugin.avg.start")]
     async fn start(&mut self) -> Result<(), PluginError> {
         let state = State {
             target: self.addr.clone(),
@@ -122,15 +124,18 @@ impl Plugin for AvgPlugin {
             tedge_lib::mainloop::Mainloop::ticking_every(self.config.timeframe, state);
         self.stopper = Some(stopper);
 
-        let _ = tokio::spawn(mainloop.run(main_avg));
+        let _ = tokio::spawn(
+            mainloop
+                .run(main_avg)
+                .instrument(tracing::debug_span!("plugin.avg.mainloop")),
+        );
         Ok(())
     }
 
+    #[tracing::instrument(name = "plugin.avg.shutdown")]
     async fn shutdown(&mut self) -> Result<(), PluginError> {
         if let Some(stopper) = self.stopper.take() {
-            stopper
-                .stop()
-                .map_err(|()| Error::FailedToStopMainloop)?;
+            stopper.stop().map_err(|()| Error::FailedToStopMainloop)?;
         }
         Ok(())
     }
@@ -138,6 +143,7 @@ impl Plugin for AvgPlugin {
 
 #[async_trait]
 impl Handle<Measurement> for AvgPlugin {
+    #[tracing::instrument(name = "plugin.avg.handle_message")]
     async fn handle_message(
         &self,
         message: Measurement,
@@ -163,15 +169,28 @@ impl Handle<Measurement> for AvgPlugin {
     }
 }
 
+#[tracing::instrument(name = "plugin.avg.main", skip(state))]
 async fn main_avg(state: Arc<State>) -> Result<(), PluginError> {
-    let mut values = state.values.write().await;
+    let mut values = state
+        .values
+        .write()
+        .instrument(tracing::trace_span!("plugin.avg.main.lock"))
+        .await;
 
     let count = values.len() as u64; // TODO: Here be dragons
     if count > 0 || state.report_zero {
         let sum = values.drain(0..).sum::<f64>();
-        let value = MeasurementValue::Float(sum / (count as f64));
+        let avg = sum / (count as f64);
+        tracing::trace!(avg, "Calculated average");
+
+        let value = MeasurementValue::Float(avg);
         let measurement = Measurement::new("avg".to_string(), value);
-        let _ = state.target.send_and_wait(measurement).await;
+
+        let _ = state
+            .target
+            .send_and_wait(measurement)
+            .instrument(tracing::trace_span!("plugin.avg.main.send_and_wait"))
+            .await;
     }
 
     Ok(())

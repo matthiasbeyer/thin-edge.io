@@ -85,6 +85,7 @@ struct MqttMeasurementBridgeConfig {
 
 tedge_api::make_receiver_bundle!(struct OutgoingMessageReceiver(plugin_mqtt::OutgoingMessage));
 
+#[derive(Debug)]
 struct MqttMeasurementBridgePlugin {
     mqtt_plugin_addr: Address<OutgoingMessageReceiver>,
     topic: String,
@@ -118,6 +119,7 @@ impl Plugin for MqttMeasurementBridgePlugin {
 
 #[async_trait]
 impl Handle<tedge_lib::measurement::Measurement> for MqttMeasurementBridgePlugin {
+    #[tracing::instrument(name = "plugin.mqtt_measurement_bridge.handle_message", skip(self, _sender))]
     async fn handle_message(
         &self,
         message: tedge_lib::measurement::Measurement,
