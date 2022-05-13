@@ -13,7 +13,7 @@ impl tedge_api::AsConfig for Humantime {
         tedge_api::ConfigDescription::new(
             "Duration-representing String".to_string(),
             tedge_api::ConfigKind::String,
-            Some(indoc::indoc!{r#"
+            Some(indoc::indoc! {r#"
                 A String that represents a duration
 
                 ## Examples

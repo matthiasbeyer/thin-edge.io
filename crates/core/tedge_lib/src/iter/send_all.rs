@@ -48,9 +48,7 @@ where
     RB: tedge_api::address::Contains<M>,
 {
     type Item = std::pin::Pin<
-        Box<
-            dyn futures::future::Future<Output = Result<ReplyReceiverFor<M>, M>> + Send + 'addr,
-        >,
+        Box<dyn futures::future::Future<Output = Result<ReplyReceiverFor<M>, M>> + Send + 'addr>,
     >;
 
     fn next(&mut self) -> Option<Self::Item> {
