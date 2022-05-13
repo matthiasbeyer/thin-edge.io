@@ -1,17 +1,17 @@
 use async_trait::async_trait;
 use miette::Context;
 use miette::IntoDiagnostic;
-use tedge_api::Plugin;
-use tedge_api::PluginBuilder;
-use tedge_api::PluginConfiguration;
-use tedge_api::PluginDirectory;
-use tedge_api::PluginError;
 use tedge_api::address::Address;
 use tedge_api::address::ReplySenderFor;
 use tedge_api::plugin::BuiltPlugin;
 use tedge_api::plugin::Handle;
 use tedge_api::plugin::HandleTypes;
 use tedge_api::plugin::PluginExt;
+use tedge_api::Plugin;
+use tedge_api::PluginBuilder;
+use tedge_api::PluginConfiguration;
+use tedge_api::PluginDirectory;
+use tedge_api::PluginError;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::trace;
@@ -32,7 +32,6 @@ enum Error {
     #[error("Failed to send message")]
     FailedToSendMessage,
 }
-
 
 #[async_trait]
 impl<PD> PluginBuilder<PD> for MqttMeasurementBridgePluginBuilder
@@ -126,7 +125,10 @@ impl Plugin for MqttMeasurementBridgePlugin {
 
 #[async_trait]
 impl Handle<tedge_lib::measurement::Measurement> for MqttMeasurementBridgePlugin {
-    #[tracing::instrument(name = "plugin.mqtt_measurement_bridge.handle_message", skip(self, _sender))]
+    #[tracing::instrument(
+        name = "plugin.mqtt_measurement_bridge.handle_message",
+        skip(self, _sender)
+    )]
     async fn handle_message(
         &self,
         message: tedge_lib::measurement::Measurement,
@@ -143,8 +145,8 @@ impl Handle<tedge_lib::measurement::Measurement> for MqttMeasurementBridgePlugin
             Ok(_) => trace!("Message forwarded to MQTT plugin"),
             Err(_) => {
                 trace!("Message not send");
-                return Err(Error::FailedToSendMessage).into_diagnostic()
-            },
+                return Err(Error::FailedToSendMessage).into_diagnostic();
+            }
         }
         Ok(())
     }
