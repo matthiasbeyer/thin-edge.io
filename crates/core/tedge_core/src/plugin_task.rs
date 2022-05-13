@@ -174,12 +174,14 @@ async fn plugin_mainloop(
                         let parent_span = Span::current();
 
                         tokio::spawn(async move {
-                            let read_plug = plug.read().await;
                             let handle_message_span = tracing::trace_span!(parent: parent_span, "core.plugin_task.mainloop.handle_message", msg = ?msg);
-                            let handled_message = std::panic::AssertUnwindSafe(read_plug.handle_message(msg))
-                                .catch_unwind()
-                                .instrument(handle_message_span)
-                                .await;
+                            let handled_message = {
+                                let read_plug = plug.read().await;
+                                std::panic::AssertUnwindSafe(read_plug.handle_message(msg))
+                                    .catch_unwind()
+                                    .instrument(handle_message_span)
+                                    .await
+                            };
 
                             match handled_message {
                                 Err(_) => {
