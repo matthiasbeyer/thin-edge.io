@@ -15,4 +15,3 @@ pub(crate) enum Error {
     #[error("Failed to disconnect MQTT client")]
     FailedToDisconnectMqttClient(paho_mqtt::errors::Error),
 }
-

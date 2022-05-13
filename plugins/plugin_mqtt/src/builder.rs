@@ -1,12 +1,12 @@
 use async_trait::async_trait;
-use tedge_api::PluginError;
-use tedge_api::PluginBuilder;
-use tedge_api::PluginConfiguration;
-use tedge_api::PluginDirectory;
-use tokio_util::sync::CancellationToken;
 use tedge_api::plugin::BuiltPlugin;
 use tedge_api::plugin::HandleTypes;
 use tedge_api::plugin::PluginExt;
+use tedge_api::PluginBuilder;
+use tedge_api::PluginConfiguration;
+use tedge_api::PluginDirectory;
+use tedge_api::PluginError;
+use tokio_util::sync::CancellationToken;
 
 use crate::config::MqttConfig;
 use crate::plugin::MqttPlugin;
@@ -65,4 +65,3 @@ where
         Ok(MqttPlugin::new(config, addr).finish())
     }
 }
-

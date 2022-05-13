@@ -12,7 +12,6 @@ pub struct MqttConfig {
     pub target: String,
 }
 
-
 #[derive(Debug, serde::Deserialize, tedge_api::Config)]
 pub struct Subscription {
     /// The topic to connect to
@@ -41,10 +40,22 @@ impl tedge_api::AsConfig for QoS {
             tedge_api::ConfigKind::Enum(
                 tedge_api::config::ConfigEnumKind::Untagged,
                 vec![
-                    ("String", Some("QOS 0"), tedge_api::config::EnumVariantRepresentation::String("at_most_once")),
-                    ("String", Some("QOS 1"), tedge_api::config::EnumVariantRepresentation::String("at_least_once")),
-                    ("String", Some("QOS 2"), tedge_api::config::EnumVariantRepresentation::String("exactly_once")),
-                ]
+                    (
+                        "String",
+                        Some("QOS 0"),
+                        tedge_api::config::EnumVariantRepresentation::String("at_most_once"),
+                    ),
+                    (
+                        "String",
+                        Some("QOS 1"),
+                        tedge_api::config::EnumVariantRepresentation::String("at_least_once"),
+                    ),
+                    (
+                        "String",
+                        Some("QOS 2"),
+                        tedge_api::config::EnumVariantRepresentation::String("exactly_once"),
+                    ),
+                ],
             ),
             None,
         )
@@ -69,8 +80,7 @@ impl TryFrom<i32> for QoS {
             paho_mqtt::QOS_0 => Ok(QoS::AtMostOnce),
             paho_mqtt::QOS_1 => Ok(QoS::AtLeastOnce),
             paho_mqtt::QOS_2 => Ok(QoS::ExactlyOnce),
-            _ => Err(miette::miette!("Failed to interpret '{}' as QOS", i))
+            _ => Err(miette::miette!("Failed to interpret '{}' as QOS", i)),
         }
     }
 }
-

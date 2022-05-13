@@ -8,4 +8,3 @@ pub use builder::MqttPluginBuilder;
 pub use message::IncomingMessage;
 pub use message::OutgoingMessage;
 pub use plugin::MqttPlugin;
-

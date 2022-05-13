@@ -33,8 +33,7 @@ impl IncomingMessage {
     }
 }
 
-impl tedge_api::plugin::Message for IncomingMessage {
-}
+impl tedge_api::plugin::Message for IncomingMessage {}
 
 tedge_api::make_receiver_bundle!(pub struct MqttMessageReceiver(IncomingMessage));
 
@@ -60,5 +59,4 @@ impl OutgoingMessage {
     }
 }
 
-impl tedge_api::plugin::Message for OutgoingMessage {
-}
+impl tedge_api::plugin::Message for OutgoingMessage {}
