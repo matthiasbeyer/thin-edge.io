@@ -125,8 +125,10 @@ impl Plugin for AvgPlugin {
             report_zero: self.config.report_on_zero_elements,
             values: self.values.clone(),
         };
-        let (stopper, mainloop) =
-            tedge_lib::mainloop::Mainloop::ticking_every(self.config.timeframe.into_duration(), state);
+        let (stopper, mainloop) = tedge_lib::mainloop::Mainloop::ticking_every(
+            self.config.timeframe.into_duration(),
+            state,
+        );
         self.stopper = Some(stopper);
 
         let _ = tokio::spawn(
