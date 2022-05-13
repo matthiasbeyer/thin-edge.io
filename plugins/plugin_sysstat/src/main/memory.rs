@@ -138,7 +138,9 @@ pub async fn main_memory(state: Arc<Mutex<MemoryState>>) -> Result<(), PluginErr
         .send_all()
         .collect::<futures::stream::FuturesUnordered<_>>()
         .collect::<Vec<Result<_, _>>>()
-        .instrument(tracing::debug_span!("plugin.sysstat.main-memory.sending_measurements"))
+        .instrument(tracing::debug_span!(
+            "plugin.sysstat.main-memory.sending_measurements"
+        ))
         .await
         .into_iter()
         .map(|res| {

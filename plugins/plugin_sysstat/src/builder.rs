@@ -4,11 +4,11 @@ use async_trait::async_trait;
 use tedge_api::error::DirectoryError;
 use tedge_api::plugin::BuiltPlugin;
 use tedge_api::plugin::HandleTypes;
+use tedge_api::plugin::PluginExt;
 use tedge_api::PluginBuilder;
 use tedge_api::PluginConfiguration;
 use tedge_api::PluginDirectory;
 use tedge_api::PluginError;
-use tedge_api::plugin::PluginExt;
 use tokio_util::sync::CancellationToken;
 
 use crate::config::HasBaseConfig;
@@ -61,12 +61,36 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for SysStatPluginBuilder {
         };
 
         let addr_config = crate::plugin::AddressConfig {
-            memory: config.memory.as_ref().map(|cfg| build_addr_config(cfg.send_to())).unwrap_or_else(|| Ok(Arc::new(Vec::new())))?,
-            network: config.network.as_ref().map(|cfg| build_addr_config(cfg.send_to())).unwrap_or_else(|| Ok(Arc::new(Vec::new())))?,
-            cpu: config.cpu.as_ref().map(|cfg| build_addr_config(cfg.send_to())).unwrap_or_else(|| Ok(Arc::new(Vec::new())))?,
-            disk_usage: config.disk_usage.as_ref().map(|cfg| build_addr_config(cfg.send_to())).unwrap_or_else(|| Ok(Arc::new(Vec::new())))?,
-            load: config.load.as_ref().map(|cfg| build_addr_config(cfg.send_to())).unwrap_or_else(|| Ok(Arc::new(Vec::new())))?,
-            process: config.process.as_ref().map(|cfg| build_addr_config(cfg.send_to())).unwrap_or_else(|| Ok(Arc::new(Vec::new())))?,
+            memory: config
+                .memory
+                .as_ref()
+                .map(|cfg| build_addr_config(cfg.send_to()))
+                .unwrap_or_else(|| Ok(Arc::new(Vec::new())))?,
+            network: config
+                .network
+                .as_ref()
+                .map(|cfg| build_addr_config(cfg.send_to()))
+                .unwrap_or_else(|| Ok(Arc::new(Vec::new())))?,
+            cpu: config
+                .cpu
+                .as_ref()
+                .map(|cfg| build_addr_config(cfg.send_to()))
+                .unwrap_or_else(|| Ok(Arc::new(Vec::new())))?,
+            disk_usage: config
+                .disk_usage
+                .as_ref()
+                .map(|cfg| build_addr_config(cfg.send_to()))
+                .unwrap_or_else(|| Ok(Arc::new(Vec::new())))?,
+            load: config
+                .load
+                .as_ref()
+                .map(|cfg| build_addr_config(cfg.send_to()))
+                .unwrap_or_else(|| Ok(Arc::new(Vec::new())))?,
+            process: config
+                .process
+                .as_ref()
+                .map(|cfg| build_addr_config(cfg.send_to()))
+                .unwrap_or_else(|| Ok(Arc::new(Vec::new())))?,
         };
 
         Ok(SysStatPlugin::new(config, addr_config).finish())

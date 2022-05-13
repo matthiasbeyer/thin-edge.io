@@ -84,11 +84,14 @@ pub async fn main_network(state: Arc<Mutex<NetworkState>>) -> Result<(), PluginE
         .flatten()
         .collect::<Vec<_>>();
 
-    messages.into_iter()
+    messages
+        .into_iter()
         .send_all()
         .collect::<futures::stream::FuturesUnordered<_>>()
         .collect::<Vec<Result<_, _>>>()
-        .instrument(tracing::debug_span!("plugin.sysstat.main-networks.sending_measurements"))
+        .instrument(tracing::debug_span!(
+            "plugin.sysstat.main-networks.sending_measurements"
+        ))
         .await
         .into_iter()
         .collect::<Result<Vec<_>, _>>()

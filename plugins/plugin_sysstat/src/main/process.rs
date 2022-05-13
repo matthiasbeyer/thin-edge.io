@@ -102,7 +102,9 @@ pub async fn main_process(state: Arc<Mutex<ProcessState>>) -> Result<(), PluginE
         .send_all()
         .collect::<futures::stream::FuturesUnordered<_>>()
         .collect::<Vec<Result<_, _>>>()
-        .instrument(tracing::debug_span!("plugin.sysstat.main-process.sending_measurements"))
+        .instrument(tracing::debug_span!(
+            "plugin.sysstat.main-process.sending_measurements"
+        ))
         .await
         .into_iter()
         .collect::<Result<Vec<_>, _>>()
@@ -234,7 +236,6 @@ fn get_measurement(state: &ProcessState, process: &sysinfo::Process) -> Measurem
         state.all_processes.config.start_time,
         |cfg| cfg.start_time,
         { MeasurementValue::Float(process.start_time() as f64) },
-
         "start_time"
     );
 

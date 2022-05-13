@@ -9,9 +9,9 @@ use sysinfo::SystemExt;
 use tokio::sync::Mutex;
 use tracing::Instrument;
 
+use tedge_api::plugin::Message;
 use tedge_api::Address;
 use tedge_api::PluginError;
-use tedge_api::plugin::Message;
 use tedge_lib::iter::IntoSendAll;
 use tedge_lib::measurement::Measurement;
 use tedge_lib::measurement::MeasurementValue;
@@ -76,7 +76,9 @@ pub async fn main_disk_usage(state: Arc<Mutex<DiskUsageState>>) -> Result<(), Pl
         })
         .collect::<futures::stream::FuturesUnordered<_>>()
         .collect::<Vec<Result<Vec<()>, PluginError>>>()
-        .instrument(tracing::debug_span!("plugin.sysstat.main-diskusage.sending_measurements"))
+        .instrument(tracing::debug_span!(
+            "plugin.sysstat.main-diskusage.sending_measurements"
+        ))
         .await
         .into_iter()
         .collect::<Result<Vec<_>, PluginError>>()
@@ -87,15 +89,16 @@ fn measure_to_messages<'a>(
     state: &'a DiskUsageState,
     targets: &'a [Address<MeasurementReceiver>],
     disk: &sysinfo::Disk,
-) -> Result<impl Iterator<Item = (Measurement, &'a Address<MeasurementReceiver>)> + 'a, PluginError> {
+) -> Result<impl Iterator<Item = (Measurement, &'a Address<MeasurementReceiver>)> + 'a, PluginError>
+{
     let disk_name = disk
         .name()
         .to_os_string()
         .into_string()
         .map_err(|_| crate::error::Error::CannotReadDiskName)?;
 
-    let disk_fs = std::str::from_utf8(disk.file_system())
-        .map_err(crate::error::Error::Utf8Error)?;
+    let disk_fs =
+        std::str::from_utf8(disk.file_system()).map_err(crate::error::Error::Utf8Error)?;
 
     let disk_type = match disk.type_() {
         sysinfo::DiskType::HDD => "HDD",
@@ -108,18 +111,36 @@ fn measure_to_messages<'a>(
     let disk_removable = disk.is_removable();
 
     let mut hm = HashMap::new();
-    hm.insert("fs".to_string(), MeasurementValue::Text(disk_fs.to_string()));
-    hm.insert("type".to_string(), MeasurementValue::Text(disk_type.to_string()));
-    hm.insert("mountpoint".to_string(), MeasurementValue::Text(disk_mountpoint.to_string()));
-    hm.insert("total".to_string(), MeasurementValue::Float(disk_totalspace as f64));
-    hm.insert("avail".to_string(), MeasurementValue::Float(disk_availspace as f64));
-    hm.insert("removable".to_string(), MeasurementValue::Bool(disk_removable));
+    hm.insert(
+        "fs".to_string(),
+        MeasurementValue::Text(disk_fs.to_string()),
+    );
+    hm.insert(
+        "type".to_string(),
+        MeasurementValue::Text(disk_type.to_string()),
+    );
+    hm.insert(
+        "mountpoint".to_string(),
+        MeasurementValue::Text(disk_mountpoint.to_string()),
+    );
+    hm.insert(
+        "total".to_string(),
+        MeasurementValue::Float(disk_totalspace as f64),
+    );
+    hm.insert(
+        "avail".to_string(),
+        MeasurementValue::Float(disk_availspace as f64),
+    );
+    hm.insert(
+        "removable".to_string(),
+        MeasurementValue::Bool(disk_removable),
+    );
     let value = MeasurementValue::Map(hm);
     let measurement = Measurement::new(disk_name.to_string(), value);
 
-    let iter = targets.into_iter().map(move |addr| {
-        (measurement.clone(), addr)
-    });
+    let iter = targets
+        .into_iter()
+        .map(move |addr| (measurement.clone(), addr));
 
     Ok(iter)
 }

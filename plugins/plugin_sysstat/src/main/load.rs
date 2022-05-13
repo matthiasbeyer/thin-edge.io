@@ -56,7 +56,10 @@ pub async fn main_load(state: Arc<Mutex<LoadState>>) -> Result<(), PluginError> 
     let mut hm = HashMap::new();
     hm.insert(String::from("one"), MeasurementValue::Float(load.one));
     hm.insert(String::from("five"), MeasurementValue::Float(load.five));
-    hm.insert(String::from("fifteen"), MeasurementValue::Float(load.fifteen));
+    hm.insert(
+        String::from("fifteen"),
+        MeasurementValue::Float(load.fifteen),
+    );
     let value = MeasurementValue::Map(hm);
     let message = Measurement::new("load".to_string(), value.clone());
 
@@ -65,7 +68,9 @@ pub async fn main_load(state: Arc<Mutex<LoadState>>) -> Result<(), PluginError> 
         .send_all()
         .collect::<futures::stream::FuturesUnordered<_>>()
         .collect::<Vec<Result<_, _>>>()
-        .instrument(tracing::debug_span!("plugin.sysstat.main-load.sending_measurements"))
+        .instrument(tracing::debug_span!(
+            "plugin.sysstat.main-load.sending_measurements"
+        ))
         .await
         .into_iter()
         .map(|res| {

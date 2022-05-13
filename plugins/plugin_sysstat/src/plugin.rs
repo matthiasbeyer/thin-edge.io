@@ -2,13 +2,13 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use tedge_api::Address;
-use tedge_lib::measurement::Measurement;
-use tokio::sync::Mutex;
 use tedge_api::Plugin;
 use tedge_api::PluginError;
-use tracing::Instrument;
+use tedge_lib::measurement::Measurement;
+use tokio::sync::Mutex;
 use tracing::debug;
 use tracing::trace;
+use tracing::Instrument;
 
 use crate::config::SysStatConfig;
 use crate::main::State;

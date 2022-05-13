@@ -14,7 +14,10 @@ use tedge_api::Address;
 use crate::{config::SysStatConfig, plugin::MeasurementReceiver};
 
 pub trait StateFromConfig: Sized {
-    fn new_from_config(config: &SysStatConfig, addrs: Arc<Vec<Address<MeasurementReceiver>>>) -> Option<Self>;
+    fn new_from_config(
+        config: &SysStatConfig,
+        addrs: Arc<Vec<Address<MeasurementReceiver>>>,
+    ) -> Option<Self>;
 }
 
 pub trait State {

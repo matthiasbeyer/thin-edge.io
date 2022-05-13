@@ -160,7 +160,9 @@ pub async fn main_cpu(state: Arc<Mutex<CPUState>>) -> Result<(), PluginError> {
         .send_all()
         .collect::<futures::stream::FuturesUnordered<_>>()
         .collect::<Vec<Result<_, _>>>()
-        .instrument(tracing::debug_span!("plugin.sysstat.main-cpu.sending_measurements"))
+        .instrument(tracing::debug_span!(
+            "plugin.sysstat.main-cpu.sending_measurements"
+        ))
         .await
         .into_iter()
         .collect::<Result<Vec<_>, _>>()
