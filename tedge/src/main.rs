@@ -50,12 +50,13 @@ macro_rules! register_plugin {
                         let mut output = String::new();
                         rendered_doc.render_fmt(terminal_width, &mut output).into_diagnostic()?;
 
-                        writeln!(stdout, " ----- Documentation for {}", kind_name_str)
+                        writeln!(stdout, " ----- Documentation for plugin '{}'", kind_name_str)
                                 .into_diagnostic()?;
 
                         writeln!(stdout, "{}", output).into_diagnostic()?;
                     } else {
-                        writeln!(stdout, " Documentation for {} is unavailable", kind_name)
+                        let msg = format!(" Documentation for plugin '{}' is unavailable", kind_name);
+                        writeln!(stdout, "{}", nu_ansi_term::Color::Red.bold().paint(msg))
                             .into_diagnostic()?;
                     }
                     Ok(())
