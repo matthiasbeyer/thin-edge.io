@@ -25,6 +25,10 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for NotificationPluginBuilder {
         "notification"
     }
 
+    fn kind_configuration() -> Option<tedge_api::ConfigDescription> {
+        Some(<Config as tedge_api::AsConfig>::as_config())
+    }
+
     fn kind_message_types() -> HandleTypes
     where
         Self: Sized,

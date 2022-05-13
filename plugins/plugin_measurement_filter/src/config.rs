@@ -1,12 +1,17 @@
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, tedge_api::Config)]
 #[serde_with::serde_as]
 pub struct MeasurementFilterConfig {
+    /// The name of the plugin to send the measurements to if the filter did not match its value
     pub(crate) target: String,
+
+    /// The name of the plugin to send measurements to if the filter matched its value
     pub(crate) filtered_target: Option<String>,
 
+    /// A path to find the value inside a measurement
     #[serde_as(as = "TryFromInto<String>")]
     pub(crate) extractor: crate::extractor::Extractor,
 
+    /// The filter to filter the measurements with
     #[serde(flatten)]
     pub(crate) filter: crate::filter::Filter,
 }

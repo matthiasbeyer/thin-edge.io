@@ -9,8 +9,9 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, Instrument};
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, tedge_api::Config)]
 struct HttpStopConfig {
+    /// The address to listen on
     bind: std::net::SocketAddr,
 }
 
@@ -35,6 +36,10 @@ where
         Self: Sized,
     {
         "httpstop"
+    }
+
+    fn kind_configuration() -> Option<tedge_api::ConfigDescription> {
+        Some(<HttpStopConfig as tedge_api::AsConfig>::as_config())
     }
 
     fn kind_message_types() -> HandleTypes

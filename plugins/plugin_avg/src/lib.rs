@@ -21,11 +21,12 @@ use tracing::Instrument;
 
 pub struct AvgPluginBuilder;
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, tedge_api::Config)]
 struct AvgConfig {
-    #[serde(with = "humantime_serde")]
-    timeframe: std::time::Duration,
+    /// The duration of the time window to calculate the average for
+    timeframe: tedge_lib::config::Humantime,
 
+    /// The name of the plugin to send the result to
     target: String,
 
     /// Whether to report a 0 (zero) if there are zero measurements in the timeframe
@@ -45,6 +46,10 @@ enum Error {
 impl<PD: PluginDirectory> PluginBuilder<PD> for AvgPluginBuilder {
     fn kind_name() -> &'static str {
         "avg"
+    }
+
+    fn kind_configuration() -> Option<tedge_api::ConfigDescription> {
+        Some(<AvgConfig as tedge_api::AsConfig>::as_config())
     }
 
     async fn verify_configuration(
@@ -121,7 +126,7 @@ impl Plugin for AvgPlugin {
             values: self.values.clone(),
         };
         let (stopper, mainloop) =
-            tedge_lib::mainloop::Mainloop::ticking_every(self.config.timeframe, state);
+            tedge_lib::mainloop::Mainloop::ticking_every(self.config.timeframe.into_duration(), state);
         self.stopper = Some(stopper);
 
         let _ = tokio::spawn(

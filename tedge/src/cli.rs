@@ -56,4 +56,11 @@ pub(crate) enum CliCommand {
     /// Print the supported plugin kinds
     #[clap(name = "get-plugin-kinds")]
     GetPluginKinds,
+
+    /// Print the documentation of the configuration of the available plugins
+    #[clap(name = "doc")]
+    Doc {
+        /// Print the doc only for this plugin
+        plugin_name: Option<String>
+    },
 }

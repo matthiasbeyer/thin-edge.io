@@ -26,6 +26,10 @@ where
         "measurement_filter"
     }
 
+    fn kind_configuration() -> Option<tedge_api::ConfigDescription> {
+        Some(<MeasurementFilterConfig as tedge_api::AsConfig>::as_config())
+    }
+
     fn kind_message_types() -> HandleTypes
     where
         Self: Sized,

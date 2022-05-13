@@ -1,9 +1,6 @@
 use std::collections::HashMap;
 
-use nu_ansi_term::Color;
-use pretty::{Arena, Doc, DocAllocator, Pretty, RefDoc};
 use serde::Serialize;
-use termimad::MadSkin;
 
 /// Generic config that represents what kind of config a plugin wishes to accept
 #[derive(Debug, Serialize, PartialEq)]
@@ -131,6 +128,16 @@ pub trait AsConfig {
     fn as_config() -> ConfigDescription;
 }
 
+impl<T: AsConfig> AsConfig for Option<T> {
+    fn as_config() -> ConfigDescription {
+        ConfigDescription::new(
+            format!("An optional '{}'", T::as_config().name()),
+            ConfigKind::Wrapped(Box::new(T::as_config())),
+            None,
+        )
+    }
+}
+
 impl<T: AsConfig> AsConfig for Vec<T> {
     fn as_config() -> ConfigDescription {
         ConfigDescription::new(
@@ -142,6 +149,16 @@ impl<T: AsConfig> AsConfig for Vec<T> {
 }
 
 impl<V: AsConfig> AsConfig for HashMap<String, V> {
+    fn as_config() -> ConfigDescription {
+        ConfigDescription::new(
+            format!("Table of '{}'s", V::as_config().name()),
+            ConfigKind::HashMap(Box::new(V::as_config())),
+            None,
+        )
+    }
+}
+
+impl<V: AsConfig> AsConfig for HashMap<std::path::PathBuf, V> {
     fn as_config() -> ConfigDescription {
         ConfigDescription::new(
             format!("Table of '{}'s", V::as_config().name()),
@@ -181,176 +198,9 @@ impl_config_kind!(ConfigKind::Float; "Float"; "A floating point value with 32 bi
 impl_config_kind!(ConfigKind::Bool; "Boolean"; "A boolean" => bool);
 impl_config_kind!(ConfigKind::String; "String"; "An UTF-8 string" => String);
 
-/******Pretty Printing of Configs******/
-
-impl ConfigDescription {
-    /// Get a [`RcDoc`](pretty::RcDoc) which can be used to write the documentation of this
-    pub fn as_terminal_doc<'a>(&'a self, arena: &'a Arena<'a>) -> RefDoc<'a> {
-        let mut doc = arena.nil();
-
-        if !matches!(self.kind(), ConfigKind::Wrapped(_)) && self.doc().is_none() {
-            doc = doc
-                .append(Color::LightBlue.bold().paint(self.name()).to_string())
-                .append(arena.space())
-                .append(match self.kind() {
-                    ConfigKind::Bool
-                    | ConfigKind::Integer
-                    | ConfigKind::Float
-                    | ConfigKind::String
-                    | ConfigKind::Wrapped(_)
-                    | ConfigKind::Array(_)
-                    | ConfigKind::HashMap(_) => arena.nil(),
-                    ConfigKind::Struct(_) => {
-                        arena.text(Color::Blue.dimmed().paint("[Table]").to_string())
-                    }
-                    ConfigKind::Enum(_, _) => {
-                        arena.text(Color::Green.dimmed().paint("[Enum]").to_string())
-                    }
-                })
-                .append(arena.hardline());
-        }
-
-        let skin = MadSkin::default_dark();
-        let render_markdown = |text: &str| {
-            let rendered = skin.text(text, None).to_string();
-            arena.intersperse(
-                rendered.split("\n").map(|t| {
-                    arena.intersperse(
-                        t.split(char::is_whitespace).map(|t| t.to_string()),
-                        arena.softline(),
-                    )
-                }),
-                arena.hardline(),
-            )
-        };
-
-        if let Some(conf_doc) = self.doc() {
-            doc = doc.append(render_markdown(&conf_doc));
-        }
-
-        match self.kind() {
-            ConfigKind::Bool | ConfigKind::Integer | ConfigKind::Float | ConfigKind::String => (),
-            ConfigKind::Struct(stc) => {
-                doc = doc
-                    .append(arena.hardline())
-                    .append(Color::Blue.paint("[Members]").to_string())
-                    .append(arena.hardline())
-                    .append(arena.intersperse(
-                        stc.iter().map(|(member_name, member_doc, member_conf)| {
-                            let mut doc = arena.nil();
-
-                            if let Some(member_doc) = member_doc {
-                                doc = doc.append(render_markdown(&member_doc));
-                            }
-                            doc.append(
-                                arena.text(Color::Blue.bold().paint(*member_name).to_string()),
-                            )
-                            .append(": ")
-                            .append(
-                                Pretty::pretty(member_conf.as_terminal_doc(arena), arena).nest(4),
-                            )
-                        }),
-                        Doc::hardline(),
-                    ))
-            }
-            ConfigKind::Enum(enum_kind, variants) => {
-                doc = doc
-                    .append(arena.hardline())
-                    .append(Color::Green.paint("One of:").to_string())
-                    .append(arena.space())
-                    .append(match enum_kind {
-                        ConfigEnumKind::Tagged(tag) => arena.text(
-                            Color::White
-                                .dimmed()
-                                .paint(format!(
-                                    "[Tagged with {}]",
-                                    Color::LightGreen
-                                        .italic()
-                                        .dimmed()
-                                        .paint(format!("'{}'", tag))
-                                ))
-                                .to_string(),
-                        ),
-                        ConfigEnumKind::Untagged => {
-                            arena.text(Color::White.dimmed().paint("[Untagged]").to_string())
-                        }
-                    })
-                    .append(arena.hardline())
-                    .append(
-                        arena.intersperse(
-                            variants
-                                .iter()
-                                .map(|(member_name, member_doc, member_conf)| {
-                                    arena.text("-").append(arena.space()).append({
-                                        let mut doc = arena
-                                            .nil()
-                                            .append(match member_conf {
-                                                EnumVariantRepresentation::String(_) => arena.text(
-                                                    Color::Green
-                                                        .bold()
-                                                        .paint(&format!(
-                                                            "{:?}",
-                                                            member_name.to_lowercase()
-                                                        ))
-                                                        .to_string(),
-                                                ),
-                                                EnumVariantRepresentation::Wrapped(_) => arena
-                                                    .text(
-                                                        Color::Green
-                                                            .bold()
-                                                            .paint(*member_name)
-                                                            .to_string(),
-                                                    ),
-                                            })
-                                            .append(": ");
-
-                                        if let Some(member_doc) = member_doc {
-                                            doc = doc.append(render_markdown(&member_doc));
-                                        }
-
-                                        doc.append(
-                                            Pretty::pretty(
-                                                match member_conf {
-                                                    EnumVariantRepresentation::String(_) => {
-                                                        arena.nil().into_doc()
-                                                    }
-
-                                                    EnumVariantRepresentation::Wrapped(
-                                                        member_conf,
-                                                    ) => arena
-                                                        .text(
-                                                            Color::LightRed
-                                                                .paint("Is a: ")
-                                                                .to_string(),
-                                                        )
-                                                        .append(member_conf.as_terminal_doc(arena))
-                                                        .into_doc(),
-                                                },
-                                                arena,
-                                            )
-                                            .nest(4),
-                                        )
-                                        .nest(2)
-                                    })
-                                }),
-                            Doc::hardline(),
-                        ),
-                    );
-            }
-            ConfigKind::Array(conf) => {
-                doc = doc
-                    .append(Color::LightRed.paint("Many of:").to_string())
-                    .append(arena.space())
-                    .append(conf.as_terminal_doc(arena));
-            }
-            ConfigKind::HashMap(conf) | ConfigKind::Wrapped(conf) => {
-                doc = doc.append(conf.as_terminal_doc(arena));
-            }
-        };
-
-        doc.into_doc()
-    }
-}
+impl_config_kind!(ConfigKind::String; "String"; "A socket address" => std::net::SocketAddr);
+impl_config_kind!(ConfigKind::String; "String"; "An IPv4 socket address" => std::net::SocketAddrV4);
+impl_config_kind!(ConfigKind::String; "String"; "An IPv6 socket address" => std::net::SocketAddrV6);
 
 #[cfg(test)]
 mod tests {

@@ -1373,6 +1373,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "indoc"
+version = "1.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05a0bd019339e5d968b37855180087b7b9d512c5046fbd244cf8c95687927d6e"
+
+[[package]]
 name = "inotify"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2186,7 +2192,6 @@ name = "plugin_avg"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "humantime-serde",
  "miette",
  "serde",
  "tedge_api",
@@ -2239,6 +2244,7 @@ name = "plugin_log"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "indoc",
  "log",
  "miette",
  "serde",
@@ -2254,6 +2260,7 @@ name = "plugin_measurement_filter"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "indoc",
  "miette",
  "serde",
  "serde_with",
@@ -3317,6 +3324,7 @@ dependencies = [
  "clap 3.1.6",
  "env_logger 0.9.0",
  "miette",
+ "nu-ansi-term",
  "plugin_avg",
  "plugin_httpstop",
  "plugin_inotify",
@@ -3326,9 +3334,13 @@ dependencies = [
  "plugin_mqtt_measurement_bridge",
  "plugin_notification",
  "plugin_sysstat",
+ "pretty",
  "tedge_api",
  "tedge_core",
  "tedge_lib",
+ "term_size",
+ "termcolor",
+ "termimad",
  "tokio",
  "toml",
  "tracing",
@@ -3388,14 +3400,10 @@ dependencies = [
  "downcast-rs",
  "futures",
  "miette",
- "nu-ansi-term",
- "pretty",
  "pretty_assertions",
  "serde",
  "static_assertions",
  "tedge_config_derive",
- "termcolor",
- "termimad",
  "thiserror",
  "tokio",
  "tokio-util 0.7.0",
@@ -3478,6 +3486,8 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
+ "humantime-serde",
+ "indoc",
  "log",
  "serde",
  "tedge_api",
@@ -3559,6 +3569,16 @@ dependencies = [
  "rand",
  "redox_syscall",
  "remove_dir_all",
+ "winapi",
+]
+
+[[package]]
+name = "term_size"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e4129646ca0ed8f45d09b929036bafad5377103edd06e50bf574b353d2b08d9"
+dependencies = [
+ "libc",
  "winapi",
 ]
 

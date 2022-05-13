@@ -31,9 +31,55 @@ impl<MB: MessageBundle> LogPluginBuilder<MB> {
     }
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(Debug, serde::Deserialize)]
+#[serde(transparent)]
+struct LogLevel(log::Level);
+
+impl tedge_api::AsConfig for LogLevel {
+    fn as_config() -> tedge_api::ConfigDescription {
+        tedge_api::ConfigDescription::new(
+            String::from("LogLevel"),
+            tedge_api::ConfigKind::Enum(
+                tedge_api::config::ConfigEnumKind::Untagged,
+                vec![
+                    (
+                        "String",
+                        Some("Log level 'trace'"),
+                        tedge_api::config::EnumVariantRepresentation::String("trace"),
+                    ),
+                    (
+                        "String",
+                        Some("Log level 'debug'"),
+                        tedge_api::config::EnumVariantRepresentation::String("debug"),
+                    ),
+                    (
+                        "String",
+                        Some("Log level 'info'"),
+                        tedge_api::config::EnumVariantRepresentation::String("info"),
+                    ),
+                    (
+                        "String",
+                        Some("Log level 'warn'"),
+                        tedge_api::config::EnumVariantRepresentation::String("warn"),
+                    ),
+                    (
+                        "String",
+                        Some("Log level 'error'"),
+                        tedge_api::config::EnumVariantRepresentation::String("error"),
+                    ),
+                ],
+            ),
+            None,
+        )
+    }
+}
+
+#[derive(serde::Deserialize, Debug, tedge_api::Config)]
 struct LogConfig {
-    level: log::Level,
+    /// The level to log with
+    level: LogLevel,
+
+    /// Whether to send an acknowlegement that the message was logged
     acknowledge: bool,
 }
 
@@ -53,6 +99,10 @@ where
 {
     fn kind_name() -> &'static str {
         "log"
+    }
+
+    fn kind_configuration() -> Option<tedge_api::ConfigDescription> {
+        Some(<LogConfig as tedge_api::AsConfig>::as_config())
     }
 
     fn kind_message_types() -> HandleTypes
@@ -117,7 +167,7 @@ where
     async fn start(&mut self) -> Result<(), PluginError> {
         debug!(
             "Setting up log plugin with default level = {}, acknowledge = {}!",
-            self.config.level, self.config.acknowledge
+            self.config.level.0, self.config.acknowledge
         );
 
         Ok(())
@@ -140,7 +190,7 @@ where
         message: M,
         _sender: ReplySenderFor<M>,
     ) -> Result<(), PluginError> {
-        match self.config.level {
+        match self.config.level.0 {
             log::Level::Trace => {
                 event!(tracing::Level::TRACE, "Received Message: {:?}", message);
             }

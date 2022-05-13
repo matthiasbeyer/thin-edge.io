@@ -43,6 +43,10 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for InotifyPluginBuilder {
         "inotify"
     }
 
+    fn kind_configuration() -> Option<tedge_api::ConfigDescription> {
+        Some(<InotifyConfig as tedge_api::AsConfig>::as_config())
+    }
+
     fn kind_message_types() -> HandleTypes
     where
         Self: Sized,

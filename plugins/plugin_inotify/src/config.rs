@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, tedge_api::Config)]
 pub struct InotifyConfig {
     /// Target to send notifications to
     pub(crate) target: String,
@@ -21,7 +21,8 @@ fn fail_on_err_default() -> bool {
     true
 }
 
-#[derive(serde::Deserialize, Copy, Clone, Debug)]
+#[derive(serde::Deserialize, Copy, Clone, Debug, tedge_api::Config)]
+#[config(untagged)]
 #[allow(non_camel_case_types)]
 pub enum Watchmode {
     /// File was accessed
