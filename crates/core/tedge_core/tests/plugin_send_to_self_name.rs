@@ -1,14 +1,14 @@
 use async_trait::async_trait;
 use futures::future::FutureExt;
+use tedge_api::plugin::HandleTypes;
+use tedge_api::plugin::PluginExt;
+use tedge_api::Address;
 use tedge_api::CoreMessages;
 use tedge_api::Plugin;
-use tedge_api::Address;
 use tedge_api::PluginBuilder;
 use tedge_api::PluginConfiguration;
 use tedge_api::PluginDirectory;
 use tedge_api::PluginError;
-use tedge_api::plugin::HandleTypes;
-use tedge_api::plugin::PluginExt;
 use tedge_core::TedgeApplication;
 
 pub struct SelfSendPluginBuilder;
@@ -16,8 +16,7 @@ pub struct SelfSendPluginBuilder;
 #[derive(Debug)]
 struct Msg;
 
-impl tedge_api::Message for Msg {
-}
+impl tedge_api::Message for Msg {}
 
 tedge_api::make_receiver_bundle!(struct MsgRecv(Msg));
 
@@ -47,7 +46,8 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for SelfSendPluginBuilder {
     }
 
     fn kind_message_types() -> HandleTypes
-        where Self:Sized
+    where
+        Self: Sized,
     {
         SelfSendPlugin::get_handled_types()
     }
@@ -66,10 +66,12 @@ impl Plugin for SelfSendPlugin {
     #[allow(unreachable_code)]
     async fn start(&mut self) -> Result<(), PluginError> {
         tracing::info!("Sending StopCore now");
-        self.core_addr.send_and_wait(tedge_api::message::StopCore).await.expect("Sending StopCore failed");
+        self.core_addr
+            .send_and_wait(tedge_api::message::StopCore)
+            .await
+            .expect("Sending StopCore failed");
         Ok(())
     }
-
 
     async fn shutdown(&mut self) -> Result<(), PluginError> {
         Ok(())
@@ -78,10 +80,13 @@ impl Plugin for SelfSendPlugin {
 
 #[async_trait]
 impl tedge_api::plugin::Handle<Msg> for SelfSendPlugin {
-    async fn handle_message(&self, _: Msg, _: tedge_api::address::ReplySenderFor<Msg>) -> Result<(), miette::Error> {
+    async fn handle_message(
+        &self,
+        _: Msg,
+        _: tedge_api::address::ReplySenderFor<Msg>,
+    ) -> Result<(), miette::Error> {
         unimplemented!() // will never be called in this test
     }
-
 }
 
 #[test]
@@ -95,11 +100,19 @@ fn test_send_to_self_via_name_does_work() -> Result<(), Box<(dyn std::error::Err
 
     let res = rt.block_on(async {
         let config_file_path = {
-            let dir = std::env::current_exe().unwrap().parent().unwrap().join("../../../");
+            let dir = std::env::current_exe()
+                .unwrap()
+                .parent()
+                .unwrap()
+                .join("../../../");
             let mut name = std::path::PathBuf::from(std::file!());
             name.set_extension("toml");
             let filepath = dir.join(name);
-            assert!(filepath.exists(), "Config file does not exist: {}", filepath.display());
+            assert!(
+                filepath.exists(),
+                "Config file does not exist: {}",
+                filepath.display()
+            );
             filepath
         };
 
@@ -112,19 +125,17 @@ fn test_send_to_self_via_name_does_work() -> Result<(), Box<(dyn std::error::Err
 
         // send a cancel request to the app after 1 sec
         let mut cancel_fut = Box::pin({
-            tokio::time::sleep(std::time::Duration::from_secs(1))
-                .then(|_| async {
-                    tracing::info!("Cancelling app now");
-                    cancel_sender.cancel_app()
-                })
+            tokio::time::sleep(std::time::Duration::from_secs(1)).then(|_| async {
+                tracing::info!("Cancelling app now");
+                cancel_sender.cancel_app()
+            })
         });
 
         // Abort the test after 5 secs, because it seems not to stop the application
         let mut test_abort = Box::pin({
-            tokio::time::sleep(std::time::Duration::from_secs(5))
-                .then(|_| async {
-                    tracing::info!("Aborting test");
-                })
+            tokio::time::sleep(std::time::Duration::from_secs(5)).then(|_| async {
+                tracing::info!("Aborting test");
+            })
         });
 
         let mut cancelled = false;
@@ -166,4 +177,3 @@ fn test_send_to_self_via_name_does_work() -> Result<(), Box<(dyn std::error::Err
     }
     Ok(())
 }
-

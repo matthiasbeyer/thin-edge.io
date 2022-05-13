@@ -16,8 +16,7 @@ use tokio::sync::{Mutex, Notify};
 #[derive(Debug)]
 struct Measurement(u64);
 
-impl Message for Measurement {
-}
+impl Message for Measurement {}
 
 pub struct ProducerPluginBuilder(Mutex<Option<tokio::sync::mpsc::Receiver<u64>>>);
 
@@ -185,11 +184,19 @@ async fn start_application(
     let _ = tracing_subscriber::fmt::try_init();
 
     let config_file_path = {
-        let dir = std::env::current_exe().unwrap().parent().unwrap().join("../../../");
+        let dir = std::env::current_exe()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("../../../");
         let mut name = std::path::PathBuf::from(std::file!());
         name.set_extension("toml");
         let filepath = dir.join(name);
-        assert!(filepath.exists(), "Config file does not exist: {}", filepath.display());
+        assert!(
+            filepath.exists(),
+            "Config file does not exist: {}",
+            filepath.display()
+        );
         filepath
     };
 

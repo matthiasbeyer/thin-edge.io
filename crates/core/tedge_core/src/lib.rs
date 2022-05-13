@@ -71,7 +71,9 @@ impl TedgeApplication {
         &self.config
     }
 
-    pub(crate) fn plugin_builders(&self) -> &HashMap<String, (HandleTypes, Box<dyn PluginBuilder<PluginDirectory>>)> {
+    pub(crate) fn plugin_builders(
+        &self,
+    ) -> &HashMap<String, (HandleTypes, Box<dyn PluginBuilder<PluginDirectory>>)> {
         &self.plugin_builders
     }
 
@@ -98,26 +100,32 @@ impl TedgeApplication {
         self.config()
             .plugins()
             .iter()
-            .map(|(plugin_name, plugin_cfg): (&String, &PluginInstanceConfiguration)| async {
-                    if let Some((_, builder)) = self.plugin_builders().get(plugin_cfg.kind().as_ref()) {
-                        debug!("Verifying {}", plugin_cfg.kind().as_ref());
-                        let res = plugin_cfg
-                            .configuration()
-                            .verify_with_builder(builder, self.config_path())
-                            .await
-                            .into_diagnostic()
-                            .map_err(TedgeApplicationError::PluginConfigVerificationFailed)
-                            .map(|_| ());
-                        (plugin_name.to_string(), res)
-                    } else {
-                        (
-                            plugin_name.to_string(),
-                            Err(TedgeApplicationError::UnknownPluginKind(
-                                plugin_cfg.kind().as_ref().to_string(),
-                            ))
-                        )
+            .map(
+                |(plugin_name, plugin_cfg): (&String, &PluginInstanceConfiguration)| {
+                    async {
+                        if let Some((_, builder)) =
+                            self.plugin_builders().get(plugin_cfg.kind().as_ref())
+                        {
+                            debug!("Verifying {}", plugin_cfg.kind().as_ref());
+                            let res = plugin_cfg
+                                .configuration()
+                                .verify_with_builder(builder, self.config_path())
+                                .await
+                                .into_diagnostic()
+                                .map_err(TedgeApplicationError::PluginConfigVerificationFailed)
+                                .map(|_| ());
+                            (plugin_name.to_string(), res)
+                        } else {
+                            (
+                                plugin_name.to_string(),
+                                Err(TedgeApplicationError::UnknownPluginKind(
+                                    plugin_cfg.kind().as_ref().to_string(),
+                                )),
+                            )
+                        }
                     }
-                }.instrument(debug_span!("verify configuration", plugin.name = %plugin_name))
+                    .instrument(debug_span!("verify configuration", plugin.name = %plugin_name))
+                },
             )
             .collect::<futures::stream::FuturesUnordered<_>>()
             .collect::<Vec<(String, Result<()>)>>()
@@ -141,7 +149,10 @@ impl TedgeApplicationBuilder {
     /// running once the application starts up, but merely that the application _knows_ about this
     /// plugin builder and is able to construct a plugin with this builder, if necessary (e.g. if
     /// configured in a configuration file).
-    pub fn with_plugin_builder<PB: PluginBuilder<PluginDirectory>>(mut self, builder: PB) -> Result<Self> {
+    pub fn with_plugin_builder<PB: PluginBuilder<PluginDirectory>>(
+        mut self,
+        builder: PB,
+    ) -> Result<Self> {
         let handle_types = PB::kind_message_types();
         let kind_name = PB::kind_name();
         event!(
@@ -152,7 +163,9 @@ impl TedgeApplicationBuilder {
         );
 
         if self.plugin_builders.contains_key(kind_name) {
-            return Err(TedgeApplicationError::PluginKindExists(kind_name.to_string()))
+            return Err(TedgeApplicationError::PluginKindExists(
+                kind_name.to_string(),
+            ));
         }
 
         self.plugin_builders
@@ -191,7 +204,9 @@ impl TedgeApplicationBuilder {
     }
 
     #[cfg(test)]
-    pub fn plugin_builders(&self) -> &HashMap<String, (HandleTypes, Box<dyn PluginBuilder<PluginDirectory>>)> {
+    pub fn plugin_builders(
+        &self,
+    ) -> &HashMap<String, (HandleTypes, Box<dyn PluginBuilder<PluginDirectory>>)> {
         &self.plugin_builders
     }
 }

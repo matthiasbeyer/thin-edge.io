@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 use futures::future::FutureExt;
+use tedge_api::plugin::PluginExt;
 use tedge_api::Plugin;
 use tedge_api::PluginBuilder;
 use tedge_api::PluginConfiguration;
 use tedge_api::PluginDirectory;
 use tedge_api::PluginError;
-use tedge_api::plugin::PluginExt;
 use tedge_core::TedgeApplication;
 
 pub struct NoShutdownPluginBuilder;
@@ -33,7 +33,8 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for NoShutdownPluginBuilder {
     }
 
     fn kind_message_types() -> tedge_api::plugin::HandleTypes
-        where Self:Sized
+    where
+        Self: Sized,
     {
         NoShutdownPlugin::get_handled_types()
     }
@@ -51,7 +52,6 @@ impl Plugin for NoShutdownPlugin {
         tracing::info!("Setup called");
         Ok(())
     }
-
 
     async fn shutdown(&mut self) -> Result<(), PluginError> {
         tracing::info!("Shutdown called");
@@ -72,11 +72,19 @@ fn test_no_shutdown_plugin() -> Result<(), Box<(dyn std::error::Error + 'static)
 
     let res = rt.block_on(async {
         let config_file_path = {
-            let dir = std::env::current_exe().unwrap().parent().unwrap().join("../../../");
+            let dir = std::env::current_exe()
+                .unwrap()
+                .parent()
+                .unwrap()
+                .join("../../../");
             let mut name = std::path::PathBuf::from(std::file!());
             name.set_extension("toml");
             let filepath = dir.join(name);
-            assert!(filepath.exists(), "Config file does not exist: {}", filepath.display());
+            assert!(
+                filepath.exists(),
+                "Config file does not exist: {}",
+                filepath.display()
+            );
             filepath
         };
         let (cancel_sender, application) = TedgeApplication::builder()
@@ -88,19 +96,17 @@ fn test_no_shutdown_plugin() -> Result<(), Box<(dyn std::error::Error + 'static)
 
         // send a cancel request to the app after 1 sec
         let mut cancel_fut = Box::pin({
-            tokio::time::sleep(std::time::Duration::from_secs(1))
-                .then(|_| async {
-                    tracing::info!("Cancelling app now");
-                    cancel_sender.cancel_app()
-                })
+            tokio::time::sleep(std::time::Duration::from_secs(1)).then(|_| async {
+                tracing::info!("Cancelling app now");
+                cancel_sender.cancel_app()
+            })
         });
 
         // Abort the test after 5 secs, because it seems not to stop the application
         let mut test_abort = Box::pin({
-            tokio::time::sleep(std::time::Duration::from_secs(5))
-                .then(|_| async {
-                    tracing::info!("Aborting test");
-                })
+            tokio::time::sleep(std::time::Duration::from_secs(5)).then(|_| async {
+                tracing::info!("Aborting test");
+            })
         });
 
         let mut cancelled = false;
@@ -136,4 +142,3 @@ fn test_no_shutdown_plugin() -> Result<(), Box<(dyn std::error::Error + 'static)
     }
     Ok(())
 }
-

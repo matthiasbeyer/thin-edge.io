@@ -95,9 +95,7 @@ mod sending {
         ) -> Result<tedge_api::plugin::BuiltPlugin, PluginError> {
             tracing::warn!("Going to fetch addresses that do not support the messages I expect");
             // this should not work
-            let _target_addr = plugin_dir.get_address_for::<SendingMessages>(
-                "not_supported"
-            )?;
+            let _target_addr = plugin_dir.get_address_for::<SendingMessages>("not_supported")?;
             Ok(SendingPlugin {}.finish())
         }
 
@@ -130,8 +128,7 @@ mod sending {
 
     #[derive(Debug)]
     pub struct SendingMessage;
-    impl tedge_api::plugin::Message for SendingMessage {
-    }
+    impl tedge_api::plugin::Message for SendingMessage {}
 
     tedge_api::make_receiver_bundle!(pub struct SendingMessages(SendingMessage));
 }
@@ -141,11 +138,19 @@ async fn test_not_supported_message() -> Result<(), Box<(dyn std::error::Error +
     let _ = tracing_subscriber::fmt::try_init();
 
     let config_file_path = {
-        let dir = std::env::current_exe().unwrap().parent().unwrap().join("../../../");
+        let dir = std::env::current_exe()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("../../../");
         let mut name = std::path::PathBuf::from(std::file!());
         name.set_extension("toml");
         let filepath = dir.join(name);
-        assert!(filepath.exists(), "Config file does not exist: {}", filepath.display());
+        assert!(
+            filepath.exists(),
+            "Config file does not exist: {}",
+            filepath.display()
+        );
         filepath
     };
 

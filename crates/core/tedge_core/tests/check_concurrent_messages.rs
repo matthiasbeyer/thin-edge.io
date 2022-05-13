@@ -23,8 +23,7 @@ const MESSAGE_COUNT: usize = 1000;
 #[derive(Debug)]
 struct Spam;
 
-impl Message for Spam {
-}
+impl Message for Spam {}
 
 pub struct SpammyPluginBuilder;
 
@@ -172,11 +171,19 @@ async fn test_verify_concurrent_messages() -> miette::Result<()> {
     let _ = tracing_subscriber::fmt::try_init();
 
     let config_file_path = {
-        let dir = std::env::current_exe().unwrap().parent().unwrap().join("../../../");
+        let dir = std::env::current_exe()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("../../../");
         let mut name = std::path::PathBuf::from(std::file!());
         name.set_extension("toml");
         let filepath = dir.join(name);
-        assert!(filepath.exists(), "Config file does not exist: {}", filepath.display());
+        assert!(
+            filepath.exists(),
+            "Config file does not exist: {}",
+            filepath.display()
+        );
         filepath
     };
 

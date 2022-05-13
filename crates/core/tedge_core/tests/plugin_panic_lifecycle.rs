@@ -1,13 +1,13 @@
 use async_trait::async_trait;
 use futures::future::FutureExt;
 use miette::IntoDiagnostic;
+use tedge_api::plugin::HandleTypes;
+use tedge_api::plugin::PluginExt;
 use tedge_api::Plugin;
 use tedge_api::PluginBuilder;
 use tedge_api::PluginConfiguration;
 use tedge_api::PluginDirectory;
 use tedge_api::PluginError;
-use tedge_api::plugin::HandleTypes;
-use tedge_api::plugin::PluginExt;
 use tedge_core::TedgeApplication;
 
 pub struct PanicPluginBuilder;
@@ -48,17 +48,19 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for PanicPluginBuilder {
         _cancellation_token: tedge_api::CancellationToken,
         _plugin_dir: &PD,
     ) -> Result<tedge_api::plugin::BuiltPlugin, PluginError> {
-        let config: PanicPluginConf = config
-            .try_into()
-            .into_diagnostic()?;
+        let config: PanicPluginConf = config.try_into().into_diagnostic()?;
 
         tracing::info!("Config = {:?}", config);
 
-        Ok(PanicPlugin { panic_loc: config.panic_location }.finish())
+        Ok(PanicPlugin {
+            panic_loc: config.panic_location,
+        }
+        .finish())
     }
 
     fn kind_message_types() -> HandleTypes
-        where Self:Sized
+    where
+        Self: Sized,
     {
         PanicPlugin::get_handled_types()
     }
@@ -82,7 +84,6 @@ impl Plugin for PanicPlugin {
         }
         Ok(())
     }
-
 
     async fn shutdown(&mut self) -> Result<(), PluginError> {
         tracing::info!("Shutdown called");
@@ -175,5 +176,3 @@ fn test_setup_panic_plugin() -> Result<(), Box<(dyn std::error::Error + 'static)
     }
     Ok(())
 }
-
-

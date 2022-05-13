@@ -6,8 +6,8 @@ use tedge_api::PluginConfiguration;
 use tedge_api::PluginDirectory;
 use tedge_api::PluginError;
 use tedge_api::PluginExt;
-use tedge_core::TedgeApplication;
 use tedge_core::errors::TedgeApplicationError;
+use tedge_core::TedgeApplication;
 
 pub struct VerifyConfigFailsPluginBuilder;
 
@@ -64,11 +64,19 @@ async fn test_verify_fails_plugin() -> Result<(), Box<(dyn std::error::Error + '
     let _ = tracing_subscriber::fmt::try_init();
 
     let config_file_path = {
-        let dir = std::env::current_exe().unwrap().parent().unwrap().join("../../../");
+        let dir = std::env::current_exe()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("../../../");
         let mut name = std::path::PathBuf::from(std::file!());
         name.set_extension("toml");
         let filepath = dir.join(name);
-        assert!(filepath.exists(), "Config file does not exist: {}", filepath.display());
+        assert!(
+            filepath.exists(),
+            "Config file does not exist: {}",
+            filepath.display()
+        );
         filepath
     };
 
@@ -81,10 +89,10 @@ async fn test_verify_fails_plugin() -> Result<(), Box<(dyn std::error::Error + '
         Err(TedgeApplicationError::PluginConfigVerificationFailed(e)) => {
             tracing::info!("Application errored successfully: {:?}", e);
             Ok(())
-        },
+        }
         Err(_) => {
             panic!("Application should have errored with PluginConfigVerificationFailed because plugin failed to verify configuration")
-        },
+        }
 
         _ok => {
             panic!("Application should have errored because plugin failed to verify configuration")

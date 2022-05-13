@@ -130,7 +130,10 @@ mod tests {
 
         let c: PluginInstanceConfiguration = toml::from_str(s).unwrap();
         assert_eq!(c.kind, PluginKind("foo".to_string()));
-        assert_eq!(c.configuration, InstanceConfiguration::ConfigFilePath(PathBuf::from("path/to/file.toml")));
+        assert_eq!(
+            c.configuration,
+            InstanceConfiguration::ConfigFilePath(PathBuf::from("path/to/file.toml"))
+        );
     }
 
     #[test]
@@ -142,7 +145,9 @@ mod tests {
 
         let c: PluginInstanceConfiguration = toml::from_str(s).unwrap();
         assert_eq!(c.kind, PluginKind("foo".to_string()));
-        assert!(std::matches!(c.configuration, InstanceConfiguration::Config(_)));
+        assert!(std::matches!(
+            c.configuration,
+            InstanceConfiguration::Config(_)
+        ));
     }
 }
-

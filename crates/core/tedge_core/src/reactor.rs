@@ -60,36 +60,35 @@ impl Reactor {
         // This is then collected into a CorePluginDirectory, our "addressbook type" that can be
         // used to retrieve addresses for message passing.
         let (core_sender, core_receiver) = tokio::sync::mpsc::channel(channel_size);
-        let mut directory = tracing::debug_span!("core.build_plugin_directory")
-            .in_scope(|| {
-                let directory_iter = self.0.config().plugins().iter().map(|(pname, pconfig)| {
-                    // fetch the types the plugin claims to handle from the plugin builder identified
-                    // by the "kind" in the configuration of the instance
-                    let handle_types = self
-                        .0
-                        .plugin_builders()
-                        .get(pconfig.kind().as_ref())
-                        .map(|(handle_types, _)| {
-                            handle_types
-                                .get_types()
-                                .into_iter()
-                                .cloned()
-                                .collect::<Vec<MessageType>>()
-                        })
-                        .ok_or_else(|| {
-                            TedgeApplicationError::UnknownPluginKind(
-                                pconfig.kind().as_ref().to_string(),
-                            )
-                        })?;
+        let mut directory = tracing::debug_span!("core.build_plugin_directory").in_scope(|| {
+            let directory_iter = self.0.config().plugins().iter().map(|(pname, pconfig)| {
+                // fetch the types the plugin claims to handle from the plugin builder identified
+                // by the "kind" in the configuration of the instance
+                let handle_types = self
+                    .0
+                    .plugin_builders()
+                    .get(pconfig.kind().as_ref())
+                    .map(|(handle_types, _)| {
+                        handle_types
+                            .get_types()
+                            .into_iter()
+                            .cloned()
+                            .collect::<Vec<MessageType>>()
+                    })
+                    .ok_or_else(|| {
+                        TedgeApplicationError::UnknownPluginKind(
+                            pconfig.kind().as_ref().to_string(),
+                        )
+                    })?;
 
-                    Ok((
-                        pname.to_string(),
-                        PluginInfo::new(handle_types, channel_size),
-                    ))
-                });
+                Ok((
+                    pname.to_string(),
+                    PluginInfo::new(handle_types, channel_size),
+                ))
+            });
 
-                CorePluginDirectory::collect_from(directory_iter, core_sender)
-            })?;
+            CorePluginDirectory::collect_from(directory_iter, core_sender)
+        })?;
 
         // Start preparing the plugin instantiation...
         let plugin_instantiation_prep = tracing::debug_span!("core.plugin_instantiation_prep")

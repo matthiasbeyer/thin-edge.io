@@ -210,8 +210,7 @@ mod tests {
         #[derive(Debug)]
         pub struct SupportedMessage;
 
-        impl tedge_api::Message for SupportedMessage {
-        }
+        impl tedge_api::Message for SupportedMessage {}
 
         impl tedge_api::plugin::PluginDeclaration for Plug {
             type HandledMessages = (SupportedMessage,);
@@ -245,14 +244,12 @@ mod tests {
     #[derive(Debug)]
     struct UnsupportedMessage;
 
-    impl tedge_api::Message for UnsupportedMessage {
-    }
+    impl tedge_api::Message for UnsupportedMessage {}
 
     #[derive(Debug)]
     struct OtherUnsupportedMessage;
 
-    impl tedge_api::Message for OtherUnsupportedMessage {
-    }
+    impl tedge_api::Message for OtherUnsupportedMessage {}
 
     tedge_api::make_receiver_bundle!(pub struct UnsupportedMessageReceiver(UnsupportedMessage));
     tedge_api::make_receiver_bundle!(pub struct OtherUnsupportedMessageReceiver(OtherUnsupportedMessage));
