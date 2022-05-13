@@ -138,7 +138,9 @@ impl Plugin for InotifyPlugin {
         self.stopper = Some(stopper);
 
         let _ = tokio::spawn(
-            mainloop.run(main_inotify).instrument(tracing::debug_span!("plugin.inotify.mainloop")),
+            mainloop
+                .run(main_inotify)
+                .instrument(tracing::debug_span!("plugin.inotify.mainloop")),
         );
         trace!("Mainloop spawned");
         Ok(())
