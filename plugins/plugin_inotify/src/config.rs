@@ -30,104 +30,113 @@ pub enum Watchmode {
     /// not the directory itself.
     ACCESS,
 
-    // Metadata (permissions, timestamps, …) changed
-    //
-    // When watching a directory, this event can be triggered for the directory itself, as well as objects inside the directory.
+    /// Metadata (permissions, timestamps, …) changed
+    ///
+    /// When watching a directory, this event can be triggered for the directory itself, as well as
+    /// objects inside the directory.
     ATTRIB,
 
-    // File opened for writing was closed
-    //
-    // When watching a directory, this event is only triggered for objects inside the directory, not the directory itself.
+    /// File opened for writing was closed
+    ///
+    /// When watching a directory, this event is only triggered for objects inside the directory,
+    /// not the directory itself.
     CLOSE_WRITE,
 
-    // File or directory not opened for writing was closed
-    //
-    // When watching a directory, this event can be triggered for the directory itself, as well as objects inside the directory.
+    /// File or directory not opened for writing was closed
+    ///
+    /// When watching a directory, this event can be triggered for the directory itself, as well as
+    /// objects inside the directory.
     CLOSE_NOWRITE,
 
-    // File/directory created in watched directory
-    //
-    // When watching a directory, this event is only triggered for objects inside the directory, not the directory itself.
+    /// File/directory created in watched directory
+    ///
+    /// When watching a directory, this event is only triggered for objects inside the directory,
+    /// not the directory itself.
     CREATE,
 
-    // File/directory deleted from watched directory
-    //
-    // When watching a directory, this event is only triggered for objects inside the directory, not the directory itself.
+    /// File/directory deleted from watched directory
+    ///
+    /// When watching a directory, this event is only triggered for objects inside the directory,
+    /// not the directory itself.
     DELETE,
 
-    // Watched file/directory was deleted
+    /// Watched file/directory was deleted
     DELETE_SELF,
 
-    // File was modified
-    //
-    // When watching a directory, this event is only triggered for objects inside the directory, not the directory itself.
+    /// File was modified
+    ///
+    /// When watching a directory, this event is only triggered for objects inside the directory,
+    /// not the directory itself.
     MODIFY,
 
-    // Watched file/directory was moved
+    /// Watched file/directory was moved
     MOVE_SELF,
 
-    // File was renamed/moved; watched directory contained old name
-    //
-    // When watching a directory, this event is only triggered for objects inside the directory, not the directory itself.
+    /// File was renamed/moved; watched directory contained old name
+    ///
+    /// When watching a directory, this event is only triggered for objects inside the directory,
+    /// not the directory itself.
     MOVED_FROM,
 
-    // File was renamed/moved; watched directory contains new name
-    //
-    // When watching a directory, this event is only triggered for objects inside the directory, not the directory itself.
+    /// File was renamed/moved; watched directory contains new name
+    ///
+    /// When watching a directory, this event is only triggered for objects inside the directory,
+    /// not the directory itself.
     MOVED_TO,
 
-    // File or directory was opened
-    //
-    // When watching a directory, this event can be triggered for the directory itself, as well as objects inside the directory.
+    /// File or directory was opened
+    ///
+    /// When watching a directory, this event can be triggered for the directory itself, as well as
+    /// objects inside the directory.
     OPEN,
 
-    // Watch for all events
-    //
-    // This constant is simply a convenient combination of the following other constants:
-    //
-    //     ACCESS
-    //     ATTRIB
-    //     CLOSE_WRITE
-    //     CLOSE_NOWRITE
-    //     CREATE
-    //     DELETE
-    //     DELETE_SELF
-    //     MODIFY
-    //     MOVE_SELF
-    //     MOVED_FROM
-    //     MOVED_TO
-    //     OPEN
+    /// Watch for all events
+    ///
+    /// This constant is simply a convenient combination of the following other constants:
+    ///
+    ///     ACCESS
+    ///     ATTRIB
+    ///     CLOSE_WRITE
+    ///     CLOSE_NOWRITE
+    ///     CREATE
+    ///     DELETE
+    ///     DELETE_SELF
+    ///     MODIFY
+    ///     MOVE_SELF
+    ///     MOVED_FROM
+    ///     MOVED_TO
+    ///     OPEN
     ALL_EVENTS,
 
-    // Watch for all move events
-    //
-    // This constant is simply a convenient combination of the following other constants:
-    //
-    //     MOVED_FROM
-    //     MOVED_TO
+    /// Watch for all move events
+    ///
+    /// This constant is simply a convenient combination of the following other constants:
+    ///
+    ///     MOVED_FROM
+    ///     MOVED_TO
     MOVE,
 
-    // Watch for all close events
-    //
-    // This constant is simply a convenient combination of the following other constants:
-    //
-    //     CLOSE_WRITE
-    //     CLOSE_NOWRITE
+    /// Watch for all close events
+    ///
+    /// This constant is simply a convenient combination of the following other constants:
+    ///
+    ///     CLOSE_WRITE
+    ///     CLOSE_NOWRITE
     CLOSE,
 
-    // Don’t dereference the path if it is a symbolic link
+    /// Don’t dereference the path if it is a symbolic link
     DONT_FOLLOW,
 
-    // Filter events for directory entries that have been unlinked
+    /// Filter events for directory entries that have been unlinked
     EXCL_UNLINK,
 
-    // If a watch for the inode exists, amend it instead of replacing it
+    /// If a watch for the inode exists, amend it instead of replacing it
     MASK_ADD,
 
-    // Only receive one event, then remove the watch
+    /// Only receive one event, then remove the watch
     ONESHOT,
 
-    // Only watch path, if it is a directory
+    /// Only watch path, if it is a directory
     ONLYDIR,
 }
 
