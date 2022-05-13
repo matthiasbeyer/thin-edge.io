@@ -32,7 +32,7 @@ impl ConfigDescription {
         &self.kind
     }
 
-    /// Set or replace the documentation of this [`Config`]
+    /// Set or replace the documentation of this [`ConfigDescription`]
     #[must_use]
     pub fn with_doc(mut self, doc: Option<&'static str>) -> Self {
         self.doc = doc;
@@ -66,7 +66,7 @@ pub enum ConfigEnumKind {
     Untagged,
 }
 
-/// The specific kind a [`Config`] represents
+/// The specific kind a [`ConfigDescription`] represents
 #[derive(Debug, Serialize, PartialEq)]
 pub enum ConfigKind {
     /// Config represents a boolean `true`/`false`
@@ -123,11 +123,11 @@ pub enum ConfigKind {
     ),
 }
 
-/// Turn a plugin configuration into a [`Config`] object
+/// Turn a plugin configuration into a [`ConfigDescription`] object
 ///
 /// Plugin authors are expected to implement this for their configurations to give users
 pub trait AsConfig {
-    /// Get a [`Config`] object from the type
+    /// Get a [`ConfigDescription`] object from the type
     fn as_config() -> ConfigDescription;
 }
 
