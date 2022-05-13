@@ -40,7 +40,7 @@ pub(crate) enum LoggingSpec {
     Debug,
     Info,
     Warn,
-    Error
+    Error,
 }
 
 #[derive(Debug, clap::Subcommand)]
@@ -61,6 +61,6 @@ pub(crate) enum CliCommand {
     #[clap(name = "doc")]
     Doc {
         /// Print the doc only for this plugin
-        plugin_name: Option<String>
+        plugin_name: Option<String>,
     },
 }

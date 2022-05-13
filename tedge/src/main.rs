@@ -78,7 +78,11 @@ macro_rules! register_plugin {
 #[tracing::instrument]
 async fn main() -> miette::Result<()> {
     let args = crate::cli::Cli::parse();
-    let _guard = crate::logging::setup_logging(args.logging, args.chrome_logging.as_ref(), args.tracy_logging)?;
+    let _guard = crate::logging::setup_logging(
+        args.logging,
+        args.chrome_logging.as_ref(),
+        args.tracy_logging,
+    )?;
     info!("Tedge booting...");
     debug!("Tedge CLI: {:?}", args);
 

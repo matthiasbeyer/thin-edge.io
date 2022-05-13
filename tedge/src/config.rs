@@ -113,10 +113,7 @@ pub fn as_terminal_doc<'a>(desc: &'a ConfigDescription, arena: &'a Arena<'a>) ->
                                             EnumVariantRepresentation::String(rep) => arena.text(
                                                 Color::Green
                                                     .bold()
-                                                    .paint(&format!(
-                                                        "{:?}",
-                                                        rep.to_lowercase()
-                                                    ))
+                                                    .paint(&format!("{:?}", rep.to_lowercase()))
                                                     .to_string(),
                                             ),
                                             EnumVariantRepresentation::Wrapped(_) => arena.text(
