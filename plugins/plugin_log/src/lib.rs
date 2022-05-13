@@ -25,9 +25,7 @@ pub struct LogPluginBuilder<MB: MessageBundle> {
 
 impl<MB: MessageBundle> LogPluginBuilder<MB> {
     pub fn new() -> Self {
-        LogPluginBuilder {
-            _pd: PhantomData,
-        }
+        LogPluginBuilder { _pd: PhantomData }
     }
 }
 
@@ -89,7 +87,6 @@ enum Error {
     ConfigParseFailed(#[from] toml::de::Error),
 }
 
-
 #[async_trait]
 impl<PD, MB> PluginBuilder<PD> for LogPluginBuilder<MB>
 where
@@ -130,9 +127,7 @@ where
         _cancellation_token: CancellationToken,
         _plugin_dir: &PD,
     ) -> Result<BuiltPlugin, PluginError> {
-        let config = config
-            .try_into::<LogConfig>()
-            .map_err(Error::from)?;
+        let config = config.try_into::<LogConfig>().map_err(Error::from)?;
 
         Ok(LogPlugin::<MB>::new(config).finish())
     }
@@ -144,18 +139,21 @@ struct LogPlugin<MB> {
 }
 
 impl<MB> tedge_api::plugin::PluginDeclaration for LogPlugin<MB>
-    where MB: MessageBundle + Sync + Send + 'static,
+where
+    MB: MessageBundle + Sync + Send + 'static,
 {
     type HandledMessages = MB;
 }
-
 
 impl<MB> LogPlugin<MB>
 where
     MB: MessageBundle + Sync + Send + 'static,
 {
     fn new(config: LogConfig) -> Self {
-        Self { _pd: PhantomData, config }
+        Self {
+            _pd: PhantomData,
+            config,
+        }
     }
 }
 
@@ -207,4 +205,3 @@ where
         Ok(())
     }
 }
-
