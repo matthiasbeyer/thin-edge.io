@@ -1,5 +1,4 @@
-//! The tedge_core crate
-//!
+#![doc = include_str!("../README.md")]
 
 use std::collections::HashMap;
 use std::path::Path;
