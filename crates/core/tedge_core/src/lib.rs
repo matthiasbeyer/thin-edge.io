@@ -6,25 +6,29 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use miette::IntoDiagnostic;
-use tedge_api::PluginBuilder;
 use tedge_api::plugin::HandleTypes;
+use tedge_api::PluginBuilder;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
+use tracing::debug_span;
+use tracing::event;
+use tracing::Instrument;
+use tracing::Level;
 
+mod communication;
 pub mod configuration;
 mod core_task;
-mod communication;
 pub mod errors;
 mod plugin_task;
 mod reactor;
 mod task;
 mod utils;
 
+pub use crate::communication::PluginDirectory;
 use crate::configuration::PluginInstanceConfiguration;
 use crate::configuration::TedgeConfiguration;
-use crate::errors::TedgeApplicationError;
 use crate::errors::Result;
-pub use crate::communication::PluginDirectory;
+use crate::errors::TedgeApplicationError;
 
 /// A TedgeApplication
 ///
@@ -78,6 +82,7 @@ impl TedgeApplication {
     /// Run the TedgeApplication that has been setup for running
     ///
     /// This function runs as long as there is no shutdown signalled to the application.
+    #[tracing::instrument(skip(self), level = "debug")]
     pub async fn run(self) -> Result<()> {
         // This `Reactor` type is only used to seperate the public-interface implementing parts of
         // this crate from the orchestration and lifecycle management code bits.
@@ -86,7 +91,6 @@ impl TedgeApplication {
 
     /// Check whether all configured plugin kinds exist (are available in registered plugins)
     /// and that the configurations for the individual plugins are actually valid.
-    #[tracing::instrument(skip(self))]
     pub async fn verify_configurations(&self) -> Vec<(String, Result<()>)> {
         use futures::stream::StreamExt;
 
@@ -113,7 +117,7 @@ impl TedgeApplication {
                             ))
                         )
                     }
-                },
+                }.instrument(debug_span!("verify configuration", plugin.name = %plugin_name))
             )
             .collect::<futures::stream::FuturesUnordered<_>>()
             .collect::<Vec<(String, Result<()>)>>()
@@ -140,6 +144,12 @@ impl TedgeApplicationBuilder {
     pub fn with_plugin_builder<PB: PluginBuilder<PluginDirectory>>(mut self, builder: PB) -> Result<Self> {
         let handle_types = PB::kind_message_types();
         let kind_name = PB::kind_name();
+        event!(
+            Level::INFO,
+            plugin.kind = kind_name,
+            plugin.handled_types = ?handle_types,
+            "Registered plugin builder"
+        );
 
         if self.plugin_builders.contains_key(kind_name) {
             return Err(TedgeApplicationError::PluginKindExists(kind_name.to_string()))
@@ -157,13 +167,16 @@ impl TedgeApplicationBuilder {
         self,
         config_path: impl AsRef<Path>,
     ) -> Result<(TedgeApplicationCancelSender, TedgeApplication)> {
+        let config_path = config_path.as_ref();
+        debug!(?config_path, "Loading config from path");
+
         let config_str = tokio::fs::read_to_string(&config_path)
             .await
             .map_err(TedgeApplicationError::ConfigReadFailed)?;
         let config = toml::de::from_str(&config_str)?;
         let cancellation = TedgeApplicationCancelSender(self.cancellation_token.clone());
         let app = TedgeApplication {
-            config_path: config_path.as_ref().to_path_buf(),
+            config_path: config_path.to_path_buf(),
             config,
             cancellation_token: self.cancellation_token,
             plugin_builders: self.plugin_builders,
@@ -188,6 +201,7 @@ pub struct TedgeApplicationCancelSender(CancellationToken);
 
 impl TedgeApplicationCancelSender {
     pub fn cancel_app(&self) {
+        debug!("Cancelling application");
         self.0.cancel()
     }
 

@@ -18,12 +18,8 @@ mod logging;
 #[tokio::main]
 #[tracing::instrument]
 async fn main() -> miette::Result<()> {
-    #[cfg(feature = "core_debugging")]
-    {
-        console_subscriber::init();
-    }
     let args = crate::cli::Cli::parse();
-    crate::logging::setup_logging(args.verbose, args.debug)?;
+    let _guard = crate::logging::setup_logging(args.logging, args.chrome_logging.as_ref(), args.tracy_logging)?;
     info!("Tedge booting...");
     debug!("Tedge CLI: {:?}", args);
 
@@ -36,7 +32,6 @@ async fn main() -> miette::Result<()> {
             cfg_if::cfg_if! {
                 if #[cfg(feature = $cfg)] {
                     let kind_name: &'static str = <$pluginbuilder as PluginBuilder<tedge_core::PluginDirectory>>::kind_name();
-                    info!("Registering plugin builder for plugins of type {}", kind_name);
                     if !plugin_kinds.insert(kind_name) {
                         miette::bail!("Plugin kind '{}' was already registered, cannot register!", kind_name)
                     }

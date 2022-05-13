@@ -8,7 +8,10 @@ use tedge_api::plugin::BuiltPlugin;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::error;
+use tracing::info_span;
 use tracing::trace;
+use tracing::trace_span;
+use tracing::Instrument;
 
 use crate::communication::CorePluginDirectory;
 use crate::communication::PluginDirectory;
@@ -56,52 +59,60 @@ impl Reactor {
         //
         // This is then collected into a CorePluginDirectory, our "addressbook type" that can be
         // used to retrieve addresses for message passing.
-        let directory_iter = self.0
-            .config()
-            .plugins()
-            .iter()
-            .map(|(pname, pconfig)| {
-                // fetch the types the plugin claims to handle from the plugin builder identified
-                // by the "kind" in the configuration of the instance
-                let handle_types = self.0
-                    .plugin_builders()
-                    .get(pconfig.kind().as_ref())
-                    .map(|(handle_types, _)| {
-                        handle_types.get_types()
-                            .into_iter()
-                            .cloned()
-                            .collect::<Vec<MessageType>>()
-                    })
-                    .ok_or_else(|| {
-                        TedgeApplicationError::UnknownPluginKind(pconfig.kind().as_ref().to_string())
-                    })?;
-
-                    Ok((pname.to_string(), PluginInfo::new(handle_types, channel_size)))
-            });
         let (core_sender, core_receiver) = tokio::sync::mpsc::channel(channel_size);
+        let mut directory = tracing::debug_span!("core.build_plugin_directory")
+            .in_scope(|| {
+                let directory_iter = self.0.config().plugins().iter().map(|(pname, pconfig)| {
+                    // fetch the types the plugin claims to handle from the plugin builder identified
+                    // by the "kind" in the configuration of the instance
+                    let handle_types = self
+                        .0
+                        .plugin_builders()
+                        .get(pconfig.kind().as_ref())
+                        .map(|(handle_types, _)| {
+                            handle_types
+                                .get_types()
+                                .into_iter()
+                                .cloned()
+                                .collect::<Vec<MessageType>>()
+                        })
+                        .ok_or_else(|| {
+                            TedgeApplicationError::UnknownPluginKind(
+                                pconfig.kind().as_ref().to_string(),
+                            )
+                        })?;
 
-        let mut directory = CorePluginDirectory::collect_from(directory_iter, core_sender)?;
+                    Ok((
+                        pname.to_string(),
+                        PluginInfo::new(handle_types, channel_size),
+                    ))
+                });
+
+                CorePluginDirectory::collect_from(directory_iter, core_sender)
+            })?;
 
         // Start preparing the plugin instantiation...
-        let plugin_instantiation_prep = self
-            .0
-            .config()
-            .plugins()
-            .iter()
-            .map(|(pname, pconfig)| {
-                let receiver = match directory
-                    .get_mut(pname)
-                    .and_then(|pinfo| pinfo.receiver.take())
-                {
-                    Some(receiver) => receiver,
-                    None => unreachable!(
-                        "Tried to take receiver twice. This is a FATAL bug, please report it"
-                    ),
-                };
+        let plugin_instantiation_prep = tracing::debug_span!("core.plugin_instantiation_prep")
+            .in_scope(|| {
+                self.0
+                    .config()
+                    .plugins()
+                    .iter()
+                    .map(|(pname, pconfig)| {
+                        let receiver = match directory
+                            .get_mut(pname)
+                            .and_then(|pinfo| pinfo.receiver.take())
+                        {
+                            Some(receiver) => receiver,
+                            None => unreachable!(
+                            "Tried to take receiver twice. This is a FATAL bug, please report it"
+                        ),
+                        };
 
-                (pname, pconfig, receiver)
-            })
-            .collect::<Vec<_>>();
+                        (pname, pconfig, receiver)
+                    })
+                    .collect::<Vec<_>>()
+            });
 
         let directory = Arc::new(directory);
 
@@ -109,21 +120,25 @@ impl Reactor {
         let instantiated_plugins = plugin_instantiation_prep
             .into_iter()
             .map(|(pname, pconfig, receiver)| {
-                self.instantiate_plugin(
-                    pname,
-                    self.0.config_path(),
-                    pconfig,
-                    directory.clone(),
-                    receiver,
-                    self.0.cancellation_token().child_token(),
-                )
+                {
+                    self.instantiate_plugin(
+                        pname,
+                        self.0.config_path(),
+                        pconfig,
+                        directory.clone(),
+                        receiver,
+                        self.0.cancellation_token().child_token(),
+                    )
+                }
+                .instrument(info_span!("plugin.instantiate", name = %pname))
             })
             .collect::<futures::stream::FuturesUnordered<_>>()
             .collect::<Vec<Result<_>>>()
+            .instrument(tracing::debug_span!("core.plugin_instantiation"))
             .await
             .into_iter()
             .collect::<Result<Vec<_>>>()?;
-        debug!("Plugins instantiated");
+        trace!("Plugins instantiated");
 
         // Now we need to make sure we start the "CoreTask", which is responsible for handling the
         // communication within the core itself.
@@ -131,7 +146,9 @@ impl Reactor {
             // we clone the cancellation_token here, because the core must be able to use the
             // "root" token to stop all plugins
             let core_cancel_token = self.0.cancellation_token().clone();
-            crate::core_task::CoreTask::new(core_cancel_token, core_receiver).run()
+            crate::core_task::CoreTask::new(core_cancel_token, core_receiver)
+                .run()
+                .instrument(tracing::info_span!("core.mainloop.coretask"))
         };
         debug!("Core task instantiated");
 
@@ -147,18 +164,23 @@ impl Reactor {
                     self.0.config().plugin_shutdown_timeout(),
                 )
             })
-            .map(Task::run)
+            .map(|plug_task| {
+                let plugin_name = plug_task.plugin_name().to_string();
+                plug_task
+                    .run()
+                    .instrument(info_span!("plugin.mainloop", plugin.name = %plugin_name))
+            })
             .map(Box::pin)
             .collect::<futures::stream::FuturesUnordered<_>>() // main loop
-            .collect::<Vec<Result<()>>>();
-        debug!("Plugin tasks instantiated");
+            .collect::<Vec<Result<()>>>()
+            .instrument(tracing::info_span!("core.mainloop.plugins"));
+        trace!("Plugin tasks instantiated");
 
         // and then we wait until all communication is finished.
         //
         // There are two ways how this could return: Either one plugin requests the core to shut
         // down, which it then will, or the user requests a shutdown via Sigint (Ctrl-C), which
         // notifies the cancellation tokens in the application and plugins.
-        debug!("Entering main loop");
         let (plugin_res, core_res) = tokio::join!(running_plugins, running_core);
 
         // After we finished the run, we collect all results and return them to the caller
@@ -169,7 +191,10 @@ impl Reactor {
     }
 
     fn get_config_for_plugin<'a>(&'a self, plugin_name: &str) -> Option<&'a InstanceConfiguration> {
-        trace!("Searching config for plugin: {}", plugin_name);
+        trace!(
+            plugin.name = plugin_name,
+            "Searching config for plugin instance"
+        );
         self.0
             .config()
             .plugins()
@@ -181,7 +206,10 @@ impl Reactor {
         &'a self,
         plugin_kind: &PluginKind,
     ) -> Option<&'a Box<dyn tedge_api::PluginBuilder<PluginDirectory>>> {
-        trace!("Searching builder for plugin: {}", plugin_kind.as_ref());
+        trace!(
+            plugin.kind = plugin_kind.as_ref(),
+            "Searching builder for plugin kind"
+        );
         self.0
             .plugin_builders()
             .get(plugin_kind.as_ref())
@@ -209,7 +237,11 @@ impl Reactor {
             TedgeApplicationError::PluginConfigMissing(pname)
         })?;
 
-        let config = match config.verify_with_builder(builder, root_config_path).await {
+        let config = match config
+            .verify_with_builder(builder, root_config_path)
+            .instrument(trace_span!("core.config_verification"))
+            .await
+        {
             Err(e) => {
                 error!(
                     "Verification of configuration failed for plugin '{}'",
@@ -222,17 +254,17 @@ impl Reactor {
 
         let cancel_token = self.0.cancellation_token.child_token();
 
-        trace!(
-            "Instantiating plugin: {} of kind {}",
-            plugin_name,
-            plugin_config.kind().as_ref()
-        );
         builder
             .instantiate(
                 config.clone(),
                 cancel_token,
                 &directory.for_plugin_named(plugin_name),
             )
+            .instrument(trace_span!(
+                "core.instantiate_plugins",
+                name = plugin_name,
+                kind = plugin_config.kind().as_ref(),
+            ))
             .await
             .map_err(TedgeApplicationError::PluginInstantiationFailed)
             .map(|plugin| {

@@ -12,8 +12,9 @@ tokio = { version = "1", features = ["fs", "macros", "rt-multi-thread", "signal"
 miette = { version = "4.4", features = ["fancy"] }
 cfg-if = "1"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
-console-subscriber = { version = "0.1", optional = true }
+tracing-subscriber = { version = "0.3.11", features = ["env-filter"] }
+tracing-chrome = "0.6"
+tracing-tracy = "0.9"
 cfg_table = "1.0.0"
 
 tedge_api = { path = "../crates/core/tedge_api" }
@@ -35,7 +36,6 @@ plugin_notification = { path = "../plugins/plugin_notification", optional = true
 
 [features]
 default = [
-    "core_logging",
     "builtin_plugin_avg",
     "builtin_plugin_log",
     "builtin_plugin_sysstat",
@@ -45,8 +45,6 @@ default = [
     "builtin_plugin_notification",
 ]
 
-core_debugging = ["console-subscriber"]
-core_logging = ["tracing-subscriber"]
 builtin_plugin_avg = ["plugin_avg"]
 builtin_plugin_log = ["plugin_log"]
 builtin_plugin_sysstat = ["plugin_sysstat"]
