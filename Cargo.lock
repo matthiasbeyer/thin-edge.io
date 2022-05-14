@@ -2372,6 +2372,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "plugin_thin_edge_json"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "miette",
+ "plugin_mqtt",
+ "serde",
+ "sysinfo",
+ "tedge_api",
+ "tedge_lib",
+ "thin_edge_json",
+ "thiserror",
+ "tokio",
+ "tokio-util 0.7.0",
+ "toml",
+ "tracing",
+]
+
+[[package]]
 name = "pollster"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"

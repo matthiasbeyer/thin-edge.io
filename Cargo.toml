@@ -14,6 +14,7 @@ members = [
     "plugins/plugin_mqtt_measurement_bridge",
     "plugins/plugin_notification",
     "plugins/plugin_sysstat",
+    "plugins/plugin_thin_edge_json",
     "plugins/tedge_apt_plugin",
     "plugins/tedge_dummy_plugin",
     "plugins/tedge_apama_plugin",
