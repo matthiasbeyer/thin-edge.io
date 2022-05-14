@@ -36,6 +36,8 @@ plugin_httpstop = { path = "../plugins/plugin_httpstop", optional = true }
 plugin_measurement_filter = { path = "../plugins/plugin_measurement_filter", optional = true }
 plugin_mqtt = { path = "../plugins/plugin_mqtt", optional = true }
 plugin_mqtt_measurement_bridge = { path = "../plugins/plugin_mqtt_measurement_bridge", optional = true }
+plugin_thin_edge_json = { path = "../plugins/plugin_thin_edge_json", optional = true }
+plugin_thin_edge_json_to_measurement_mapper = { path = "../plugins/plugin_thin_edge_json_to_measurement_mapper", optional = true }
 plugin_notification = { path = "../plugins/plugin_notification", optional = true }
 
 
@@ -58,5 +60,6 @@ builtin_plugin_httpstop = ["plugin_httpstop"]
 builtin_plugin_measurement_filter = ["plugin_measurement_filter"]
 builtin_plugin_notification  = ["plugin_notification"]
 
+thin_edge_json = ["plugin_thin_edge_json", "plugin_thin_edge_json_to_measurement_mapper"]
 mqtt = ["plugin_mqtt", "plugin_mqtt_measurement_bridge"]
 

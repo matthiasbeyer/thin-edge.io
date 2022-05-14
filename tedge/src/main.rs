@@ -158,6 +158,18 @@ async fn main() -> miette::Result<()> {
     );
     let registry = register_plugin!(
         registry,
+        "thin_edge_json",
+        plugin_thin_edge_json::ThinEdgeJsonPluginBuilder,
+        plugin_thin_edge_json::ThinEdgeJsonPluginBuilder
+    );
+    let registry = register_plugin!(
+        registry,
+        "thin_edge_json",
+        plugin_thin_edge_json_to_measurement_mapper::ThinEdgeJsonToMeasurementMapperPluginBuilder,
+        plugin_thin_edge_json_to_measurement_mapper::ThinEdgeJsonToMeasurementMapperPluginBuilder
+    );
+    let registry = register_plugin!(
+        registry,
         "builtin_plugin_notification",
         plugin_notification::NotificationPluginBuilder,
         plugin_notification::NotificationPluginBuilder
