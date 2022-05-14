@@ -15,6 +15,7 @@ members = [
     "plugins/plugin_notification",
     "plugins/plugin_sysstat",
     "plugins/plugin_thin_edge_json",
+    "plugins/plugin_thin_edge_json_to_measurement_mapper",
     "plugins/tedge_apt_plugin",
     "plugins/tedge_dummy_plugin",
     "plugins/tedge_apama_plugin",

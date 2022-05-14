@@ -2376,17 +2376,28 @@ name = "plugin_thin_edge_json"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "futures",
  "miette",
  "plugin_mqtt",
  "serde",
- "sysinfo",
+ "tedge_api",
+ "thin_edge_json",
+ "thiserror",
+ "toml",
+]
+
+[[package]]
+name = "plugin_thin_edge_json_to_measurement_mapper"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "miette",
+ "plugin_thin_edge_json",
+ "serde",
  "tedge_api",
  "tedge_lib",
  "thin_edge_json",
  "thiserror",
- "tokio",
- "tokio-util 0.7.0",
  "toml",
  "tracing",
 ]
