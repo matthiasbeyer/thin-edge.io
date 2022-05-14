@@ -162,6 +162,12 @@ async fn main() -> miette::Result<()> {
         plugin_notification::NotificationPluginBuilder,
         plugin_notification::NotificationPluginBuilder
     );
+    let registry = register_plugin!(
+        registry,
+        "collectd",
+        plugin_collectd::CollectdPluginBuilder,
+        plugin_collectd::CollectdPluginBuilder
+    );
 
     match args.command {
         cli::CliCommand::Run { config } => {
