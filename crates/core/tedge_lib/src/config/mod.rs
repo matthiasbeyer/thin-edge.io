@@ -1,3 +1,7 @@
+mod address;
+pub use crate::config::address::Address;
+pub use crate::config::address::AddressGroup;
+
 mod humantime;
 pub use crate::config::humantime::Humantime;
 
