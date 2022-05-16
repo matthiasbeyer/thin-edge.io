@@ -3489,12 +3489,15 @@ dependencies = [
  "humantime-serde",
  "indoc",
  "log",
+ "miette",
  "serde",
  "tedge_api",
+ "tedge_core",
  "thiserror",
  "tokio",
  "toml",
  "tracing",
+ "tracing-subscriber 0.3.11",
 ]
 
 [[package]]
