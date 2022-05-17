@@ -3359,6 +3359,7 @@ dependencies = [
  "plugin_mqtt",
  "plugin_mqtt_measurement_bridge",
  "plugin_notification",
+ "plugin_sm_apt",
  "plugin_sysstat",
  "pretty",
  "tedge_api",
