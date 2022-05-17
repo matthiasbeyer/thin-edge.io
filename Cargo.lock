@@ -3341,6 +3341,7 @@ dependencies = [
  "miette",
  "nu-ansi-term",
  "plugin_avg",
+ "plugin_c8y",
  "plugin_httpstop",
  "plugin_inotify",
  "plugin_log",
