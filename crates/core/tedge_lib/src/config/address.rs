@@ -28,17 +28,30 @@ where
     pub fn build<PD>(
         pd: &PD,
         addrs: &OneOrMany<crate::config::Address>,
-    ) -> Result<Self, tedge_api::error::DirectoryError>
+    ) -> Result<Self, Vec<tedge_api::error::DirectoryError>>
     where
         PD: tedge_api::PluginDirectory,
     {
         match addrs {
-            OneOrMany::One(addr) => Ok(AddressGroup(vec![addr.build(pd)?])),
-            OneOrMany::Many(addrs) => addrs
-                .iter()
-                .map(|addr| addr.build(pd))
-                .collect::<Result<Vec<_>, _>>()
-                .map(AddressGroup),
+            OneOrMany::One(addr) => addr
+                .build(pd)
+                .map(|a| vec![a])
+                .map(AddressGroup)
+                .map_err(|e| vec![e]),
+            OneOrMany::Many(addrs) => {
+                use itertools::Itertools;
+
+                let (oks, errs): (
+                    Vec<tedge_api::Address<RB>>,
+                    Vec<tedge_api::error::DirectoryError>,
+                ) = addrs.iter().map(|addr| addr.build(pd)).partition_result();
+
+                if !errs.is_empty() {
+                    Err(errs)
+                } else {
+                    Ok(AddressGroup(oks))
+                }
+            }
         }
     }
 
