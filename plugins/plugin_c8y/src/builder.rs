@@ -7,9 +7,15 @@ use tedge_api::PluginError;
 use tedge_api::plugin::BuiltPlugin;
 use tedge_api::plugin::HandleTypes;
 use tedge_api::plugin::PluginExt;
+use tedge_lib::sm::request::Install;
+use tedge_lib::sm::request::List;
+use tedge_lib::sm::request::Uninstall;
+use tedge_lib::sm::request::Update;
 
 use crate::config::C8yConfig;
 use crate::plugin::C8yPlugin;
+
+tedge_api::make_receiver_bundle!(pub struct SmReceiver(List, Install, Update, Uninstall));
 
 pub struct C8yPluginBuilder;
 
@@ -49,13 +55,14 @@ where
         &self,
         config: PluginConfiguration,
         _cancellation_token: CancellationToken,
-        _plugin_dir: &PD,
+        plugin_dir: &PD,
     ) -> Result<BuiltPlugin, PluginError> {
         let config = config
             .try_into::<C8yConfig>()
             .map_err(crate::error::Error::ConfigParseFailed)?;
 
-        Ok(C8yPlugin::new(config).finish())
+        let sm_addr = plugin_dir.get_address_for::<SmReceiver>(&config.sm_plugin_name)?;
+        Ok(C8yPlugin::new(config, sm_addr).finish())
     }
 }
 
