@@ -180,6 +180,12 @@ async fn main() -> miette::Result<()> {
         plugin_collectd::CollectdPluginBuilder,
         plugin_collectd::CollectdPluginBuilder
     );
+    let registry = register_plugin!(
+        registry,
+        "sm",
+        plugin_sm_apt::SmAptPluginBuilder,
+        plugin_sm_apt::SmAptPluginBuilder
+    );
 
     match args.command {
         cli::CliCommand::Run { config } => {

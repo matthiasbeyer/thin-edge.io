@@ -16,5 +16,6 @@ toml = "0.5.8"
 tracing = "0.1"
 humantime-serde = "1"
 indoc = "1.0.6"
+getset = "0.1"
 
 tedge_api = { path = "../tedge_api" }
