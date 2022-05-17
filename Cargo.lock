@@ -1154,6 +1154,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "getset"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e45727250e75cc04ff2846a66397da8ef2b3db8e40e0cef4df67950a07621eb9"
+dependencies = [
+ "proc-macro-error",
+ "proc-macro2 1.0.38",
+ "quote 1.0.18",
+ "syn 1.0.93",
+]
+
+[[package]]
 name = "gimli"
 version = "0.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3486,6 +3498,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
+ "getset",
  "humantime-serde",
  "indoc",
  "log",
