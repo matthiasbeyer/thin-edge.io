@@ -41,6 +41,7 @@ plugin_thin_edge_json_to_measurement_mapper = { path = "../plugins/plugin_thin_e
 plugin_notification = { path = "../plugins/plugin_notification", optional = true }
 plugin_collectd = { path = "../plugins/plugin_collectd", optional = true }
 plugin_sm_apt = { path = "../plugins/plugin_sm_apt", optional = true }
+plugin_c8y = { path = "../plugins/plugin_c8y", optional = true }
 
 
 [features]
@@ -66,4 +67,5 @@ thin_edge_json = ["plugin_thin_edge_json", "plugin_thin_edge_json_to_measurement
 mqtt = ["plugin_mqtt", "plugin_mqtt_measurement_bridge"]
 collectd = ["plugin_collectd"]
 sm = ["plugin_sm_apt"]
+c8y = ["plugin_c8y"]
 

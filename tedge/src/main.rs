@@ -186,6 +186,12 @@ async fn main() -> miette::Result<()> {
         plugin_sm_apt::SmAptPluginBuilder,
         plugin_sm_apt::SmAptPluginBuilder
     );
+    let registry = register_plugin!(
+        registry,
+        "c8y",
+        plugin_c8y::C8yPluginBuilder,
+        plugin_c8y::C8yPluginBuilder
+    );
 
     match args.command {
         cli::CliCommand::Run { config } => {

@@ -2216,6 +2216,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "plugin_c8y"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "miette",
+ "plugin_mqtt",
+ "serde",
+ "tedge_api",
+ "tedge_lib",
+ "thiserror",
+ "toml",
+ "tracing",
+]
+
+[[package]]
 name = "plugin_collectd"
 version = "0.1.0"
 dependencies = [
@@ -3401,6 +3416,7 @@ dependencies = [
  "miette",
  "nu-ansi-term",
  "plugin_avg",
+ "plugin_c8y",
  "plugin_collectd",
  "plugin_httpstop",
  "plugin_inotify",
