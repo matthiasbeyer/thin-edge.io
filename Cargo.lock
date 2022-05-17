@@ -2204,6 +2204,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "plugin_collectd"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "miette",
+ "plugin_mqtt",
+ "serde",
+ "tedge_api",
+ "tedge_lib",
+ "thiserror",
+ "tokio",
+ "tokio-util 0.7.0",
+ "toml",
+ "tracing",
+]
+
+[[package]]
 name = "plugin_httpstop"
 version = "0.1.0"
 dependencies = [
@@ -3326,6 +3344,7 @@ dependencies = [
  "miette",
  "nu-ansi-term",
  "plugin_avg",
+ "plugin_collectd",
  "plugin_httpstop",
  "plugin_inotify",
  "plugin_log",

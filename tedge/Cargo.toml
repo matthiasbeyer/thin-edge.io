@@ -37,6 +37,7 @@ plugin_measurement_filter = { path = "../plugins/plugin_measurement_filter", opt
 plugin_mqtt = { path = "../plugins/plugin_mqtt", optional = true }
 plugin_mqtt_measurement_bridge = { path = "../plugins/plugin_mqtt_measurement_bridge", optional = true }
 plugin_notification = { path = "../plugins/plugin_notification", optional = true }
+plugin_collectd = { path = "../plugins/plugin_collectd", optional = true }
 
 
 [features]
@@ -59,4 +60,5 @@ builtin_plugin_measurement_filter = ["plugin_measurement_filter"]
 builtin_plugin_notification  = ["plugin_notification"]
 
 mqtt = ["plugin_mqtt", "plugin_mqtt_measurement_bridge"]
+collectd = ["plugin_collectd"]
 
