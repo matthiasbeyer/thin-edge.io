@@ -33,5 +33,12 @@ target = "cumo"
 [plugins.cumo]
 kind = "c8y"
 [plugins.cumo.configuration]
-# nothing to configure
+sm_plugin_name = "smhandle"
+
+
+[plugins.smhandle]
+kind = "sm_apt"
+[plugins.smhandle.configuration]
+# optional:
+#apt_binary = "/usr/sbin/apt"
 
