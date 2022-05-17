@@ -1,0 +1,37 @@
+communication_buffer_size = 10
+
+plugin_shutdown_timeout_ms = 10000
+
+[plugins]
+
+[plugins.mqttconn]
+kind = "mqtt"
+[plugins.mqttconn.configuration]
+host = "tcp://localhost:1883"
+target = "tejson"
+subscriptions = []
+
+
+[plugins.tejson]
+kind = "thin_edge_json"
+[plugins.tejson.configuration]
+target = "te_to_msmt"
+
+
+[plugins.te_to_msmt]
+kind = "thin_edge_json_to_measurement_mapper"
+[plugins.te_to_msmt.configuration]
+target = "cumo"
+
+
+[plugins.collector]
+kind = "collectd"
+[plugins.collector.configuration]
+target = "cumo"
+
+
+[plugins.cumo]
+kind = "c8y"
+[plugins.cumo.configuration]
+# nothing to configure
+
