@@ -1,0 +1,61 @@
+use async_trait::async_trait;
+
+use tedge_api::plugin::BuiltPlugin;
+use tedge_api::plugin::HandleTypes;
+use tedge_api::plugin::PluginExt;
+use tedge_api::CancellationToken;
+use tedge_api::PluginBuilder;
+use tedge_api::PluginConfiguration;
+use tedge_api::PluginDirectory;
+use tedge_api::PluginError;
+
+use crate::config::ThinEdgeJsonToMeasurementMapperConfig;
+use crate::plugin::ThinEdgeJsonToMeasurementMapperPlugin;
+
+pub struct ThinEdgeJsonToMeasurementMapperPluginBuilder;
+
+#[async_trait]
+impl<PD: PluginDirectory> PluginBuilder<PD> for ThinEdgeJsonToMeasurementMapperPluginBuilder {
+    fn kind_name() -> &'static str {
+        "thin_edge_json_to_measurement_mapper"
+    }
+
+    fn kind_configuration() -> Option<tedge_api::ConfigDescription> {
+        Some(<ThinEdgeJsonToMeasurementMapperConfig as tedge_api::AsConfig>::as_config())
+    }
+
+    fn kind_message_types() -> HandleTypes
+    where
+        Self: Sized,
+    {
+        ThinEdgeJsonToMeasurementMapperPlugin::get_handled_types()
+    }
+
+    async fn verify_configuration(
+        &self,
+        config: &PluginConfiguration,
+    ) -> Result<(), tedge_api::error::PluginError> {
+        config
+            .clone()
+            .try_into()
+            .map(|_: ThinEdgeJsonToMeasurementMapperConfig| ())
+            .map_err(crate::error::Error::ConfigParseFailed)
+            .map_err(PluginError::from)
+    }
+
+    async fn instantiate(
+        &self,
+        config: PluginConfiguration,
+        _cancellation_token: CancellationToken,
+        plugin_dir: &PD,
+    ) -> Result<BuiltPlugin, PluginError> {
+        let config: ThinEdgeJsonToMeasurementMapperConfig = config
+            .try_into()
+            .map_err(crate::error::Error::ConfigParseFailed)?;
+
+        let target_addr =
+            plugin_dir.get_address_for::<crate::plugin::MeasurementReceiver>(config.target())?;
+
+        Ok(ThinEdgeJsonToMeasurementMapperPlugin::new(target_addr).finish())
+    }
+}

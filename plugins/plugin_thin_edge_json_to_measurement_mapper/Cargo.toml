@@ -1,0 +1,21 @@
+[package]
+name = "plugin_thin_edge_json_to_measurement_mapper"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait = "0.1"
+futures = "0.3"
+miette = "4.4"
+serde = { version = "1.0.136", features = ["derive"] }
+thiserror = "1"
+toml = "0.5"
+tracing = "0.1"
+
+tedge_api = { path = "../../crates/core/tedge_api" }
+tedge_lib = { path = "../../crates/core/tedge_lib" }
+
+thin_edge_json = { path = "../../crates/core/thin_edge_json" }
+plugin_thin_edge_json = { path = "../../plugins/plugin_thin_edge_json" }

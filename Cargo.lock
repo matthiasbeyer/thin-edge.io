@@ -2390,6 +2390,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "plugin_thin_edge_json"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "miette",
+ "plugin_mqtt",
+ "serde",
+ "tedge_api",
+ "thin_edge_json",
+ "thiserror",
+ "toml",
+]
+
+[[package]]
+name = "plugin_thin_edge_json_to_measurement_mapper"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "miette",
+ "plugin_thin_edge_json",
+ "serde",
+ "tedge_api",
+ "tedge_lib",
+ "thin_edge_json",
+ "thiserror",
+ "toml",
+ "tracing",
+]
+
+[[package]]
 name = "pollster"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3353,6 +3384,8 @@ dependencies = [
  "plugin_mqtt_measurement_bridge",
  "plugin_notification",
  "plugin_sysstat",
+ "plugin_thin_edge_json",
+ "plugin_thin_edge_json_to_measurement_mapper",
  "pretty",
  "tedge_api",
  "tedge_core",
