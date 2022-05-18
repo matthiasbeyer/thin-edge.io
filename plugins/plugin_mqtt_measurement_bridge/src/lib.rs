@@ -75,7 +75,7 @@ where
             .try_into::<MqttMeasurementBridgeConfig>()
             .map_err(Error::ConfigParseFailed)?;
 
-        let addr = plugin_dir.get_address_for(&config.mqtt_plugin_name)?;
+        let addr = config.mqtt_plugin_name.build(plugin_dir)?;
         Ok(MqttMeasurementBridgePlugin::new(addr, config.topic.clone()).finish())
     }
 }
@@ -83,7 +83,7 @@ where
 #[derive(serde::Deserialize, Debug, tedge_api::Config)]
 struct MqttMeasurementBridgeConfig {
     /// The name of the mqtt plugin to send the measurements to
-    mqtt_plugin_name: String,
+    mqtt_plugin_name: tedge_lib::config::Address,
 
     /// The topic to send the measurements onto
     topic: String,
