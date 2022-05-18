@@ -4,6 +4,7 @@ use crate::config::OneOrMany;
 
 /// An address of a plugin
 #[derive(Debug, Eq, PartialEq, Hash, serde::Deserialize, tedge_api::Config)]
+#[serde(transparent)]
 pub struct Address(String);
 
 impl Address {
