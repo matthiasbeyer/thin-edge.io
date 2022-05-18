@@ -59,11 +59,11 @@ where
             .try_into::<MeasurementFilterConfig>()
             .map_err(crate::error::Error::from)?;
 
-        let main_addr = plugin_dir.get_address_for(&config.target)?;
+        let main_addr = config.target.build(plugin_dir)?;
         let filtered_addr = config
             .filtered_target
             .as_ref()
-            .map(|filtered| plugin_dir.get_address_for(filtered))
+            .map(|filtered| filtered.build(plugin_dir))
             .transpose()?;
 
         Ok({
