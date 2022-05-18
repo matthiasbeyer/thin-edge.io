@@ -4,7 +4,7 @@ use std::path::PathBuf;
 #[derive(serde::Deserialize, Debug, tedge_api::Config)]
 pub struct InotifyConfig {
     /// Target to send notifications to
-    pub(crate) target: String,
+    pub(crate) target: tedge_lib::config::Address,
 
     /// Whether to error in the plugin, when inotify returns an error
     ///

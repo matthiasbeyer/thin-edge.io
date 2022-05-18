@@ -77,7 +77,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for InotifyPluginBuilder {
             .map_err(Error::from)
             .map_err(PluginError::from)?;
 
-        let addr = plugin_dir.get_address_for(&config.target)?;
+        let addr = config.target.build(plugin_dir)?;
         Ok(InotifyPlugin::new(addr, config).finish())
     }
 }
