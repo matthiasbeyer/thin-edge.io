@@ -192,6 +192,22 @@ async fn main() -> miette::Result<()> {
         plugin_c8y::C8yPluginBuilder,
         plugin_c8y::C8yPluginBuilder
     );
+    let registry = {
+        #[cfg(all(feature = "mqtt", feature = "sm"))]
+        {
+            register_plugin!(
+                registry,
+                "sm", // trick: In this block, "sm" is already checked to be on
+                plugin_mqtt_sm::MqttSMPluginBuilder,
+                plugin_mqtt_sm::MqttSMPluginBuilder
+            )
+        }
+        // else:
+        #[cfg(not(all(feature = "mqtt", feature = "sm")))]
+        {
+            registry
+        }
+    };
 
     match args.command {
         cli::CliCommand::Run { config } => {

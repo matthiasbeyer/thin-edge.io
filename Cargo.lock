@@ -3440,6 +3440,7 @@ dependencies = [
  "plugin_measurement_filter",
  "plugin_mqtt",
  "plugin_mqtt_measurement_bridge",
+ "plugin_mqtt_sm",
  "plugin_notification",
  "plugin_sm_apt",
  "plugin_sysstat",
