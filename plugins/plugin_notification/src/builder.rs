@@ -57,8 +57,8 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for NotificationPluginBuilder {
             .try_into::<Config>()
             .map_err(|_| miette::miette!("Failed to parse measurement threshold configuration"))?;
 
-        let forward_addr = plugin_dir.get_address_for(&config.forward_to)?;
-        let notify_addr = plugin_dir.get_address_for(&config.notify)?;
+        let forward_addr = config.forward_to.build(plugin_dir)?;
+        let notify_addr = config.notify.build(plugin_dir)?;
         Ok(NotificationPlugin::new(
             forward_addr,
             notify_addr,
