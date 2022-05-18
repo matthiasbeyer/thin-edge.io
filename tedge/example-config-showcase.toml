@@ -42,3 +42,22 @@ kind = "sm_apt"
 # optional:
 #apt_binary = "/usr/sbin/apt"
 
+
+
+[plugins.mqttsm]
+kind = "mqtt"
+[plugins.mqttsm.configuration]
+host = "tcp://localhost:1883"
+target = "mqtt_sm_translator"
+[[plugins.mqttsm.configuration.subscriptions]]
+topic = "/smrequests"
+qos = "at_most_once"
+
+
+[plugins.mqtt_sm_translator]
+kind = "mqtt_sm"
+[plugins.mqtt_sm_translator.configuration]
+target = "smhandle"
+mqtt_plugin_addr = "mqttsm"
+result_topic = "somerandomtopic"
+

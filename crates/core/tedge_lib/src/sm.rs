@@ -14,6 +14,14 @@ pub mod request {
         package_name: String,
     }
 
+    impl Install {
+        pub fn new(package_name: String) -> Self {
+            Self {
+                package_name
+            }
+        }
+    }
+
     impl tedge_api::Message for Install {}
 
     /// Update a software by name
@@ -22,6 +30,14 @@ pub mod request {
         /// The name of the package in this operation
         #[getset(get = "pub")]
         package_name: String,
+    }
+
+    impl Update {
+        pub fn new(package_name: String) -> Self {
+            Self {
+                package_name
+            }
+        }
     }
 
     impl tedge_api::Message for Update {}
@@ -34,182 +50,103 @@ pub mod request {
         package_name: String,
     }
 
+    impl Uninstall {
+        pub fn new(package_name: String) -> Self {
+            Self {
+                package_name
+            }
+        }
+    }
+
     impl tedge_api::Message for Uninstall {}
 }
 
 /// Types for representing a "response" that was yielded by an operation for a "request"
 pub mod response {
     /// A list of installed things
-    #[derive(Debug, getset::Getters)]
-    pub struct List {
-        #[getset(get = "pub")]
-        list: Vec<String>,
-    }
-
-    impl tedge_api::Message for List {}
-
-    /// Listing installed things failed
     #[derive(Debug)]
-    pub struct ListFailed;
+    pub enum ListResponse {
+        List {
+            list: Vec<String>,
+        },
 
-    impl tedge_api::Message for ListFailed {}
-
-    /// A state representing an ongoing install process
-    #[derive(Debug, getset::Getters, getset::CopyGetters)]
-    pub struct InstallingState {
-        /// The name of the package in this operation
-        #[getset(get = "pub")]
-        package_name: String,
-
-        ///
-        /// A number between 0 and 100 describing the progress of the operation
-        #[getset(get_copy = "pub")]
-        progress: usize,
+        ListFailed {
+            message: String
+        }
     }
 
-    impl tedge_api::Message for InstallingState {}
+    impl tedge_api::Message for ListResponse {}
 
-    /// A log line from an install process
-    #[derive(Debug, getset::Getters)]
-    pub struct InstallingLogLine {
-        /// The name of the package in this operation
-        #[getset(get = "pub")]
-        package_name: String,
+    #[derive(Debug)]
+    pub enum InstallResponse {
+        InstallProgress {
+            package_name: String,
+            progress: usize,
+        },
 
-        /// A single line of output from the procedure
-        #[getset(get = "pub")]
-        log_line: String,
+        InstallLogLine {
+            package_name: String,
+            log_line: String,
+        },
+
+        InstallSucceeded {
+            package_name: String,
+        },
+
+        InstallFailed {
+            package_name: String,
+            failure_message: String,
+        },
     }
 
-    impl tedge_api::Message for InstallingLogLine {}
+    impl tedge_api::Message for InstallResponse {}
 
-    /// Installing a package succeeded
-    #[derive(Debug, getset::Getters)]
-    pub struct InstallSucceeded {
-        /// The name of the package in this operation
-        #[getset(get = "pub")]
-        package_name: String,
+    #[derive(Debug)]
+    pub enum UpdateResponse {
+        UpdateProgress {
+            package_name: String,
+            progress: usize,
+        },
+
+        UpdateLogLine {
+            package_name: String,
+            log_line: String,
+        },
+
+        UpdateSucceeded {
+            package_name: String,
+        },
+
+        UpdateFailed {
+            package_name: String,
+            failure_message: String,
+        },
     }
 
-    impl tedge_api::Message for InstallSucceeded {}
+    impl tedge_api::Message for UpdateResponse {}
 
-    /// Installing a package failed
-    #[derive(Debug, getset::Getters)]
-    pub struct InstallFailed {
-        /// The name of the package in this operation
-        #[getset(get = "pub")]
-        package_name: String,
 
-        /// A human-readable message describing the failure
-        #[getset(get = "pub")]
-        failure_message: String,
+    #[derive(Debug)]
+    pub enum UninstallResponse {
+        UninstallProgress {
+            package_name: String,
+            progress: usize,
+        },
+
+        UninstallLogLine {
+            package_name: String,
+            log_line: String,
+        },
+
+        UninstallSucceeded {
+            package_name: String,
+        },
+
+        UninstallFailed {
+            package_name: String,
+            failure_message: String,
+        },
     }
 
-    impl tedge_api::Message for InstallFailed {}
-
-    ///
-    /// Progress report from an ongoing update process
-    #[derive(Debug, getset::Getters, getset::CopyGetters)]
-    pub struct UpdatingState {
-        /// The name of the package in this operation
-        #[getset(get = "pub")]
-        package_name: String,
-
-        /// A number between 0 and 100 describing the progress of the operation
-        #[getset(get_copy = "pub")]
-        progress: usize,
-    }
-
-    impl tedge_api::Message for UpdatingState {}
-
-    /// A log line from an ongoing update process
-    #[derive(Debug, getset::Getters)]
-    pub struct UpdatingLogLine {
-        /// The name of the package in this operation
-        #[getset(get = "pub")]
-        package_name: String,
-
-        /// A single line of output from the procedure
-        #[getset(get = "pub")]
-        log_line: String,
-    }
-
-    impl tedge_api::Message for UpdatingLogLine {}
-
-    /// A update process succeeded
-    #[derive(Debug, getset::Getters)]
-    pub struct UpdateSucceeded {
-        /// The name of the package in this operation
-        #[getset(get = "pub")]
-        package_name: String,
-    }
-
-    impl tedge_api::Message for UpdateSucceeded {}
-
-    /// A update process failed
-    #[derive(Debug, getset::Getters)]
-    pub struct UpdateFailed {
-        /// The name of the package in this operation
-        #[getset(get = "pub")]
-        package_name: String,
-
-        /// A human-readable message describing the failure
-        #[getset(get = "pub")]
-        failure_message: String,
-    }
-
-    impl tedge_api::Message for UpdateFailed {}
-
-    ///
-    /// Progress report from an ongoing uninstall process
-    #[derive(Debug, getset::Getters, getset::CopyGetters)]
-    pub struct UninstallState {
-        /// The name of the package in this operation
-        #[getset(get = "pub")]
-        package_name: String,
-
-        /// A number between 0 and 100 describing the progress of the operation
-        #[getset(get_copy = "pub")]
-        progress: usize,
-    }
-
-    impl tedge_api::Message for UninstallState {}
-
-    /// A log line from an ongoing uninstall process
-    #[derive(Debug, getset::Getters)]
-    pub struct UninstallLogLine {
-        /// The name of the package in this operation
-        #[getset(get = "pub")]
-        package_name: String,
-
-        /// A single line of output from the procedure
-        #[getset(get = "pub")]
-        log_line: String,
-    }
-
-    impl tedge_api::Message for UninstallLogLine {}
-
-    /// Uninstall process succeeded
-    #[derive(Debug, getset::Getters)]
-    pub struct UninstallSucceeded {
-        /// The name of the package in this operation
-        #[getset(get = "pub")]
-        package_name: String,
-    }
-
-    impl tedge_api::Message for UninstallSucceeded {}
-
-    /// Uninstall process failed
-    #[derive(Debug, getset::Getters)]
-    pub struct UninstallFailed {
-        /// The name of the package in this operation
-        #[getset(get = "pub")]
-        package_name: String,
-
-        /// A human-readable message describing the failure
-        #[getset(get = "pub")]
-        failure_message: String,
-    }
-
-    impl tedge_api::Message for UninstallFailed {}
+    impl tedge_api::Message for UninstallResponse {}
 }

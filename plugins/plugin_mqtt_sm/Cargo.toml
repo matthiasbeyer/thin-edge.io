@@ -1,0 +1,21 @@
+[package]
+name = "plugin_mqtt_sm"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait = "0.1"
+miette = "4.4"
+serde = { version = "1.0.136", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+toml = "0.5"
+tracing = "0.1"
+
+tedge_api = { path = "../../crates/core/tedge_api" }
+tedge_lib = { path = "../../crates/core/tedge_lib" }
+
+plugin_mqtt = { path = "../../plugins/plugin_mqtt" }
+
