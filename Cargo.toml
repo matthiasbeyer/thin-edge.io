@@ -14,6 +14,7 @@ members = [
     "plugins/plugin_measurement_filter",
     "plugins/plugin_mqtt",
     "plugins/plugin_mqtt_measurement_bridge",
+    "plugins/plugin_mqtt_sm",
     "plugins/plugin_notification",
     "plugins/plugin_sm_apt",
     "plugins/plugin_sysstat",
