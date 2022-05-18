@@ -167,8 +167,8 @@ pub trait PluginBuilder<PD: PluginDirectory>: Sync + Send + 'static {
     /// Get a generic configuration description of what kind of input the
     /// plugin expects.
     ///
-    /// See [`Config`] as well as [`AsConfig`] for how to implement and use these types and
-    /// interfaces.
+    /// See [`ConfigDescription`] as well as [`AsConfig`](crate::config::AsConfig) for how to
+    /// implement and use these types and interfaces.
     fn kind_configuration() -> Option<ConfigDescription>
     where
         Self: Sized,
