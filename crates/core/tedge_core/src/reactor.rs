@@ -41,7 +41,7 @@ impl std::fmt::Debug for Reactor {
 struct PluginTaskPrep {
     name: String,
     plugin: BuiltPlugin,
-    plugin_msg_receiver: tedge_api::address::MessageReceiver,
+    plugin_msg_comms: tedge_api::address::MessageSender,
     cancellation_token: CancellationToken,
 }
 
@@ -59,7 +59,6 @@ impl Reactor {
         //
         // This is then collected into a CorePluginDirectory, our "addressbook type" that can be
         // used to retrieve addresses for message passing.
-        let (core_sender, core_receiver) = tokio::sync::mpsc::channel(channel_size);
         let mut directory = tracing::debug_span!("core.build_plugin_directory").in_scope(|| {
             let directory_iter = self.0.config().plugins().iter().map(|(pname, pconfig)| {
                 // fetch the types the plugin claims to handle from the plugin builder identified
@@ -87,7 +86,7 @@ impl Reactor {
                 ))
             });
 
-            CorePluginDirectory::collect_from(directory_iter, core_sender)
+            CorePluginDirectory::collect_from(directory_iter)
         })?;
 
         // Start preparing the plugin instantiation...
@@ -100,11 +99,11 @@ impl Reactor {
                     .map(|(pname, pconfig)| {
                         let receiver = match directory
                             .get_mut(pname)
-                            .and_then(|pinfo| pinfo.receiver.take())
+                            .map(|pinfo| pinfo.communicator.clone())
                         {
                             Some(receiver) => receiver,
                             None => unreachable!(
-                            "Tried to take receiver twice. This is a FATAL bug, please report it"
+                            "Could not find existing plugin. This is a FATAL bug, please report it"
                         ),
                         };
 
@@ -118,14 +117,14 @@ impl Reactor {
         // ... and then instantiate the plugins requested by the user
         let instantiated_plugins = plugin_instantiation_prep
             .into_iter()
-            .map(|(pname, pconfig, receiver)| {
+            .map(|(pname, pconfig, communicator)| {
                 {
                     self.instantiate_plugin(
                         pname,
                         self.0.config_path(),
                         pconfig,
                         directory.clone(),
-                        receiver,
+                        communicator,
                         self.0.cancellation_token().child_token(),
                     )
                 }
@@ -145,7 +144,7 @@ impl Reactor {
             // we clone the cancellation_token here, because the core must be able to use the
             // "root" token to stop all plugins
             let core_cancel_token = self.0.cancellation_token().clone();
-            crate::core_task::CoreTask::new(core_cancel_token, core_receiver)
+            crate::core_task::CoreTask::new(core_cancel_token, directory.get_core_communicator())
                 .run()
                 .instrument(tracing::info_span!("core.mainloop.coretask"))
         };
@@ -158,7 +157,7 @@ impl Reactor {
                 PluginTask::new(
                     prep.name,
                     prep.plugin,
-                    prep.plugin_msg_receiver,
+                    prep.plugin_msg_comms,
                     prep.cancellation_token,
                     self.0.config().plugin_shutdown_timeout(),
                 )
@@ -221,7 +220,7 @@ impl Reactor {
         root_config_path: &Path,
         plugin_config: &PluginInstanceConfiguration,
         directory: Arc<CorePluginDirectory>,
-        plugin_msg_receiver: tedge_api::address::MessageReceiver,
+        plugin_msg_comms: tedge_api::address::MessageSender,
         cancellation_token: CancellationToken,
     ) -> Result<PluginTaskPrep> {
         let builder = self
@@ -272,7 +271,7 @@ impl Reactor {
                 PluginTaskPrep {
                     name: plugin_name.to_string(),
                     plugin,
-                    plugin_msg_receiver,
+                    plugin_msg_comms,
                     cancellation_token,
                 }
             })

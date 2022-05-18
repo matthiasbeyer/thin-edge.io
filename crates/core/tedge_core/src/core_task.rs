@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use tedge_api::{
-    address::{MessageReceiver, ReplySenderFor},
+    address::{MessageReceiver, MessageSender, ReplySenderFor},
     message::StopCore,
     plugin::{Handle, PluginExt},
     Plugin, PluginError,
@@ -17,7 +17,7 @@ use crate::errors::Result;
 /// [`tedge_api::Plugin`] implementations, so this must implement that trait as well.
 pub struct CoreTask {
     cancellation_token: CancellationToken,
-    receiver: MessageReceiver,
+    receiver: MessageSender,
     internal_sender: tokio::sync::mpsc::Sender<CoreInternalMessage>,
     internal_receiver: tokio::sync::mpsc::Receiver<CoreInternalMessage>,
 }
@@ -29,7 +29,7 @@ impl std::fmt::Debug for CoreTask {
 }
 
 impl CoreTask {
-    pub fn new(cancellation_token: CancellationToken, receiver: MessageReceiver) -> Self {
+    pub fn new(cancellation_token: CancellationToken, receiver: MessageSender) -> Self {
         let (internal_sender, internal_receiver) = tokio::sync::mpsc::channel(10);
         Self {
             cancellation_token,

@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use futures::FutureExt;
 use tedge_api::address::MessageReceiver;
+use tedge_api::address::MessageSender;
 use tedge_api::plugin::BuiltPlugin;
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
@@ -21,7 +22,7 @@ use crate::task::Task;
 pub struct PluginTask {
     plugin_name: String,
     plugin: BuiltPlugin,
-    plugin_msg_receiver: MessageReceiver,
+    plugin_msg_receiver: MessageSender,
     task_cancel_token: CancellationToken,
     shutdown_timeout: std::time::Duration,
 }
@@ -38,7 +39,7 @@ impl PluginTask {
     pub fn new(
         plugin_name: String,
         plugin: BuiltPlugin,
-        plugin_msg_receiver: MessageReceiver,
+        plugin_msg_receiver: MessageSender,
         task_cancel_token: CancellationToken,
         shutdown_timeout: std::time::Duration,
     ) -> Self {
