@@ -88,3 +88,21 @@ pub struct AddressGroupBuildError {
     #[related]
     errors: Vec<tedge_api::error::DirectoryError>,
 }
+
+#[cfg(test)]
+mod tests {
+    #[derive(serde::Deserialize)]
+    struct A {
+        addr: super::Address,
+    }
+
+    #[test]
+    fn test_deser() {
+        let s = r#"
+            addr = "foo"
+        "#;
+
+        let a: A = toml::from_str(s).unwrap();
+        assert_eq!(a.addr.0, "foo");
+    }
+}
