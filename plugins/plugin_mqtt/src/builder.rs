@@ -61,7 +61,7 @@ where
             .try_into::<MqttConfig>()
             .map_err(crate::error::Error::ConfigParseFailed)?;
 
-        let addr = plugin_dir.get_address_for(&config.target)?;
+        let addr = config.target.build(plugin_dir)?;
         Ok(MqttPlugin::new(config, addr).finish())
     }
 }

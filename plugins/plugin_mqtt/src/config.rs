@@ -9,7 +9,7 @@ pub struct MqttConfig {
     pub subscriptions: Vec<Subscription>,
 
     /// Name of the plugin to send messages to
-    pub target: String,
+    pub target: tedge_lib::config::Address,
 }
 
 #[derive(Debug, serde::Deserialize, tedge_api::Config)]
