@@ -17,6 +17,7 @@ tracing = "0.1"
 humantime-serde = "1"
 indoc = "1.0.6"
 itertools = "0.10"
+miette = "4.4"
 
 tedge_api = { path = "../tedge_api" }
 

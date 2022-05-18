@@ -28,7 +28,7 @@ where
     pub fn build<PD>(
         pd: &PD,
         addrs: &OneOrMany<crate::config::Address>,
-    ) -> Result<Self, Vec<tedge_api::error::DirectoryError>>
+    ) -> Result<Self, AddressGroupBuildError>
     where
         PD: tedge_api::PluginDirectory,
     {
@@ -37,7 +37,7 @@ where
                 .build(pd)
                 .map(|a| vec![a])
                 .map(AddressGroup)
-                .map_err(|e| vec![e]),
+                .map_err(|e| AddressGroupBuildError { errors: vec![e] }),
             OneOrMany::Many(addrs) => {
                 use itertools::Itertools;
 
@@ -47,7 +47,7 @@ where
                 ) = addrs.iter().map(|addr| addr.build(pd)).partition_result();
 
                 if !errs.is_empty() {
-                    Err(errs)
+                    Err(AddressGroupBuildError { errors: errs })
                 } else {
                     Ok(AddressGroup(oks))
                 }
@@ -80,4 +80,11 @@ where
     {
         self.0.iter().map(move |addr| addr.try_send(msg.clone()))
     }
+}
+
+#[derive(Debug, thiserror::Error, miette::Diagnostic)]
+#[error("Directory errors were encountered")]
+pub struct AddressGroupBuildError {
+    #[related]
+    errors: Vec<tedge_api::error::DirectoryError>,
 }
