@@ -26,6 +26,7 @@ impl Address {
     }
 }
 
+#[derive(Debug)]
 pub struct AddressGroup<RB: tedge_api::address::ReceiverBundle>(Vec<tedge_api::Address<RB>>);
 
 impl<RB> AddressGroup<RB>
