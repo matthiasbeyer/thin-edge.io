@@ -7,6 +7,12 @@ use crate::config::OneOrMany;
 #[serde(transparent)]
 pub struct Address(String);
 
+impl AsRef<str> for Address {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
 impl Address {
     pub fn build<RB, PD>(
         &self,
