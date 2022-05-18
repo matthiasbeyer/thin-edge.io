@@ -27,7 +27,7 @@ struct AvgConfig {
     timeframe: tedge_lib::config::Humantime,
 
     /// The name of the plugin to send the result to
-    target: String,
+    target: tedge_lib::config::Address,
 
     /// Whether to report a 0 (zero) if there are zero measurements in the timeframe
     report_on_zero_elements: bool,
@@ -72,7 +72,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for AvgPluginBuilder {
     ) -> Result<tedge_api::plugin::BuiltPlugin, PluginError> {
         let config = config.try_into::<AvgConfig>().map_err(Error::from)?;
 
-        let address = plugin_dir.get_address_for::<MeasurementReceiver>(&config.target)?;
+        let address = config.target.build(plugin_dir)?;
         Ok(AvgPlugin::new(address, config).finish())
     }
 
