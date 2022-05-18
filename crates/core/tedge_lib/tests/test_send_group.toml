@@ -1,0 +1,21 @@
+communication_buffer_size = 10
+
+plugin_shutdown_timeout_ms = 2000
+
+[plugins]
+
+[plugins.sender]
+kind = "send"
+[plugins.sender.configuration]
+targets = [ "receiver1", "receiver2" ]
+
+
+[plugins.receiver1]
+kind = "recv"
+[plugins.receiver1.configuration]
+
+
+[plugins.receiver2]
+kind = "recv"
+[plugins.receiver2.configuration]
+
