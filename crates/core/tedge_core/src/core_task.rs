@@ -1,14 +1,17 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use tedge_api::{
-    address::{MessageReceiver, MessageSender, ReplySenderFor},
+    address::{MessageSender, ReplySenderFor},
     message::StopCore,
     plugin::{Handle, PluginExt},
     Plugin, PluginError,
 };
+use tokio::sync::{RwLock, Semaphore};
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, trace, warn, Instrument};
+use tracing::{debug, trace, warn};
 
-use crate::errors::Result;
+use crate::{errors::Result, message_handler::make_message_handler};
 
 /// Helper type in the crate implementation for handling the actual message passing
 ///
@@ -43,8 +46,19 @@ impl CoreTask {
         let running_core = RunningCore {
             sender: self.internal_sender,
         };
-        let built_plugin = running_core.finish();
-        let mut receiver_closed = false;
+
+        // allocate a mpsc channel with one element size
+        // one element is enough because we stop the plugin anyways if there was a panic
+        let (panic_err_sender, _panic_err_recv) = tokio::sync::mpsc::channel(1);
+
+        self.receiver
+            .init_with(make_message_handler(
+                String::from("core_task"),
+                Arc::new(Semaphore::new(10)),
+                Arc::new(RwLock::new(running_core.finish())),
+                panic_err_sender,
+            ))
+            .await;
 
         loop {
             tokio::select! {
@@ -67,34 +81,16 @@ impl CoreTask {
                         }
                     }
                 },
-
-                next_message = self.receiver.recv(), if !receiver_closed => {
-                    trace!("Received message");
-                    match next_message {
-                        Some(msg) => {
-                            let handle_msg_res = built_plugin.handle_message(msg)
-                                .instrument(tracing::trace_span!("core.core_task.handle_message"))
-                                .await;
-
-                            match handle_msg_res {
-                                Ok(_) => debug!("Core handled message successfully"),
-                                Err(e) => warn!("Core failed to handle message: {:?}", e),
-                            }
-                        },
-
-                        None => {
-                            receiver_closed = true;
-                            debug!("Receiver closed for Core");
-                        },
-                    }
-                }
             }
         }
+
+        self.receiver.reset().await;
 
         Ok(())
     }
 }
 
+#[derive(Clone)]
 struct RunningCore {
     sender: tokio::sync::mpsc::Sender<CoreInternalMessage>,
 }

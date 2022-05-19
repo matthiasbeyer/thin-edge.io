@@ -6,7 +6,6 @@ use tedge_api::error::DirectoryError;
 use tedge_api::message::MessageType;
 use tedge_api::plugin::PluginDirectory as ApiPluginDirectory;
 use tedge_api::Address;
-use tokio::sync::RwLock;
 
 use crate::errors::TedgeApplicationError;
 
@@ -102,6 +101,9 @@ pub(crate) struct PluginInfo {
     /// The types of messages the plugin claims to handle
     pub(crate) types: Vec<MessageType>,
 
+    /// How many concurrent handlers are allowed to be spawned
+    pub(crate) channel_size: usize,
+
     /// A sender to send messages to the plugin
     pub(crate) communicator: MessageSender,
 }
@@ -110,8 +112,8 @@ impl std::fmt::Debug for PluginInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PluginInfo")
             .field("types", &self.types)
-            .field("sender", &"...")
-            .finish()
+            .field("channel_size", &self.channel_size)
+            .finish_non_exhaustive()
     }
 }
 
@@ -119,6 +121,7 @@ impl PluginInfo {
     pub(crate) fn new(types: Vec<MessageType>, channel_size: usize) -> Self {
         Self {
             types,
+            channel_size,
             communicator: MessageSender::new(Default::default()),
         }
     }

@@ -1,27 +1,27 @@
 use std::sync::Arc;
 
 use futures::FutureExt;
-use tedge_api::address::MessageReceiver;
 use tedge_api::address::MessageSender;
 use tedge_api::plugin::BuiltPlugin;
 use tokio::sync::RwLock;
+use tokio::sync::Semaphore;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::error;
 use tracing::info;
 use tracing::trace;
-use tracing::warn;
 use tracing::Instrument;
-use tracing::Span;
 
 use crate::errors::Result;
 use crate::errors::TedgeApplicationError;
+use crate::message_handler::make_message_handler;
 use crate::task::Task;
 
 /// Type for handling the lifecycle of one individual Plugin instance
 pub struct PluginTask {
     plugin_name: String,
     plugin: BuiltPlugin,
+    channel_size: usize,
     plugin_msg_receiver: MessageSender,
     task_cancel_token: CancellationToken,
     shutdown_timeout: std::time::Duration,
@@ -39,6 +39,7 @@ impl PluginTask {
     pub fn new(
         plugin_name: String,
         plugin: BuiltPlugin,
+        channel_size: usize,
         plugin_msg_receiver: MessageSender,
         task_cancel_token: CancellationToken,
         shutdown_timeout: std::time::Duration,
@@ -46,6 +47,7 @@ impl PluginTask {
         Self {
             plugin_name,
             plugin,
+            channel_size,
             plugin_msg_receiver,
             task_cancel_token,
             shutdown_timeout,
@@ -93,11 +95,12 @@ impl Task for PluginTask {
             plugin_mainloop(
                 plugin.clone(),
                 &self.plugin_name,
+                self.channel_size,
                 plugin_msg_receiver,
                 task_cancel_token,
             )
             .in_current_span()
-            .await?;
+            .await?
         }
         trace!("Mainloop for plugin '{}' finished", self.plugin_name);
 
@@ -117,14 +120,11 @@ impl Task for PluginTask {
 /// If the starting of the plugin failed, this will error as well, of course.
 #[tracing::instrument(skip(plugin, plugin_name))]
 async fn plugin_setup(plugin: Arc<RwLock<BuiltPlugin>>, plugin_name: &str) -> Result<()> {
-    let mut plug = plugin
-        .write()
-        .instrument(tracing::trace_span!("core.plugin_task.setup.lock"))
-        .await;
+    let mut plug_write = plugin.write().await;
 
     // we can use AssertUnwindSafe here because we're _not_ using the plugin after a panic has
     // happened.
-    match std::panic::AssertUnwindSafe(plug.plugin_mut().start())
+    match std::panic::AssertUnwindSafe(plug_write.plugin_mut().start())
         .catch_unwind()
         .instrument(tracing::trace_span!("core.plugin_task.setup.start", name = %plugin_name))
         .await
@@ -139,9 +139,11 @@ async fn plugin_setup(plugin: Arc<RwLock<BuiltPlugin>>, plugin_name: &str) -> Re
             ));
         }
         Ok(res) => {
-            res.map_err(|e| TedgeApplicationError::PluginSetupFailed(plugin_name.to_string(), e))
+            res.map_err(|e| TedgeApplicationError::PluginSetupFailed(plugin_name.to_string(), e))?;
         }
-    }
+    };
+
+    Ok(())
 }
 
 /// Run the "main loop" for the Plugin instance
@@ -155,59 +157,28 @@ async fn plugin_setup(plugin: Arc<RwLock<BuiltPlugin>>, plugin_name: &str) -> Re
 async fn plugin_mainloop(
     plugin: Arc<RwLock<BuiltPlugin>>,
     plugin_name: &str,
-    mut plugin_msg_receiver: MessageReceiver,
+    plugin_channel_size: usize,
+    plugin_msg_receiver: MessageSender,
     task_cancel_token: CancellationToken,
 ) -> Result<()> {
-    let mut receiver_closed = false;
-
     // allocate a mpsc channel with one element size
     // one element is enough because we stop the plugin anyways if there was a panic
     let (panic_err_sender, mut panic_err_recv) = tokio::sync::mpsc::channel(1);
 
+    plugin_msg_receiver
+        .init_with(make_message_handler(
+            plugin_name.to_string(),
+            Arc::new(Semaphore::new(plugin_channel_size)),
+            plugin,
+            panic_err_sender,
+        ))
+        .await;
+
     loop {
         tokio::select! {
-            next_message = plugin_msg_receiver.recv(), if !receiver_closed => {
-                match next_message {
-                    Some(msg) => {
-                        let pname = plugin_name.to_string();
-                        let plug = plugin.clone();
-                        let panic_err_sender = panic_err_sender.clone();
-                        let parent_span = Span::current();
-
-                        tokio::spawn(async move {
-                            let handle_message_span = tracing::trace_span!(parent: parent_span, "core.plugin_task.mainloop.handle_message", msg = ?msg);
-                            let handled_message = {
-                                let read_plug = plug.read().await;
-                                std::panic::AssertUnwindSafe(read_plug.handle_message(msg))
-                                    .catch_unwind()
-                                    .instrument(handle_message_span)
-                                    .await
-                            };
-
-                            match handled_message {
-                                Err(_) => {
-                                    // panic happened in handle_message() implementation
-
-                                    error!("Plugin {} paniced in message handler", pname);
-                                    let _ = panic_err_sender
-                                        .send(TedgeApplicationError::PluginMessageHandlerPaniced(pname.to_string()));
-                                },
-                                Ok(Ok(_)) => trace!("Plugin handled message successfully"),
-                                Ok(Err(e)) => warn!("Plugin failed to handle message: {:?}", e),
-                            }
-                        }.in_current_span());
-                    },
-
-                    None => {
-                        receiver_closed = true;
-                        debug!("Receiver closed for {} plugin", plugin_name);
-                    },
-                }
-            },
-
             panic_err = panic_err_recv.recv() => {
-                if let Some(panic_err) = panic_err {
-                    return Err(panic_err)
+                if let Some(()) = panic_err {
+                    break
                 }
             }
 
@@ -219,6 +190,10 @@ async fn plugin_mainloop(
             }
         }
     }
+
+    // We reset the message handler, thus releasing any Arc<BuiltPlugin> that may still exist
+    plugin_msg_receiver.reset().await;
+
     Ok(())
 }
 

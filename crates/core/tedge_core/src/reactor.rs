@@ -41,6 +41,7 @@ impl std::fmt::Debug for Reactor {
 struct PluginTaskPrep {
     name: String,
     plugin: BuiltPlugin,
+    channel_size: usize,
     plugin_msg_comms: tedge_api::address::MessageSender,
     cancellation_token: CancellationToken,
 }
@@ -157,6 +158,7 @@ impl Reactor {
                 PluginTask::new(
                     prep.name,
                     prep.plugin,
+                    prep.channel_size,
                     prep.plugin_msg_comms,
                     prep.cancellation_token,
                     self.0.config().plugin_shutdown_timeout(),
@@ -266,11 +268,15 @@ impl Reactor {
             .await
             .map_err(TedgeApplicationError::PluginInstantiationFailed)
             .map(|plugin| {
-                trace!("Instantiation of plugin '{}' successfull", plugin_name);
+                trace!(plugin.name = ?plugin_name, "Instantiation of plugin successfull");
+
+                // TODO: Get the correct one?
+                let channel_size = 10;
 
                 PluginTaskPrep {
                     name: plugin_name.to_string(),
                     plugin,
+                    channel_size,
                     plugin_msg_comms,
                     cancellation_token,
                 }
