@@ -108,6 +108,14 @@ where
     pub fn into_errs(self) -> Vec<M> {
         self.errs
     }
+
+    pub fn into_result(self) -> Result<Vec<tedge_api::address::ReplyReceiverFor<M>>, Vec<M>> {
+        if !self.errs().is_empty() {
+            Ok(self.into_oks())
+        } else {
+            Err(self.into_errs())
+        }
+    }
 }
 
 impl<M> Into<Result<Vec<tedge_api::address::ReplyReceiverFor<M>>, Vec<M>>> for SendAllResult<M>
