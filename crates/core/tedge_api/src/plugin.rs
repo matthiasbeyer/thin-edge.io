@@ -315,6 +315,14 @@ pub trait Plugin: Sync + Send + DowncastSync {
         Ok(())
     }
 
+    /// The main function of the plugin
+    ///
+    /// This method is called once all plugins have [`start`](Plugin::start)ed. The plugin is free
+    /// to spawn new tasks or loop indefinitely (while still observing the cancel token!)
+    async fn main(&self) -> Result<(), PluginError> {
+        Ok(())
+    }
+
     /// Gracefully handle shutdown
     ///
     /// This function is called by the core of thin-edge before the software shuts down as a whole,
