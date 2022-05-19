@@ -1,6 +1,6 @@
 //! Helper types for working with addresses
 
-use futures::FutureExt;
+use futures::StreamExt;
 
 use crate::config::OneOrMany;
 
@@ -44,16 +44,12 @@ where
     pub fn send_and_wait<M>(
         &self,
         msg: M,
-    ) -> impl Iterator<
-        Item = futures::future::BoxFuture<Result<tedge_api::address::ReplyReceiverFor<M>, M>>,
-    >
+    ) -> impl futures::stream::Stream<Item = Result<tedge_api::address::ReplyReceiverFor<M>, M>> + '_
     where
         M: tedge_api::Message + Clone,
         RB: tedge_api::address::Contains<M>,
     {
-        self.0
-            .iter()
-            .map(move |addr| addr.send_and_wait(msg.clone()).boxed())
+        futures::stream::iter(&self.0).then(move |addr| addr.send_and_wait(msg.clone()))
     }
 
     pub fn try_send<M>(
