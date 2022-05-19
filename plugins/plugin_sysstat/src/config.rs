@@ -1,5 +1,8 @@
 use std::collections::HashMap;
 
+use tedge_lib::config::OneOrMany;
+use tedge_lib::config::Address;
+
 #[derive(serde::Deserialize, Debug)]
 pub struct SysStatConfig {
     pub(crate) memory: Option<MemoryConfig>,
@@ -12,12 +15,12 @@ pub struct SysStatConfig {
 
 #[derive(serde::Deserialize, Debug)]
 pub struct BaseConfig {
-    send_to: Vec<String>,
+    send_to: OneOrMany<Address>,
     interval_ms: std::num::NonZeroU64,
 }
 
 pub trait HasBaseConfig {
-    fn send_to(&self) -> &[String];
+    fn send_to(&self) -> &OneOrMany<Address>;
     fn interval_ms(&self) -> std::num::NonZeroU64;
 }
 
@@ -130,7 +133,7 @@ fn used_swap_name_default() -> String {
 }
 
 impl HasBaseConfig for MemoryConfig {
-    fn send_to(&self) -> &[String] {
+    fn send_to(&self) -> &OneOrMany<Address> {
         &self.base.send_to
     }
 
@@ -342,7 +345,7 @@ fn total_errors_on_received_name_default() -> String {
 }
 
 impl HasBaseConfig for NetworkConfig {
-    fn send_to(&self) -> &[String] {
+    fn send_to(&self) -> &OneOrMany<Address> {
         &self.base.send_to
     }
 
@@ -497,7 +500,7 @@ pub struct PhysicalCoreCountConfig {
 }
 
 impl HasBaseConfig for CpuConfig {
-    fn send_to(&self) -> &[String] {
+    fn send_to(&self) -> &OneOrMany<Address> {
         &self.base.send_to
     }
 
@@ -513,7 +516,7 @@ pub struct DiskUsageConfig {
 }
 
 impl HasBaseConfig for DiskUsageConfig {
-    fn send_to(&self) -> &[String] {
+    fn send_to(&self) -> &OneOrMany<Address> {
         &self.base.send_to
     }
 
@@ -529,7 +532,7 @@ pub struct LoadConfig {
 }
 
 impl HasBaseConfig for LoadConfig {
-    fn send_to(&self) -> &[String] {
+    fn send_to(&self) -> &OneOrMany<Address> {
         &self.base.send_to
     }
 
@@ -579,7 +582,7 @@ pub struct ProcessStatConfig {
 }
 
 impl HasBaseConfig for ProcessConfig {
-    fn send_to(&self) -> &[String] {
+    fn send_to(&self) -> &OneOrMany<Address> {
         &self.base.send_to
     }
 

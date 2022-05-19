@@ -7,10 +7,12 @@ use futures::StreamExt;
 use sysinfo::PidExt;
 use sysinfo::ProcessExt;
 use sysinfo::SystemExt;
+use tedge_lib::iter::SendAllResult;
 use tokio::sync::Mutex;
 
 use tedge_api::Address;
 use tedge_api::PluginError;
+use tedge_lib::address::AddressGroup;
 use tedge_lib::iter::IntoSendAll;
 use tedge_lib::measurement::Measurement;
 use tedge_lib::measurement::MeasurementValue;
@@ -26,7 +28,7 @@ use crate::plugin::MeasurementReceiver;
 #[derive(Debug)]
 pub struct ProcessState {
     interval: u64,
-    send_to: Arc<Vec<Address<MeasurementReceiver>>>,
+    send_to: Arc<AddressGroup<MeasurementReceiver>>,
     sys: sysinfo::System,
 
     all_processes: AllProcessConfig,
@@ -42,7 +44,7 @@ impl State for ProcessState {
 impl StateFromConfig for ProcessState {
     fn new_from_config(
         config: &crate::config::SysStatConfig,
-        addrs: Arc<Vec<Address<MeasurementReceiver>>>,
+        addrs: Arc<AddressGroup<MeasurementReceiver>>,
     ) -> Option<Self> {
         config.process.as_ref().map(|config| ProcessState {
             interval: config.interval_ms().get(),
@@ -77,7 +79,7 @@ pub async fn main_process(state: Arc<Mutex<ProcessState>>) -> Result<(), PluginE
     let mut state = lock.deref();
     let timeout_duration = std::time::Duration::from_millis(state.interval);
 
-    let messages: Vec<_> = state
+    let measurements = state
         .sys
         .processes()
         .iter()
@@ -90,26 +92,21 @@ pub async fn main_process(state: Arc<Mutex<ProcessState>>) -> Result<(), PluginE
                     .is_some()
         })
         .map(|(_pid, process)| get_measurement(&state, process))
-        .map(|value| {
-            let measurement = Measurement::new("processes".to_string(), value);
-            std::iter::repeat(measurement).zip(state.send_to.iter())
-        })
-        .flatten()
+        .map(|value| Measurement::new("processes".to_string(), value))
         .collect::<Vec<_>>();
 
-    messages
-        .into_iter()
-        .send_all()
-        .collect::<futures::stream::FuturesUnordered<_>>()
-        .collect::<Vec<Result<_, _>>>()
+    let res: Result<Vec<_>, Vec<_>> = futures::stream::iter(measurements)
+        .map(|msmt| state.send_to.send_and_wait(msmt))
+        .flatten()
+        .collect::<SendAllResult<Measurement>>()
         .instrument(tracing::debug_span!(
             "plugin.sysstat.main-process.sending_measurements"
         ))
         .await
-        .into_iter()
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|_| PluginError::from(crate::error::Error::FailedToSendMeasurement))
-        .map(|_| ())
+        .into();
+
+    res.map_err(|_| crate::error::Error::FailedToSendMeasurement)?;
+    Ok(())
 }
 
 fn get_measurement(state: &ProcessState, process: &sysinfo::Process) -> MeasurementValue {

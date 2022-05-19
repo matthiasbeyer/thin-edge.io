@@ -10,13 +10,14 @@ pub mod process;
 use std::sync::Arc;
 
 use tedge_api::Address;
+use tedge_lib::address::AddressGroup;
 
 use crate::{config::SysStatConfig, plugin::MeasurementReceiver};
 
 pub trait StateFromConfig: Sized {
     fn new_from_config(
         config: &SysStatConfig,
-        addrs: Arc<Vec<Address<MeasurementReceiver>>>,
+        addrs: Arc<AddressGroup<MeasurementReceiver>>,
     ) -> Option<Self>;
 }
 

@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tedge_api::error::DirectoryError;
 use tedge_api::plugin::BuiltPlugin;
 use tedge_api::plugin::HandleTypes;
 use tedge_api::plugin::PluginExt;
@@ -9,6 +8,9 @@ use tedge_api::PluginBuilder;
 use tedge_api::PluginConfiguration;
 use tedge_api::PluginDirectory;
 use tedge_api::PluginError;
+use tedge_lib::address::AddressGroup;
+use tedge_lib::config::Address;
+use tedge_lib::config::OneOrMany;
 use tokio_util::sync::CancellationToken;
 
 use crate::config::HasBaseConfig;
@@ -53,44 +55,44 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for SysStatPluginBuilder {
             .map_err(crate::error::Error::ConfigParseFailed)
             .map_err(PluginError::from)?;
 
-        let build_addr_config = |adrs: &[String]| {
-            adrs.iter()
-                .map(|adr| plugin_dir.get_address_for(adr))
-                .collect::<Result<Vec<_>, DirectoryError>>()
-                .map(Arc::new)
-        };
+        let build_addr_config =
+            |adrs: &OneOrMany<Address>| -> Result<Arc<AddressGroup<_>>, PluginError> {
+                AddressGroup::build(plugin_dir, adrs)
+                    .map(Arc::new)
+                    .map_err(PluginError::from)
+            };
 
         let addr_config = crate::plugin::AddressConfig {
             memory: config
                 .memory
                 .as_ref()
                 .map(|cfg| build_addr_config(cfg.send_to()))
-                .unwrap_or_else(|| Ok(Arc::new(Vec::new())))?,
+                .transpose()?,
             network: config
                 .network
                 .as_ref()
                 .map(|cfg| build_addr_config(cfg.send_to()))
-                .unwrap_or_else(|| Ok(Arc::new(Vec::new())))?,
+                .transpose()?,
             cpu: config
                 .cpu
                 .as_ref()
                 .map(|cfg| build_addr_config(cfg.send_to()))
-                .unwrap_or_else(|| Ok(Arc::new(Vec::new())))?,
+                .transpose()?,
             disk_usage: config
                 .disk_usage
                 .as_ref()
                 .map(|cfg| build_addr_config(cfg.send_to()))
-                .unwrap_or_else(|| Ok(Arc::new(Vec::new())))?,
+                .transpose()?,
             load: config
                 .load
                 .as_ref()
                 .map(|cfg| build_addr_config(cfg.send_to()))
-                .unwrap_or_else(|| Ok(Arc::new(Vec::new())))?,
+                .transpose()?,
             process: config
                 .process
                 .as_ref()
                 .map(|cfg| build_addr_config(cfg.send_to()))
-                .unwrap_or_else(|| Ok(Arc::new(Vec::new())))?,
+                .transpose()?,
         };
 
         Ok(SysStatPlugin::new(config, addr_config).finish())

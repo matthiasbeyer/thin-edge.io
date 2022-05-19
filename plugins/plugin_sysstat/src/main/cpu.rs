@@ -6,12 +6,14 @@ use std::sync::Arc;
 use futures::FutureExt;
 use futures::StreamExt;
 use sysinfo::SystemExt;
+use tedge_lib::iter::SendAllResult;
 use tedge_lib::measurement::Measurement;
 use tedge_lib::measurement::MeasurementValue;
 use tokio::sync::Mutex;
 
 use tedge_api::Address;
 use tedge_api::PluginError;
+use tedge_lib::address::AddressGroup;
 use tedge_lib::iter::IntoSendAll;
 use tracing::Instrument;
 
@@ -26,7 +28,7 @@ use crate::plugin::MeasurementReceiver;
 pub struct CPUState {
     interval: u64,
     sys: sysinfo::System,
-    addrs: Arc<Vec<Address<MeasurementReceiver>>>,
+    addrs: Arc<AddressGroup<MeasurementReceiver>>,
 
     report_global_processor_info: ProcessorInfoConfig,
     global_processor_info_name: String,
@@ -47,7 +49,7 @@ impl State for CPUState {
 impl StateFromConfig for CPUState {
     fn new_from_config(
         config: &crate::config::SysStatConfig,
-        addrs: Arc<Vec<Address<MeasurementReceiver>>>,
+        addrs: Arc<AddressGroup<MeasurementReceiver>>,
     ) -> Option<Self> {
         config.cpu.as_ref().map(|config| CPUState {
             interval: config.interval_ms().get(),
@@ -93,61 +95,60 @@ pub async fn main_cpu(state: Arc<Mutex<CPUState>>) -> Result<(), PluginError> {
             &state.report_global_processor_info.brand_name,
         );
 
-        for addr in state.addrs.iter() {
-            let measurement = Measurement::new(
-                state.global_processor_info_name.to_string(),
-                measurement.clone(),
-            );
-
-            sending.push((measurement, addr));
-        }
+        let fut = state
+            .addrs
+            .send_and_wait({
+                Measurement::new(
+                    state.global_processor_info_name.to_string(),
+                    measurement.clone(),
+                )
+            })
+            .collect::<SendAllResult<Measurement>>();
+        sending.push(fut);
     }
 
     if state.report_processor_info.enable {
-        let iter = state
-            .sys
-            .processors()
-            .iter()
-            .map(|processor| {
-                let measurement = get_processor_info_measurements(
-                    processor,
-                    state.report_processor_info.frequency,
-                    &state.report_processor_info.frequency_name,
-                    state.report_processor_info.cpu_usage,
-                    &state.report_processor_info.cpu_usage_name,
-                    state.report_processor_info.name,
-                    &state.report_processor_info.name_name,
-                    state.report_processor_info.vendor_id,
-                    &state.report_processor_info.vendor_id_name,
-                    state.report_processor_info.brand,
-                    &state.report_processor_info.brand_name,
-                );
+        for processor in state.sys.processors().iter() {
+            let measurement = get_processor_info_measurements(
+                processor,
+                state.report_processor_info.frequency,
+                &state.report_processor_info.frequency_name,
+                state.report_processor_info.cpu_usage,
+                &state.report_processor_info.cpu_usage_name,
+                state.report_processor_info.name,
+                &state.report_processor_info.name_name,
+                state.report_processor_info.vendor_id,
+                &state.report_processor_info.vendor_id_name,
+                state.report_processor_info.brand,
+                &state.report_processor_info.brand_name,
+            );
 
-                state.addrs.iter().map(move |addr| {
-                    let measurement = Measurement::new(
+            let fut = state
+                .addrs
+                .send_and_wait({
+                    Measurement::new(
                         state.global_processor_info_name.to_string(),
                         measurement.clone(),
-                    );
-
-                    (measurement, addr)
+                    )
                 })
-            })
-            .flatten();
-
-        sending.extend(iter);
+                .collect::<SendAllResult<Measurement>>();
+            sending.push(fut)
+        }
     }
 
     if state.report_physical_core_count.enable {
         if let Some(core_count) = state.sys.physical_core_count() {
             let measurement = MeasurementValue::Float(core_count as f64);
-            for addr in state.addrs.iter() {
-                let measurement = Measurement::new(
-                    state.physical_core_count_name.to_string(),
-                    measurement.clone(),
-                );
-
-                sending.push((measurement, addr));
-            }
+            let fut = state
+                .addrs
+                .send_and_wait({
+                    Measurement::new(
+                        state.physical_core_count_name.to_string(),
+                        measurement.clone(),
+                    )
+                })
+                .collect::<SendAllResult<Measurement>>();
+            sending.push(fut);
         } else {
             // TODO cannot get core count
         }
@@ -157,14 +158,14 @@ pub async fn main_cpu(state: Arc<Mutex<CPUState>>) -> Result<(), PluginError> {
 
     sending
         .into_iter()
-        .send_all()
         .collect::<futures::stream::FuturesUnordered<_>>()
-        .collect::<Vec<Result<_, _>>>()
+        .collect::<Vec<SendAllResult<Measurement>>>()
         .instrument(tracing::debug_span!(
             "plugin.sysstat.main-cpu.sending_measurements"
         ))
         .await
         .into_iter()
+        .map(SendAllResult::into)
         .collect::<Result<Vec<_>, _>>()
         .map_err(|_| PluginError::from(crate::error::Error::FailedToSendMeasurement))
         .map(|_| ())
