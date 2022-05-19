@@ -67,7 +67,7 @@ pub async fn main_load(state: Arc<Mutex<LoadState>>) -> Result<(), PluginError> 
         Measurement::new("load".to_string(), value.clone())
     };
 
-    let res: Result<Vec<_>, Vec<_>> = state
+    state
         .send_to
         .send_and_wait(message)
         .collect::<SendAllResult<Measurement>>()
@@ -75,8 +75,7 @@ pub async fn main_load(state: Arc<Mutex<LoadState>>) -> Result<(), PluginError> 
             "plugin.sysstat.main-load.sending_measurements"
         ))
         .await
-        .into();
-
-    res.map_err(|_| crate::error::Error::FailedToSendMeasurement)?;
+        .into_result()
+        .map_err(|_| crate::error::Error::FailedToSendMeasurement)?;
     Ok(())
 }

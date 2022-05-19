@@ -83,7 +83,7 @@ pub async fn main_network(state: Arc<Mutex<NetworkState>>) -> Result<(), PluginE
         })
         .collect::<Vec<_>>();
 
-    let res: Result<Vec<_>, Vec<_>> = futures::stream::iter(measurements)
+    futures::stream::iter(measurements)
         .map(|msmt| state.send_to.send_and_wait(msmt))
         .flatten()
         .collect::<SendAllResult<Measurement>>()
@@ -91,9 +91,8 @@ pub async fn main_network(state: Arc<Mutex<NetworkState>>) -> Result<(), PluginE
             "plugin.sysstat.main-networks.sending_measurements"
         ))
         .await
-        .into();
-
-    res.map_err(|_| crate::error::Error::FailedToSendMeasurement)?;
+        .into_result()
+        .map_err(|_| crate::error::Error::FailedToSendMeasurement)?;
     Ok(())
 }
 

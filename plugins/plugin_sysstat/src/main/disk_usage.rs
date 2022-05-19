@@ -66,16 +66,15 @@ pub async fn main_disk_usage(state: Arc<Mutex<DiskUsageState>>) -> Result<(), Pl
         .map(|disk| measure_to_message(disk).map(|msg| lock.send_to.send_and_wait(msg)))
         .collect::<Result<Vec<_>, PluginError>>()?;
 
-    let res: Result<Vec<_>, Vec<_>> = futures::stream::iter(streams)
+    futures::stream::iter(streams)
         .flatten()
         .collect::<SendAllResult<Measurement>>()
         .instrument(tracing::debug_span!(
             "plugin.sysstat.main-diskusage.sending_measurements"
         ))
         .await
-        .into();
-
-    res.map_err(|_| crate::error::Error::FailedToSendMeasurement)?;
+        .into_result()
+        .map_err(|_| crate::error::Error::FailedToSendMeasurement)?;
     Ok(())
 }
 

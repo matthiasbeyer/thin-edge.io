@@ -135,7 +135,7 @@ pub async fn main_memory(state: Arc<Mutex<MemoryState>>) -> Result<(), PluginErr
     let value = MeasurementValue::Map(hm);
     let measurement = Measurement::new("memory".to_string(), value);
 
-    let res: Result<Vec<_>, Vec<_>> = state
+    state
         .send_to
         .send_and_wait(measurement)
         .collect::<SendAllResult<Measurement>>()
@@ -143,9 +143,7 @@ pub async fn main_memory(state: Arc<Mutex<MemoryState>>) -> Result<(), PluginErr
             "plugin.sysstat.main-memory.sending_measurements"
         ))
         .await
-        .into();
-
-
-    res.map_err(|_| crate::error::Error::FailedToSendMeasurement)?;
+        .into_result()
+        .map_err(|_| crate::error::Error::FailedToSendMeasurement)?;
     Ok(())
 }

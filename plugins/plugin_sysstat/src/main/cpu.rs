@@ -165,7 +165,7 @@ pub async fn main_cpu(state: Arc<Mutex<CPUState>>) -> Result<(), PluginError> {
         ))
         .await
         .into_iter()
-        .map(SendAllResult::into)
+        .map(SendAllResult::into_result)
         .collect::<Result<Vec<_>, _>>()
         .map_err(|_| PluginError::from(crate::error::Error::FailedToSendMeasurement))
         .map(|_| ())
