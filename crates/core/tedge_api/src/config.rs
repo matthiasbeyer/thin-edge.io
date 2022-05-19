@@ -164,16 +164,24 @@ macro_rules! impl_config_kind {
 }
 
 impl_config_kind!(ConfigKind::Integer; "Integer"; "A signed integer with 64 bits" => i64);
+impl_config_kind!(ConfigKind::Integer; "Integer"; "A signed integer with 64 bits that cannot be zero" => std::num::NonZeroI64);
 impl_config_kind!(ConfigKind::Integer; "Integer"; "An unsigned integer with 64 bits" => u64);
+impl_config_kind!(ConfigKind::Integer; "Integer"; "An unsigned integer with 64 bits that cannot be zero" => std::num::NonZeroU64);
 
 impl_config_kind!(ConfigKind::Integer; "Integer"; "A signed integer with 32 bits" => i32);
+impl_config_kind!(ConfigKind::Integer; "Integer"; "A signed integer with 32 bits that cannot be zero" => std::num::NonZeroI32);
 impl_config_kind!(ConfigKind::Integer; "Integer"; "An unsigned integer with 32 bits" => u32);
+impl_config_kind!(ConfigKind::Integer; "Integer"; "An unsigned integer with 32 bits that cannot be zero" => std::num::NonZeroU32);
 
 impl_config_kind!(ConfigKind::Integer; "Integer"; "A signed integer with 16 bits" => i16);
+impl_config_kind!(ConfigKind::Integer; "Integer"; "A signed integer with 16 bits that cannot be zero" => std::num::NonZeroI16);
 impl_config_kind!(ConfigKind::Integer; "Integer"; "An unsigned integer with 16 bits" => u16);
+impl_config_kind!(ConfigKind::Integer; "Integer"; "An unsigned integer with 16 bits that cannot be zero" => std::num::NonZeroU16);
 
 impl_config_kind!(ConfigKind::Integer; "Integer"; "A signed integer with 8 bits" => i8);
+impl_config_kind!(ConfigKind::Integer; "Integer"; "A signed integer with 8 bits that cannot be zero" => std::num::NonZeroI8);
 impl_config_kind!(ConfigKind::Integer; "Integer"; "An unsigned integer with 8 bits" => u8);
+impl_config_kind!(ConfigKind::Integer; "Integer"; "An unsigned integer with 8 bits that cannot be zero" => std::num::NonZeroU8);
 
 impl_config_kind!(ConfigKind::Float; "Float"; "A floating point value with 64 bits" => f64);
 impl_config_kind!(ConfigKind::Float; "Float"; "A floating point value with 32 bits" => f32);
