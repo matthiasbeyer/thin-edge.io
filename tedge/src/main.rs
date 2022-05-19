@@ -34,7 +34,7 @@ macro_rules! register_plugin {
         cfg_if::cfg_if! {
             if #[cfg(feature = $cfg)] {
                 let kind_name: &'static str = <$pluginbuilder as PluginBuilder<tedge_core::PluginDirectory>>::kind_name();
-                info!("Registering plugin builder for plugins of type {}", kind_name);
+                info!(%kind_name, "Registering plugin builder");
                 let mut registry = $registry;
                 if !registry.plugin_kinds.insert(kind_name.to_string()) {
                     miette::bail!("Plugin kind '{}' was already registered, cannot register!", kind_name)
@@ -87,7 +87,7 @@ async fn main() -> miette::Result<()> {
         args.tracy_logging,
     )?;
     info!("Tedge booting...");
-    debug!("Tedge CLI: {:?}", args);
+    debug!(?args, "Tedge CLI");
 
     let registry = Registry {
         app_builder: TedgeApplication::builder(),
@@ -254,11 +254,11 @@ async fn validate_config(application: &TedgeApplication) -> miette::Result<()> {
     for (plugin_name, res) in application.verify_configurations().await {
         match res {
             Err(e) => {
-                error!("Error in Plugin '{}' configuration: {:?}", plugin_name, e);
+                error!(%plugin_name, ?e, "Error in Plugin configuration");
                 any_err = true;
             }
             Ok(_) => {
-                info!("Plugin '{}' configured correctly", plugin_name);
+                info!(%plugin_name, "Plugin configured correctly");
             }
         }
     }
