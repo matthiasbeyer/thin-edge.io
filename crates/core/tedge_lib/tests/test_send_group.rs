@@ -64,7 +64,7 @@ mod send {
         ) -> Result<tedge_api::plugin::BuiltPlugin, PluginError> {
             let config: SendConfig = config.try_into().map_err(Error::from)?;
 
-            let addrs = tedge_lib::config::AddressGroup::build(plugin_dir, &config.targets)?;
+            let addrs = tedge_lib::address::AddressGroup::build(plugin_dir, &config.targets)?;
             let core_addr = plugin_dir.get_address_for_core();
             Ok(SendPlugin { addrs, core_addr }.finish())
         }
@@ -78,7 +78,7 @@ mod send {
     }
 
     struct SendPlugin {
-        addrs: tedge_lib::config::AddressGroup<UsizeReceiver>,
+        addrs: tedge_lib::address::AddressGroup<UsizeReceiver>,
         core_addr: tedge_api::Address<tedge_api::message::CoreMessages>,
     }
 
