@@ -117,16 +117,3 @@ where
         }
     }
 }
-
-impl<M> Into<Result<Vec<tedge_api::address::ReplyReceiverFor<M>>, Vec<M>>> for SendAllResult<M>
-where
-    M: tedge_api::Message,
-{
-    fn into(self) -> Result<Vec<tedge_api::address::ReplyReceiverFor<M>>, Vec<M>> {
-        if !self.errs().is_empty() {
-            Ok(self.into_oks())
-        } else {
-            Err(self.into_errs())
-        }
-    }
-}
