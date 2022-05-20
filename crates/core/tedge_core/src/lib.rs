@@ -20,7 +20,6 @@ mod core_task;
 pub mod errors;
 mod plugin_task;
 mod reactor;
-mod task;
 mod utils;
 mod message_handler;
 
