@@ -42,7 +42,8 @@ pub type MessageFutureProducer = dyn Fn(InternalMessage, ShouldWait) -> BoxFutur
 #[doc(hidden)]
 #[derive(Clone)]
 pub struct InnerMessageSender {
-    send_provider: Arc<RwLock<Option<Box<MessageFutureProducer>>>>,
+    #[doc(hidden)]
+    pub send_provider: Arc<RwLock<Option<Box<MessageFutureProducer>>>>,
 }
 
 impl std::fmt::Debug for InnerMessageSender {
