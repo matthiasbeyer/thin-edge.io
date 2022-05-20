@@ -312,9 +312,8 @@ mod tests {
                 PluginInfo::new(handle_types, channel_size),
             ))
         });
-        let (core_sender, _core_receiver) = tokio::sync::mpsc::channel(channel_size);
 
-        CorePluginDirectory::collect_from(directory_iter, core_sender).unwrap()
+        CorePluginDirectory::collect_from(directory_iter).unwrap()
     }
 
     #[test]
