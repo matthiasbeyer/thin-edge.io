@@ -5,12 +5,16 @@ use futures::StreamExt;
 
 use tedge_api::message::MessageType;
 use tedge_api::plugin::BuiltPlugin;
+use tedge_api::PluginExt;
+use tokio::sync::mpsc::channel;
+use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::error;
 use tracing::info_span;
 use tracing::trace;
 use tracing::trace_span;
+use tracing::warn;
 use tracing::Instrument;
 
 use crate::communication::CorePluginDirectory;
@@ -19,10 +23,11 @@ use crate::communication::PluginInfo;
 use crate::configuration::InstanceConfiguration;
 use crate::configuration::PluginInstanceConfiguration;
 use crate::configuration::PluginKind;
+use crate::core_task::CoreInternalMessage;
+use crate::core_task::CorePlugin;
 use crate::errors::Result;
 use crate::errors::TedgeApplicationError;
 use crate::plugin_task::PluginTask;
-use crate::task::Task;
 use crate::TedgeApplication;
 
 /// Helper type for running a TedgeApplication
@@ -116,7 +121,7 @@ impl Reactor {
         let directory = Arc::new(directory);
 
         // ... and then instantiate the plugins requested by the user
-        let instantiated_plugins = plugin_instantiation_prep
+        let mut instantiated_plugins: Vec<PluginTaskPrep> = plugin_instantiation_prep
             .into_iter()
             .map(|(pname, pconfig, communicator)| {
                 {
@@ -141,53 +146,135 @@ impl Reactor {
 
         // Now we need to make sure we start the "CoreTask", which is responsible for handling the
         // communication within the core itself.
-        let running_core = {
-            // we clone the cancellation_token here, because the core must be able to use the
-            // "root" token to stop all plugins
-            let core_cancel_token = self.0.cancellation_token().clone();
-            crate::core_task::CoreTask::new(core_cancel_token, directory.get_core_communicator())
-                .run()
-                .instrument(tracing::info_span!("core.mainloop.coretask"))
-        };
+        let (internal_sender, mut internal_receiver) = channel(10);
+        let core_plugin = CorePlugin::new(internal_sender);
+        instantiated_plugins.push(PluginTaskPrep {
+            name: "core".to_string(),
+            plugin: core_plugin.finish(),
+            channel_size: 10,
+            plugin_msg_comms: directory.get_core_communicator(),
+            cancellation_token: self.0.cancellation_token.clone(),
+        });
+
         debug!("Core task instantiated");
 
-        // ...and of course we need to start all the plugins.
-        let running_plugins = instantiated_plugins
+        let mut all_plugins: Vec<PluginTask> = instantiated_plugins
             .into_iter()
             .map(|prep| {
+                let timeout = self.0.config().plugin_shutdown_timeout();
+                let plugin = Arc::new(RwLock::new(prep.plugin));
                 PluginTask::new(
                     prep.name,
-                    prep.plugin,
+                    plugin,
                     prep.channel_size,
                     prep.plugin_msg_comms,
                     prep.cancellation_token,
-                    self.0.config().plugin_shutdown_timeout(),
+                    timeout,
                 )
             })
-            .map(|plug_task| {
-                let plugin_name = plug_task.plugin_name().to_string();
-                plug_task
-                    .run()
-                    .instrument(info_span!("plugin.mainloop", plugin.name = %plugin_name))
-            })
-            .map(Box::pin)
-            .collect::<futures::stream::FuturesUnordered<_>>() // main loop
-            .collect::<Vec<Result<()>>>()
-            .instrument(tracing::info_span!("core.mainloop.plugins"));
-        trace!("Plugin tasks instantiated");
+            .collect();
 
-        // and then we wait until all communication is finished.
+        // TODO: Handle these errors
+
+        debug!("Running 'start' for plugins");
+        let _start_results = all_plugins
+            .iter_mut()
+            .map(|plugin_task| {
+                let span =
+                    tracing::debug_span!("plugin.start", plugin.name = %plugin_task.plugin_name());
+                plugin_task.run_start().instrument(span)
+            })
+            .collect::<futures::stream::FuturesOrdered<_>>()
+            .collect::<Vec<Result<()>>>()
+            .instrument(tracing::info_span!("core.mainloop.plugins.start"))
+            .await;
+
+        debug!("Enabling communications for plugins");
+        all_plugins
+            .iter()
+            .map(|plugin_task| {
+                let span =
+                    tracing::debug_span!("plugin.enable_communication", plugin.name = %plugin_task.plugin_name());
+                plugin_task.enable_communications().instrument(span)
+            })
+            .collect::<futures::stream::FuturesOrdered<_>>()
+            .collect::<Vec<Result<()>>>()
+            .instrument(tracing::info_span!(
+                "core.mainloop.plugins.enable-communications"
+            ))
+            .await;
+
+        debug!("Running 'main' for plugins");
+        let _main_results = all_plugins
+            .iter_mut()
+            .map(|plugin_task| {
+                let span =
+                    tracing::debug_span!("plugin.main", plugin.name = %plugin_task.plugin_name());
+                plugin_task.run_main().instrument(span)
+            })
+            .collect::<futures::stream::FuturesOrdered<_>>()
+            .collect::<Vec<Result<()>>>()
+            .instrument(tracing::info_span!("core.mainloop.plugins.main"))
+            .await;
+
+        // And now we wait until all communication is finished.
         //
         // There are two ways how this could return: Either one plugin requests the core to shut
         // down, which it then will, or the user requests a shutdown via Sigint (Ctrl-C), which
         // notifies the cancellation tokens in the application and plugins.
-        let (plugin_res, core_res) = tokio::join!(running_plugins, running_core);
+        loop {
+            tokio::select! {
+                _cancel = self.0.cancellation_token.cancelled() => {
+                    debug!("Cancelled main loop");
+                    break;
+                },
 
-        // After we finished the run, we collect all results and return them to the caller
-        plugin_res
-            .into_iter() // result type conversion
-            .collect::<Result<Vec<()>>>()
-            .and_then(|_| core_res)
+                internal_message = internal_receiver.recv() => {
+                    trace!("Received message");
+                    match internal_message {
+                        msg @ None | msg @ Some(CoreInternalMessage::Stop) => {
+                            if msg.is_none() {
+                                warn!("Internal core communication stopped");
+                            }
+                            debug!("Cancelling cancellation token to stop plugins");
+                            self.0.cancellation_token.cancel();
+                            debug!("Stopping core");
+                            break;
+                        }
+                    }
+                },
+            }
+        }
+
+        debug!("Disabling communications for plugins");
+        all_plugins
+            .iter()
+            .map(|plugin_task| {
+                let span =
+                    tracing::debug_span!("plugin.disable_communication", plugin.name = %plugin_task.plugin_name());
+                plugin_task.disable_communications().instrument(span)
+            })
+            .collect::<futures::stream::FuturesOrdered<_>>()
+            .collect::<Vec<Result<()>>>()
+            .instrument(tracing::info_span!(
+                "core.mainloop.plugins.disable-communications"
+            ))
+            .await;
+
+        debug!("Running 'shutdown' for plugins");
+        let _shutdown_results = all_plugins
+            .iter_mut()
+            .map(|plugin_task| {
+                let span =
+                    tracing::debug_span!("plugin.shutdown", plugin.name = %plugin_task.plugin_name());
+                plugin_task.run_shutdown().instrument(span)
+            })
+            .collect::<futures::stream::FuturesOrdered<_>>()
+            .collect::<Vec<Result<()>>>()
+            .instrument(tracing::info_span!("core.mainloop.plugins.shutdown"))
+            .await;
+
+        Ok(())
     }
 
     fn get_config_for_plugin<'a>(&'a self, plugin_name: &str) -> Option<&'a InstanceConfiguration> {
@@ -270,8 +357,7 @@ impl Reactor {
             .map(|plugin| {
                 trace!(plugin.name = ?plugin_name, "Instantiation of plugin successfull");
 
-                // TODO: Get the correct one?
-                let channel_size = 10;
+                let channel_size = self.0.config().communication_buffer_size().get();
 
                 PluginTaskPrep {
                     name: plugin_name.to_string(),
