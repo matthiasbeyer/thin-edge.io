@@ -2,6 +2,7 @@ use std::{marker::PhantomData, sync::Arc, time::Duration};
 
 use futures::future::BoxFuture;
 use tokio::sync::RwLock;
+use tracing::{instrument, trace};
 
 use crate::{
     message::MessageType,
@@ -48,8 +49,10 @@ impl InnerMessageSender {
         Self { send_provider }
     }
 
+    #[instrument(skip_all, level = "trace")]
     async fn send(&self, message: InternalMessage) -> Result<(), InternalMessage> {
         let lock = self.send_provider.read().await;
+        trace!(sender_exists = ?lock.is_some(), "Checking for internal sender");
         if let Some(sender) = &*lock {
             let sender = (*sender)(message, ShouldWait::Wait);
 
