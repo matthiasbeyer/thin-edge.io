@@ -75,7 +75,7 @@ impl tedge_api::plugin::PluginDeclaration for SpammyPlugin {
 #[async_trait]
 impl Plugin for SpammyPlugin {
     #[allow(unreachable_code)]
-    async fn start(&mut self) -> Result<(), PluginError> {
+    async fn main(&self) -> Result<(), PluginError> {
         for _ in 0..MESSAGE_COUNT {
             self.target
                 .send_and_wait(Spam)
@@ -89,10 +89,6 @@ impl Plugin for SpammyPlugin {
             .await
             .expect("Sending to core");
 
-        Ok(())
-    }
-
-    async fn shutdown(&mut self) -> Result<(), PluginError> {
         Ok(())
     }
 }

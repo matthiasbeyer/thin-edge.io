@@ -68,7 +68,7 @@ impl tedge_api::plugin::PluginDeclaration for ProducerPlugin {
 #[async_trait]
 impl Plugin for ProducerPlugin {
     #[allow(unreachable_code)]
-    async fn start(&mut self) -> Result<(), PluginError> {
+    async fn main(&self) -> Result<(), PluginError> {
         let mut rec = self.0.take().unwrap();
         let addr = self.1.clone();
         let mut count = 0;
