@@ -57,6 +57,16 @@ impl InnerMessageSender {
         Self { send_provider }
     }
 
+    pub async fn init_with(&self, producer: Box<MessageFutureProducer>) {
+        let mut lock = self.send_provider.write().await;
+        *lock = Some(producer);
+    }
+
+    pub async fn reset(&self) {
+        let mut lock = self.send_provider.write().await;
+        *lock = None;
+    }
+
     #[instrument(skip_all, level = "trace")]
     async fn send(&self, message: InternalMessage) -> Result<(), InternalMessage> {
         let lock = self.send_provider.read().await;
