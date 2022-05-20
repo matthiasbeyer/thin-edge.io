@@ -6,20 +6,20 @@ use tedge_api::{
     plugin::BuiltPlugin,
 };
 use tokio::sync::{mpsc, RwLock, Semaphore, TryAcquireError};
-use tracing::{debug, debug_span, error, warn, Instrument, Span};
+use tracing::{debug_span, error, trace, warn, Instrument, Span};
 
 pub fn make_message_handler(
-    name: String,
     sema: Arc<Semaphore>,
     built_plugin: Arc<RwLock<BuiltPlugin>>,
     panic_signal: mpsc::Sender<()>,
 ) -> Box<MessageFutureProducer> {
+    trace!("Registering message handler");
     Box::new(move |msg, should_wait| {
         let sema = sema.clone();
         let built_plugin = built_plugin.clone();
-        let handle_span =
-            debug_span!("plugin.handle_message", plugin.name = %name, ?msg).or_current();
+        let handle_span = debug_span!("plugin.handle_message", ?msg).or_current();
         let panic_signal = panic_signal.clone();
+        trace!("Building another message handler");
         async move {
             let sema = sema;
             let permit = match should_wait {
@@ -60,23 +60,37 @@ pub fn make_message_handler(
                 }
             };
 
-            tokio::spawn(async move {
-                let _permit = permit;
-                let read_plug = built_plugin.read().await;
-                let handled_message = std::panic::AssertUnwindSafe(read_plug.handle_message(msg))
-                    .catch_unwind()
-                    .instrument(Span::current())
-                    .await;
+            trace!("Spawning handler!");
+            tokio::spawn(
+                async move {
+                    let _permit = permit;
+                    let read_plug = built_plugin.read().await;
+                    let handled_message =
+                        std::panic::AssertUnwindSafe(read_plug.handle_message(msg))
+                            .catch_unwind()
+                            .instrument(Span::current())
+                            .await;
 
-                match handled_message {
-                    Err(_panic) => {
-                        error!("Message handling panicked");
-                        let _ = panic_signal.send(()).await;
+                    match handled_message {
+                        Err(panic) => {
+                            let message: &str = {
+                                if let Some(message) = panic.downcast_ref::<&'static str>() {
+                                    message
+                                } else if let Some(message) = panic.downcast_ref::<String>() {
+                                    &*message
+                                } else {
+                                    "Unknown panic message"
+                                }
+                            };
+                            error!(panic = %message, "Message handling panicked");
+                            let _ = panic_signal.send(()).await;
+                        }
+                        Ok(Ok(())) => trace!("Handled message succesfully"),
+                        Ok(Err(error)) => warn!(%error, "Handling message failed"),
                     }
-                    Ok(Ok(())) => debug!("Handled message succesfully"),
-                    Ok(Err(error)) => warn!(%error, "Handling message failed"),
                 }
-            });
+                .in_current_span(),
+            );
             Ok(())
         }
         .instrument(handle_span)
