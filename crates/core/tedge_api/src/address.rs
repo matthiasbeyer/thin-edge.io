@@ -13,10 +13,17 @@ use crate::{
 pub type AnyMessageBox = Box<dyn Message>;
 
 #[doc(hidden)]
-#[derive(Debug)]
 pub struct InternalMessage {
     pub(crate) data: AnyMessageBox,
     pub(crate) reply_sender: tokio::sync::oneshot::Sender<AnyMessageBox>,
+}
+
+impl std::fmt::Debug for InternalMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InternalMessage")
+            .field("data", &self.data)
+            .finish_non_exhaustive()
+    }
 }
 
 #[doc(hidden)]
