@@ -17,8 +17,9 @@ use tedge_api::PluginDirectory;
 use tedge_api::PluginError;
 use tedge_api::PluginExt;
 use tedge_core::TedgeApplication;
+use tracing::debug;
 
-const MESSAGE_COUNT: usize = 1000;
+const MESSAGE_COUNT: usize = 500;
 
 #[derive(Debug)]
 struct Spam;
@@ -77,6 +78,7 @@ impl Plugin for SpammyPlugin {
     #[allow(unreachable_code)]
     async fn main(&self) -> Result<(), PluginError> {
         for _ in 0..MESSAGE_COUNT {
+            debug!("Sending SPAM");
             self.target
                 .send_and_wait(Spam)
                 .await
@@ -156,7 +158,7 @@ impl Handle<Spam> for SpammedPlugin {
         _message: Spam,
         _sender: tedge_api::address::ReplySenderFor<Spam>,
     ) -> Result<(), PluginError> {
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        tokio::time::sleep(Duration::from_millis(10)).await;
         self.sender.send(()).await.unwrap();
         Ok(())
     }
@@ -183,7 +185,7 @@ async fn test_verify_concurrent_messages() -> miette::Result<()> {
         filepath
     };
 
-    let (sender, mut recv) = tokio::sync::mpsc::channel(10);
+    let (sender, mut recv) = tokio::sync::mpsc::channel(200);
 
     let (_cancel_sender, application) = TedgeApplication::builder()
         .with_plugin_builder(SpammyPluginBuilder {})?
@@ -194,7 +196,7 @@ async fn test_verify_concurrent_messages() -> miette::Result<()> {
     let app_loop = tokio::spawn(application.run());
     let messages = tokio::spawn(futures::stream::poll_fn(move |ctx| recv.poll_recv(ctx)).count());
 
-    let (app_err, messages) = tokio::time::timeout(Duration::from_millis(400), async move {
+    let (app_err, messages) = tokio::time::timeout(Duration::from_millis(300), async move {
         tokio::join!(app_loop, messages)
     })
     .await

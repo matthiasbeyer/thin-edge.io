@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
-use criterion::{BatchSize, BenchmarkId};
+use criterion::{BenchmarkId};
 use tedge_api::plugin::{Handle, HandleTypes};
 use tedge_api::PluginConfiguration;
 use tedge_api::PluginDirectory;
@@ -18,7 +18,7 @@ struct Measurement(u64);
 
 impl Message for Measurement {}
 
-pub struct ProducerPluginBuilder(Mutex<Option<tokio::sync::mpsc::Receiver<u64>>>);
+pub struct ProducerPluginBuilder(Mutex<Option<tokio::sync::mpsc::UnboundedReceiver<u64>>>);
 
 #[async_trait::async_trait]
 impl<PD: PluginDirectory> PluginBuilder<PD> for ProducerPluginBuilder {
@@ -40,7 +40,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for ProducerPluginBuilder {
         plugin_dir: &PD,
     ) -> Result<tedge_api::plugin::BuiltPlugin, PluginError> {
         Ok(ProducerPlugin(
-            self.0.lock().await.take(),
+            Mutex::new(self.0.lock().await.take()),
             plugin_dir.get_address_for("destination")?,
         )
         .finish())
@@ -57,7 +57,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for ProducerPluginBuilder {
 make_receiver_bundle!(struct MeasurementBundle(Measurement));
 
 struct ProducerPlugin(
-    Option<tokio::sync::mpsc::Receiver<u64>>,
+    Mutex<Option<tokio::sync::mpsc::UnboundedReceiver<u64>>>,
     Address<MeasurementBundle>,
 );
 
@@ -69,7 +69,7 @@ impl tedge_api::plugin::PluginDeclaration for ProducerPlugin {
 impl Plugin for ProducerPlugin {
     #[allow(unreachable_code)]
     async fn main(&self) -> Result<(), PluginError> {
-        let mut rec = self.0.take().unwrap();
+        let mut rec = self.0.lock().await.take().unwrap();
         let addr = self.1.clone();
         let mut count = 0;
         tokio::spawn(async move {
@@ -82,7 +82,7 @@ impl Plugin for ProducerPlugin {
                             addr.send_and_wait(Measurement(num)).await
                                 .unwrap_or_else(|_| {
                                     println!("Could not send in sender for msg num #{}", count);
-                                    std::process::abort()
+                                    panic!();
                                 });
                         } else {
                             break
@@ -100,7 +100,7 @@ impl Plugin for ProducerPlugin {
     }
 }
 
-pub struct ReceiverPluginBuilder(tokio::sync::mpsc::Sender<f64>);
+pub struct ReceiverPluginBuilder(tokio::sync::mpsc::UnboundedSender<f64>);
 
 #[async_trait::async_trait]
 impl<PD: PluginDirectory> PluginBuilder<PD> for ReceiverPluginBuilder {
@@ -132,7 +132,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for ReceiverPluginBuilder {
     }
 }
 
-struct ReceiverPlugin(tokio::sync::mpsc::Sender<f64>, Mutex<Vec<u64>>);
+struct ReceiverPlugin(tokio::sync::mpsc::UnboundedSender<f64>, Mutex<Vec<u64>>);
 
 impl tedge_api::plugin::PluginDeclaration for ReceiverPlugin {
     type HandledMessages = (Measurement,);
@@ -165,7 +165,6 @@ impl Handle<Measurement> for ReceiverPlugin {
         if vals.len() == 10 {
             self.0
                 .send(vals.drain(..).sum::<u64>() as f64 / 10.0)
-                .await
                 .unwrap_or_else(|_| {
                     println!("Could not send in receiver");
                     std::process::abort()
@@ -178,8 +177,8 @@ impl Handle<Measurement> for ReceiverPlugin {
 
 async fn start_application(
     stopper: Arc<tokio::sync::Notify>,
-    receiver: tokio::sync::mpsc::Receiver<u64>,
-    sender: tokio::sync::mpsc::Sender<f64>,
+    receiver: tokio::sync::mpsc::UnboundedReceiver<u64>,
+    sender: tokio::sync::mpsc::UnboundedSender<f64>,
 ) -> Result<(), Box<(dyn std::error::Error + Sync + Send + 'static)>> {
     let _ = tracing_subscriber::fmt::try_init();
 
@@ -232,14 +231,7 @@ fn bench_throughput(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("throughput");
 
-    for size in [
-        KILO,
-        10 * KILO,
-        50 * KILO,
-        100 * KILO,
-        500 * KILO,
-        1000 * KILO,
-    ] {
+    for size in [KILO / 10, KILO, 10 * KILO] {
         group.throughput(criterion::Throughput::Elements(size));
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
             let rt = tokio::runtime::Builder::new_current_thread()
@@ -247,44 +239,29 @@ fn bench_throughput(c: &mut Criterion) {
                 .build()
                 .unwrap();
             let notify = Arc::new(Notify::new());
-            let (sender, receiver) = tokio::sync::mpsc::channel(100);
-            let (fsender, freceiver) = tokio::sync::mpsc::channel(100);
+            let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
+            let (fsender, freceiver) = tokio::sync::mpsc::unbounded_channel();
             let app = rt.spawn(start_application(notify.clone(), receiver, fsender));
 
             let freceiver = Arc::new(Mutex::new(freceiver));
 
-            b.to_async(&rt).iter_batched(
-                || vec![123; size as usize],
-                |data| {
-                    let sender = sender.clone();
-                    let freceiver = freceiver.clone();
-                    async move {
-                        let mut freceiver = freceiver.lock().await;
-                        let mut count = 0;
-                        let mut len = 0;
-                        while len < data.len() {
-                            tokio::select! {
-                                res = sender.send(data[len]) => {
-                                    len += 1;
-                                    res.unwrap();
-                                    //println!("Sent message!");
-                                },
-                                Some(_) = freceiver.recv() => {
-                                    count += 1;
-                                }
-                            }
-                        }
-                        //println!("Done sending batch of {:?}, draining receiver", data.len());
-                        while let Some(_) = freceiver.recv().await {
-                            count += 1;
-                            if count >= size / 10 {
-                                break;
-                            }
+            b.to_async(&rt).iter(|| {
+                for data in vec![123; size as usize] {
+                    sender.send(data).unwrap();
+                }
+                let freceiver = freceiver.clone();
+                async move {
+                    let mut freceiver = freceiver.lock().await;
+                    let mut count = 0;
+                    //println!("Done sending batch of {:?}, draining receiver", data.len());
+                    while let Some(_) = freceiver.recv().await {
+                        count += 1;
+                        if count >= size / 10 {
+                            break;
                         }
                     }
-                },
-                BatchSize::SmallInput,
-            );
+                }
+            });
 
             //println!("Stopping app");
             notify.notify_one();
