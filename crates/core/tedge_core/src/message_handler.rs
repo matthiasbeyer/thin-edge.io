@@ -63,13 +63,13 @@ pub fn make_message_handler(
             trace!("Spawning handler!");
             tokio::spawn(
                 async move {
-                    let _permit = permit;
                     let read_plug = built_plugin.read().await;
                     let handled_message =
                         std::panic::AssertUnwindSafe(read_plug.handle_message(msg))
                             .catch_unwind()
                             .instrument(Span::current())
                             .await;
+                    drop(permit);
 
                     match handled_message {
                         Err(panic) => {
