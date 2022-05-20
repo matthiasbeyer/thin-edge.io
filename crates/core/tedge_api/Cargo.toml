@@ -16,6 +16,7 @@ tokio-util = "0.7.0"
 toml = "0.5.8"
 serde = { version = "1.0.136", features = ["derive"] }
 tedge_config_derive = { version = "0.1.0", path = "tedge_config_derive" }
+tracing = "0.1"
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"

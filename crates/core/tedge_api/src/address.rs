@@ -1,6 +1,8 @@
-use std::{marker::PhantomData, time::Duration};
+use std::{marker::PhantomData, sync::Arc, time::Duration};
 
-use tokio::sync::mpsc::error::{SendTimeoutError, TrySendError};
+use futures::future::BoxFuture;
+use tokio::sync::RwLock;
+use tracing::{instrument, trace};
 
 use crate::{
     message::MessageType,
@@ -11,15 +13,103 @@ use crate::{
 pub type AnyMessageBox = Box<dyn Message>;
 
 #[doc(hidden)]
-#[derive(Debug)]
 pub struct InternalMessage {
     pub(crate) data: AnyMessageBox,
     pub(crate) reply_sender: tokio::sync::oneshot::Sender<AnyMessageBox>,
 }
 
+impl std::fmt::Debug for InternalMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InternalMessage")
+            .field("data", &self.data)
+            .finish_non_exhaustive()
+    }
+}
+
+#[doc(hidden)]
+#[derive(Debug)]
+pub enum ShouldWait {
+    Wait,
+    DontWait,
+    Timeout(std::time::Duration),
+}
+
+#[doc(hidden)]
+pub type MessageFutureProducer = dyn Fn(InternalMessage, ShouldWait) -> BoxFuture<'static, Result<(), InternalMessage>>
+    + Sync
+    + Send;
+
+#[doc(hidden)]
+#[derive(Clone)]
+pub struct InnerMessageSender {
+    #[doc(hidden)]
+    pub send_provider: Arc<RwLock<Option<Box<MessageFutureProducer>>>>,
+}
+
+impl std::fmt::Debug for InnerMessageSender {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InnerMessageSender").finish_non_exhaustive()
+    }
+}
+
+impl InnerMessageSender {
+    pub fn new(send_provider: Arc<RwLock<Option<Box<MessageFutureProducer>>>>) -> Self {
+        Self { send_provider }
+    }
+
+    pub async fn init_with(&self, producer: Box<MessageFutureProducer>) {
+        let mut lock = self.send_provider.write().await;
+        *lock = Some(producer);
+    }
+
+    pub async fn reset(&self) {
+        let mut lock = self.send_provider.write().await;
+        *lock = None;
+    }
+
+    #[instrument(skip_all, level = "trace")]
+    async fn send(&self, message: InternalMessage) -> Result<(), InternalMessage> {
+        let lock = self.send_provider.read().await;
+        trace!(sender_exists = ?lock.is_some(), "Checking for internal sender");
+        if let Some(sender) = &*lock {
+            let sender = (*sender)(message, ShouldWait::Wait);
+
+            sender.await
+        } else {
+            Err(message)
+        }
+    }
+
+    async fn try_send(&self, message: InternalMessage) -> Result<(), InternalMessage> {
+        let lock = self.send_provider.read().await;
+        if let Some(sender) = &*lock {
+            let sender = (*sender)(message, ShouldWait::DontWait);
+
+            sender.await
+        } else {
+            Err(message)
+        }
+    }
+
+    async fn send_timeout(
+        &self,
+        message: InternalMessage,
+        timeout: Duration,
+    ) -> Result<(), InternalMessage> {
+        let lock = self.send_provider.read().await;
+        if let Some(sender) = &*lock {
+            let sender = (*sender)(message, ShouldWait::Timeout(timeout));
+
+            sender.await
+        } else {
+            Err(message)
+        }
+    }
+}
+
 /// THIS IS NOT PART OF THE PUBLIC API, AND MAY CHANGE AT ANY TIME
 #[doc(hidden)]
-pub type MessageSender = tokio::sync::mpsc::Sender<InternalMessage>;
+pub type MessageSender = InnerMessageSender;
 
 /// THIS IS NOT PART OF THE PUBLIC API, AND MAY CHANGE AT ANY TIME
 #[doc(hidden)]
@@ -94,7 +184,7 @@ impl<RB: ReceiverBundle> Address<RB> {
                 reply_sender: sender,
             })
             .await
-            .map_err(|msg| *msg.0.data.downcast::<M>().unwrap())?;
+            .map_err(|msg| *msg.data.downcast::<M>().unwrap())?;
 
         Ok(ReplyReceiverFor {
             _pd: PhantomData,
@@ -114,7 +204,7 @@ impl<RB: ReceiverBundle> Address<RB> {
     ///
     /// The error is returned if the receiving side (the plugin that is addressed) cannot currently
     /// receive messages (either because it is closed or the queue is full).
-    pub fn try_send<M: Message>(&self, msg: M) -> Result<ReplyReceiverFor<M>, M> {
+    pub async fn try_send<M: Message>(&self, msg: M) -> Result<ReplyReceiverFor<M>, M> {
         let (sender, receiver) = tokio::sync::oneshot::channel();
 
         self.sender
@@ -122,11 +212,8 @@ impl<RB: ReceiverBundle> Address<RB> {
                 data: Box::new(msg),
                 reply_sender: sender,
             })
-            .map_err(|msg| match msg {
-                TrySendError::Full(data) | TrySendError::Closed(data) => {
-                    *data.data.downcast::<M>().unwrap()
-                }
-            })?;
+            .await
+            .map_err(|msg| *msg.data.downcast::<M>().unwrap())?;
 
         Ok(ReplyReceiverFor {
             _pd: PhantomData,
@@ -157,11 +244,7 @@ impl<RB: ReceiverBundle> Address<RB> {
                 timeout,
             )
             .await
-            .map_err(|msg| match msg {
-                SendTimeoutError::Timeout(data) | SendTimeoutError::Closed(data) => {
-                    *data.data.downcast::<M>().unwrap()
-                }
-            })?;
+            .map_err(|msg| *msg.data.downcast::<M>().unwrap())?;
 
         Ok(ReplyReceiverFor {
             _pd: PhantomData,
@@ -319,10 +402,13 @@ macro_rules! make_receiver_bundle {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use static_assertions::{assert_impl_all, assert_not_impl_any};
+    use tokio::sync::RwLock;
 
     use crate::{
-        address::{ReplyReceiverFor, ReplySenderFor},
+        address::{InnerMessageSender, ReplyReceiverFor, ReplySenderFor},
         make_receiver_bundle,
         plugin::{AcceptsReplies, Message},
         Address,
@@ -370,7 +456,7 @@ mod tests {
 
     #[test]
     fn check_could_receive() {
-        let (sender, _receiver) = tokio::sync::mpsc::channel(1);
+        let sender = InnerMessageSender::new(Arc::new(RwLock::new(None)));
         let addr: Address<FooBar> = Address {
             _pd: std::marker::PhantomData,
             sender,
