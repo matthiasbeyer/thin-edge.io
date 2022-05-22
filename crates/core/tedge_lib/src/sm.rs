@@ -24,6 +24,10 @@ pub mod request {
 
     impl tedge_api::Message for Install {}
 
+    impl tedge_api::plugin::AcceptsReplies for Install {
+        type Reply = crate::sm::response::InstallResponse;
+    }
+
     /// Update a software by name
     #[derive(Debug, getset::Getters)]
     pub struct Update {
