@@ -81,7 +81,7 @@ pub mod response {
 
     impl tedge_api::Message for ListResponse {}
 
-    #[derive(Debug)]
+    #[derive(Debug, serde::Serialize)]
     pub enum InstallResponse {
         InstallProgress {
             package_name: String,
