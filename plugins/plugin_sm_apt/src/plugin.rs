@@ -3,11 +3,12 @@ use async_trait::async_trait;
 use tedge_api::plugin::Handle;
 use tedge_api::Plugin;
 use tedge_api::PluginError;
-use tracing::trace;
 use tedge_lib::sm::request::Install;
 use tedge_lib::sm::request::List;
 use tedge_lib::sm::request::Uninstall;
 use tedge_lib::sm::request::Update;
+use tedge_lib::sm::response::InstallResponse;
+use tracing::trace;
 
 #[derive(Debug)]
 pub struct SmAptPlugin {
@@ -41,13 +42,18 @@ impl Plugin for SmAptPlugin {
 
 #[async_trait]
 impl Handle<Install> for SmAptPlugin {
-    #[tracing::instrument(name = "plugin.sm_apt.handle_message.install", skip(self, _sender))]
+    #[tracing::instrument(name = "plugin.sm_apt.handle_message.install", skip(self, sender))]
     async fn handle_message(
         &self,
         message: Install,
-        _sender: tedge_api::address::ReplySenderFor<Install>,
+        sender: tedge_api::address::ReplySenderFor<Install>,
     ) -> Result<(), PluginError> {
         tracing::info!(package_name = %message.package_name(), "MOCK: Going to install software");
+        sender
+            .reply(InstallResponse::InstallSucceeded {
+                package_name: message.package_name().clone(),
+            })
+            .map_err(|_| crate::error::Error::ReplySendingFailed)?;
         Ok(())
     }
 }

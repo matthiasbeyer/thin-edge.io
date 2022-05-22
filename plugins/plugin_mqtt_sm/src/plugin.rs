@@ -80,8 +80,21 @@ impl Handle<IncomingMessage> for MqttSMPlugin {
                 Ok(())
             }
             SmRequest::Install { package_name } => {
-                self.target
+                let reply = self
+                    .target
                     .send_and_wait(tedge_lib::sm::request::Install::new(package_name))
+                    .await
+                    .map_err(|_| crate::error::Error::SendFailed)?
+                    .wait_for_reply(std::time::Duration::from_secs(10)) // wait 10 secs for a reply
+                    .await
+                    .map_err(crate::error::Error::from)?;
+
+                let buf = serde_json::to_string(&reply).map_err(crate::error::Error::SerError)?;
+                let buf = buf.as_bytes().to_vec();
+                let msg = plugin_mqtt::OutgoingMessage::new(buf, self.response_topic.clone());
+
+                self.mqtt_addr
+                    .send_and_wait(msg)
                     .await
                     .map_err(|_| crate::error::Error::SendFailed)?;
 
