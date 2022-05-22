@@ -2,5 +2,8 @@
 pub(crate) enum Error {
     #[error("Failed to parse configuration")]
     ConfigParseFailed(toml::de::Error),
+
+    #[error("Failed to send reply")]
+    ReplySendingFailed,
 }
 
