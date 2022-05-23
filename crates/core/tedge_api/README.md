@@ -91,7 +91,7 @@ use tedge_api::Message;
 #[uuid = "b60dd50c-ccef-4204-b370-18bbbb68d6e2"]
 struct Value(f64);
 
-impl Message for Value {}
+impl tedge_api::Message for Value {}
 ```
 
 ## How messages are send
