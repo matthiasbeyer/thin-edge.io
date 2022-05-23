@@ -173,8 +173,8 @@ pub trait PluginBuilder<PD: PluginDirectory>: Sync + Send + 'static {
     /// Get a generic configuration description of what kind of input the
     /// plugin expects.
     ///
-    /// See [`Config`] as well as [`AsConfig`] for how to implement and use these types and
-    /// interfaces.
+    /// See [`ConfigDescription`] as well as [`AsConfig`](crate::config::AsConfig) for how to
+    /// implement and use these types and interfaces.
     fn kind_configuration() -> Option<ConfigDescription>
     where
         Self: Sized,
@@ -317,14 +317,26 @@ pub trait Plugin: Sync + Send + DowncastSync {
     ///
     /// This function will be called by the core of thin-edge before any message-passing starts.
     /// The plugin is free to for example spawn up background tasks here.
-    async fn start(&mut self) -> Result<(), PluginError>;
+    async fn start(&mut self) -> Result<(), PluginError> {
+        Ok(())
+    }
+
+    /// The main function of the plugin
+    ///
+    /// This method is called once all plugins have [`start`](Plugin::start)ed. The plugin is free
+    /// to spawn new tasks or loop indefinitely (while still observing the cancel token!)
+    async fn main(&self) -> Result<(), PluginError> {
+        Ok(())
+    }
 
     /// Gracefully handle shutdown
     ///
     /// This function is called by the core of thin-edge before the software shuts down as a whole,
     /// giving the plugin the opportunity to clear up resources (e.g. deallocate file handles
     /// cleanly, shut down network connections properly, etc...).
-    async fn shutdown(&mut self) -> Result<(), PluginError>;
+    async fn shutdown(&mut self) -> Result<(), PluginError> {
+        Ok(())
+    }
 }
 
 impl_downcast!(sync Plugin);

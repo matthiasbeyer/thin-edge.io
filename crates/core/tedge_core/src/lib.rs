@@ -20,8 +20,8 @@ mod core_task;
 pub mod errors;
 mod plugin_task;
 mod reactor;
-mod task;
 mod utils;
+mod message_handler;
 
 pub use crate::communication::PluginDirectory;
 use crate::configuration::PluginInstanceConfiguration;

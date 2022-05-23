@@ -16,20 +16,17 @@ use crate::errors::TedgeApplicationError;
 /// instance.
 pub struct CorePluginDirectory {
     plugins: HashMap<String, PluginInfo>,
-    sender: MessageSender,
+    core_communicator: MessageSender,
 }
 
 impl CorePluginDirectory {
-    pub(crate) fn collect_from<I>(
-        iter: I,
-        sender: MessageSender,
-    ) -> Result<Self, TedgeApplicationError>
+    pub(crate) fn collect_from<I>(iter: I) -> Result<Self, TedgeApplicationError>
     where
         I: std::iter::IntoIterator<Item = Result<(String, PluginInfo), TedgeApplicationError>>,
     {
         Ok(CorePluginDirectory {
             plugins: iter.into_iter().collect::<Result<HashMap<_, _>, _>>()?,
-            sender,
+            core_communicator: MessageSender::new(Default::default()),
         })
     }
 
@@ -74,13 +71,17 @@ impl CorePluginDirectory {
                 unsupported_types,
             ))
         } else {
-            Ok(Address::new(plug.sender.clone()))
+            Ok(Address::new(plug.communicator.clone()))
         }
     }
 
     /// Get the [`tedge_api::Address`] object that can be used to send messages to the core itself
     fn get_address_for_core(&self) -> Address<tedge_api::CoreMessages> {
-        Address::new(self.sender.clone())
+        Address::new(self.core_communicator.clone())
+    }
+
+    pub fn get_core_communicator(&self) -> MessageSender {
+        self.core_communicator.clone()
     }
 
     /// Construct a PluginDirectory object for a plugin named `plugin_name`
@@ -96,25 +97,32 @@ impl CorePluginDirectory {
 }
 
 /// Helper type for information about a plugin instance
-#[derive(Debug)]
 pub(crate) struct PluginInfo {
     /// The types of messages the plugin claims to handle
     pub(crate) types: Vec<MessageType>,
 
-    /// A receiver for receiving messages sent to the plugin
-    pub(crate) receiver: Option<tedge_api::address::MessageReceiver>,
+    /// How many concurrent handlers are allowed to be spawned
+    pub(crate) channel_size: usize,
 
     /// A sender to send messages to the plugin
-    pub(crate) sender: tedge_api::address::MessageSender,
+    pub(crate) communicator: MessageSender,
+}
+
+impl std::fmt::Debug for PluginInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PluginInfo")
+            .field("types", &self.types)
+            .field("channel_size", &self.channel_size)
+            .finish_non_exhaustive()
+    }
 }
 
 impl PluginInfo {
     pub(crate) fn new(types: Vec<MessageType>, channel_size: usize) -> Self {
-        let (sender, receiver) = tokio::sync::mpsc::channel(channel_size);
         Self {
             types,
-            receiver: Some(receiver),
-            sender,
+            channel_size,
+            communicator: MessageSender::new(Default::default()),
         }
     }
 }
@@ -304,9 +312,8 @@ mod tests {
                 PluginInfo::new(handle_types, channel_size),
             ))
         });
-        let (core_sender, _core_receiver) = tokio::sync::mpsc::channel(channel_size);
 
-        CorePluginDirectory::collect_from(directory_iter, core_sender).unwrap()
+        CorePluginDirectory::collect_from(directory_iter).unwrap()
     }
 
     #[test]

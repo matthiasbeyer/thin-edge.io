@@ -47,6 +47,12 @@ pub enum TedgeApplicationError {
     #[error("Plugin '{0}' setup failed")]
     PluginSetupFailed(String, tedge_api::error::PluginError),
 
+    #[error("Plugin '{0}' setup paniced")]
+    PluginMainPaniced(String),
+
+    #[error("Plugin '{0}' setup failed")]
+    PluginMainFailed(String, tedge_api::error::PluginError),
+
     #[error("Plugin '{0}' paniced in message handler")]
     PluginMessageHandlerPaniced(String),
 
