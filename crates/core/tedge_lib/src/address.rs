@@ -55,12 +55,12 @@ where
     pub fn try_send<M>(
         &self,
         msg: M,
-    ) -> impl Iterator<Item = Result<tedge_api::address::ReplyReceiverFor<M>, M>> + '_
+    ) -> impl futures::stream::Stream<Item = Result<tedge_api::address::ReplyReceiverFor<M>, M>> + '_
     where
         M: tedge_api::Message + Clone,
         RB: tedge_api::address::Contains<M>,
     {
-        self.0.iter().map(move |addr| addr.try_send(msg.clone()))
+        futures::stream::iter(&self.0).then(move |addr| addr.try_send(msg.clone()))
     }
 }
 
