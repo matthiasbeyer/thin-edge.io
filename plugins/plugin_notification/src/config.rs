@@ -3,10 +3,10 @@ use tedge_lib::notification::Notification;
 #[derive(Debug, serde::Deserialize, tedge_api::Config)]
 pub struct Config {
     /// The name of the plugin to forward messages to
-    pub(crate) forward_to: String,
+    pub(crate) forward_to: tedge_lib::config::Address,
 
     /// The name of the plugin to send notifications to
-    pub(crate) notify: String,
+    pub(crate) notify: tedge_lib::config::Address,
 
     /// The type of the notification to raise
     pub(crate) raise: NotificationType,
@@ -81,8 +81,8 @@ mod tests {
         "#;
 
         let cfg: Config = toml::from_str(config).unwrap();
-        assert_eq!(cfg.forward_to, "foo");
-        assert_eq!(cfg.notify, "bar");
+        assert_eq!(cfg.forward_to.as_ref(), "foo");
+        assert_eq!(cfg.notify.as_ref(), "bar");
         assert_eq!(cfg.raise, NotificationType::Info);
         assert_eq!(cfg.raise_message, String::from("it is getting warm here"));
     }

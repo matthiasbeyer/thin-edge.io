@@ -6,12 +6,14 @@ use std::sync::Arc;
 use futures::StreamExt;
 use sysinfo::DiskExt;
 use sysinfo::SystemExt;
+use tedge_lib::iter::SendAllResult;
 use tokio::sync::Mutex;
 use tracing::Instrument;
 
 use tedge_api::plugin::Message;
 use tedge_api::Address;
 use tedge_api::PluginError;
+use tedge_lib::address::AddressGroup;
 use tedge_lib::iter::IntoSendAll;
 use tedge_lib::measurement::Measurement;
 use tedge_lib::measurement::MeasurementValue;
@@ -25,7 +27,7 @@ use crate::main::StateFromConfig;
 #[derive(Debug)]
 pub struct DiskUsageState {
     interval: u64,
-    send_to: Arc<Vec<Address<MeasurementReceiver>>>,
+    send_to: Arc<AddressGroup<MeasurementReceiver>>,
     sys: sysinfo::System,
 }
 
@@ -38,7 +40,7 @@ impl State for DiskUsageState {
 impl StateFromConfig for DiskUsageState {
     fn new_from_config(
         config: &crate::config::SysStatConfig,
-        addrs: Arc<Vec<Address<MeasurementReceiver>>>,
+        addrs: Arc<AddressGroup<MeasurementReceiver>>,
     ) -> Option<Self> {
         config.disk_usage.as_ref().map(|config| DiskUsageState {
             interval: config.interval_ms().get(),
@@ -50,47 +52,33 @@ impl StateFromConfig for DiskUsageState {
 
 #[tracing::instrument(name = "plugin.sysstat.main-diskusage", skip(state))]
 pub async fn main_disk_usage(state: Arc<Mutex<DiskUsageState>>) -> Result<(), PluginError> {
-    let mut lock = state.lock().await;
-    {
-        let mut state = lock.deref_mut();
-        state.sys.refresh_disks_list();
-    }
+    use futures::stream::StreamExt;
 
+    let mut lock = state.lock().await;
+    lock.deref_mut().sys.refresh_disks_list();
     lock.deref_mut().sys.refresh_disks();
-    lock.deref()
+
+    let streams = lock
+        .deref()
         .sys
         .disks()
         .into_iter()
-        .map(|disk| async {
-            measure_to_messages(lock.deref(), &lock.deref().send_to, disk)?
-                .send_all()
-                .collect::<futures::stream::FuturesUnordered<_>>()
-                .collect::<Vec<Result<_, _>>>()
-                .await
-                .into_iter()
-                .map(|res| {
-                    res.map_err(|_| PluginError::from(crate::error::Error::FailedToSendMeasurement))
-                        .map(|_| ())
-                })
-                .collect::<Result<Vec<()>, PluginError>>()
-        })
-        .collect::<futures::stream::FuturesUnordered<_>>()
-        .collect::<Vec<Result<Vec<()>, PluginError>>>()
+        .map(|disk| measure_to_message(disk).map(|msg| lock.send_to.send_and_wait(msg)))
+        .collect::<Result<Vec<_>, PluginError>>()?;
+
+    futures::stream::iter(streams)
+        .flatten()
+        .collect::<SendAllResult<Measurement>>()
         .instrument(tracing::debug_span!(
             "plugin.sysstat.main-diskusage.sending_measurements"
         ))
         .await
-        .into_iter()
-        .collect::<Result<Vec<_>, PluginError>>()
-        .map(|_| ())
+        .into_result()
+        .map_err(|_| crate::error::Error::FailedToSendMeasurement)?;
+    Ok(())
 }
 
-fn measure_to_messages<'a>(
-    state: &'a DiskUsageState,
-    targets: &'a [Address<MeasurementReceiver>],
-    disk: &sysinfo::Disk,
-) -> Result<impl Iterator<Item = (Measurement, &'a Address<MeasurementReceiver>)> + 'a, PluginError>
-{
+fn measure_to_message(disk: &sysinfo::Disk) -> Result<Measurement, PluginError> {
     let disk_name = disk
         .name()
         .to_os_string()
@@ -136,11 +124,5 @@ fn measure_to_messages<'a>(
         MeasurementValue::Bool(disk_removable),
     );
     let value = MeasurementValue::Map(hm);
-    let measurement = Measurement::new(disk_name.to_string(), value);
-
-    let iter = targets
-        .into_iter()
-        .map(move |addr| (measurement.clone(), addr));
-
-    Ok(iter)
+    Ok(Measurement::new(disk_name.to_string(), value))
 }

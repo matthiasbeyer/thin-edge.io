@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tedge_api::Address;
 use tedge_api::Plugin;
 use tedge_api::PluginError;
+use tedge_lib::address::AddressGroup;
 use tedge_lib::measurement::Measurement;
 use tokio::sync::Mutex;
 use tracing::debug;
@@ -29,12 +29,12 @@ tedge_api::make_receiver_bundle!(pub struct MeasurementReceiver(Measurement));
 
 #[derive(Debug)]
 pub struct AddressConfig {
-    pub(crate) memory: Arc<Vec<Address<MeasurementReceiver>>>,
-    pub(crate) network: Arc<Vec<Address<MeasurementReceiver>>>,
-    pub(crate) cpu: Arc<Vec<Address<MeasurementReceiver>>>,
-    pub(crate) disk_usage: Arc<Vec<Address<MeasurementReceiver>>>,
-    pub(crate) load: Arc<Vec<Address<MeasurementReceiver>>>,
-    pub(crate) process: Arc<Vec<Address<MeasurementReceiver>>>,
+    pub(crate) memory: Option<Arc<AddressGroup<MeasurementReceiver>>>,
+    pub(crate) network: Option<Arc<AddressGroup<MeasurementReceiver>>>,
+    pub(crate) cpu: Option<Arc<AddressGroup<MeasurementReceiver>>>,
+    pub(crate) disk_usage: Option<Arc<AddressGroup<MeasurementReceiver>>>,
+    pub(crate) load: Option<Arc<AddressGroup<MeasurementReceiver>>>,
+    pub(crate) process: Option<Arc<AddressGroup<MeasurementReceiver>>>,
 }
 
 impl SysStatPlugin {
@@ -54,13 +54,15 @@ impl Plugin for SysStatPlugin {
         debug!("Starting sysstat plugin");
         macro_rules! run {
             ($t:ty, $sender:expr, $main:expr, $dbgspan:literal) => {
-                if let Some(state) = <$t>::new_from_config(&self.config, $sender.clone()) {
-                    trace!(sysstat.backend = ?std::any::type_name::<$t>(), "Starting sysstat plugin with backend");
-                    let duration = std::time::Duration::from_millis(state.interval());
-                    let (stopper, mainloop) =
-                        tedge_lib::mainloop::Mainloop::ticking_every(duration, Mutex::new(state));
-                    self.stoppers.push(stopper);
-                    let _ = tokio::spawn(mainloop.run($main).instrument(tracing::debug_span!($dbgspan)));
+                if let Some(sender) = $sender.as_ref() {
+                    if let Some(state) = <$t>::new_from_config(&self.config, sender.clone()) {
+                        trace!(sysstat.backend = ?std::any::type_name::<$t>(), "Starting sysstat plugin with backend");
+                        let duration = std::time::Duration::from_millis(state.interval());
+                        let (stopper, mainloop) =
+                            tedge_lib::mainloop::Mainloop::ticking_every(duration, Mutex::new(state));
+                        self.stoppers.push(stopper);
+                        let _ = tokio::spawn(mainloop.run($main).instrument(tracing::debug_span!($dbgspan)));
+                    }
                 }
             };
         }

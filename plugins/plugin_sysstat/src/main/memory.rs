@@ -5,10 +5,12 @@ use std::sync::Arc;
 
 use futures::StreamExt;
 use sysinfo::SystemExt;
+use tedge_lib::iter::SendAllResult;
 use tokio::sync::Mutex;
 
 use tedge_api::Address;
 use tedge_api::PluginError;
+use tedge_lib::address::AddressGroup;
 use tedge_lib::iter::IntoSendAll;
 use tedge_lib::measurement::Measurement;
 use tedge_lib::measurement::MeasurementValue;
@@ -22,7 +24,7 @@ use crate::plugin::MeasurementReceiver;
 #[derive(Debug)]
 pub struct MemoryState {
     interval: u64,
-    send_to: Arc<Vec<Address<MeasurementReceiver>>>,
+    send_to: Arc<AddressGroup<MeasurementReceiver>>,
     sys: sysinfo::System,
 
     total_memory: bool,
@@ -53,7 +55,7 @@ impl State for MemoryState {
 impl StateFromConfig for MemoryState {
     fn new_from_config(
         config: &crate::config::SysStatConfig,
-        addrs: Arc<Vec<Address<MeasurementReceiver>>>,
+        addrs: Arc<AddressGroup<MeasurementReceiver>>,
     ) -> Option<Self> {
         config.memory.as_ref().map(|config| MemoryState {
             interval: config.interval_ms().get(),
@@ -133,20 +135,15 @@ pub async fn main_memory(state: Arc<Mutex<MemoryState>>) -> Result<(), PluginErr
     let value = MeasurementValue::Map(hm);
     let measurement = Measurement::new("memory".to_string(), value);
 
-    std::iter::repeat(measurement)
-        .zip(state.send_to.iter())
-        .send_all()
-        .collect::<futures::stream::FuturesUnordered<_>>()
-        .collect::<Vec<Result<_, _>>>()
+    state
+        .send_to
+        .send_and_wait(measurement)
+        .collect::<SendAllResult<Measurement>>()
         .instrument(tracing::debug_span!(
             "plugin.sysstat.main-memory.sending_measurements"
         ))
         .await
-        .into_iter()
-        .map(|res| {
-            res.map_err(|_| PluginError::from(crate::error::Error::FailedToSendMeasurement))
-                .map(|_| ())
-        })
-        .collect::<Result<Vec<()>, PluginError>>()
-        .map(|_| ())
+        .into_result()
+        .map_err(|_| crate::error::Error::FailedToSendMeasurement)?;
+    Ok(())
 }

@@ -5,12 +5,14 @@ use std::sync::Arc;
 
 use futures::StreamExt;
 use sysinfo::SystemExt;
+use tedge_lib::iter::SendAllResult;
 use tedge_lib::measurement::Measurement;
 use tedge_lib::measurement::MeasurementValue;
 use tokio::sync::Mutex;
 
 use tedge_api::Address;
 use tedge_api::PluginError;
+use tedge_lib::address::AddressGroup;
 use tedge_lib::iter::IntoSendAll;
 use tracing::Instrument;
 
@@ -24,7 +26,7 @@ use crate::plugin::MeasurementReceiver;
 #[derive(Debug)]
 pub struct NetworkState {
     interval: u64,
-    send_to: Arc<Vec<Address<MeasurementReceiver>>>,
+    send_to: Arc<AddressGroup<MeasurementReceiver>>,
     sys: sysinfo::System,
 
     all_networks: AllNetworkStatConfig,
@@ -40,7 +42,7 @@ impl State for NetworkState {
 impl StateFromConfig for NetworkState {
     fn new_from_config(
         config: &crate::config::SysStatConfig,
-        addrs: Arc<Vec<Address<MeasurementReceiver>>>,
+        addrs: Arc<AddressGroup<MeasurementReceiver>>,
     ) -> Option<Self> {
         config.network.as_ref().map(|config| NetworkState {
             interval: config.interval_ms().get(),
@@ -62,7 +64,7 @@ pub async fn main_network(state: Arc<Mutex<NetworkState>>) -> Result<(), PluginE
     let lock = state.lock().await;
     let state = lock.deref();
 
-    let messages = state
+    let measurements = state
         .sys
         .networks()
         .into_iter()
@@ -77,26 +79,21 @@ pub async fn main_network(state: Arc<Mutex<NetworkState>>) -> Result<(), PluginE
             };
 
             let value = get_network_info_measurements(network, config);
-            let measurement = Measurement::new(name.to_string(), value);
-
-            std::iter::repeat(measurement).zip(state.send_to.iter())
+            Measurement::new(name.to_string(), value)
         })
-        .flatten()
         .collect::<Vec<_>>();
 
-    messages
-        .into_iter()
-        .send_all()
-        .collect::<futures::stream::FuturesUnordered<_>>()
-        .collect::<Vec<Result<_, _>>>()
+    futures::stream::iter(measurements)
+        .map(|msmt| state.send_to.send_and_wait(msmt))
+        .flatten()
+        .collect::<SendAllResult<Measurement>>()
         .instrument(tracing::debug_span!(
             "plugin.sysstat.main-networks.sending_measurements"
         ))
         .await
-        .into_iter()
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|_| PluginError::from(crate::error::Error::FailedToSendMeasurement))
-        .map(|_| ())
+        .into_result()
+        .map_err(|_| crate::error::Error::FailedToSendMeasurement)?;
+    Ok(())
 }
 
 fn get_network_info_measurements(

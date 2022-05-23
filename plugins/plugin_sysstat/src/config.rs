@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-#[derive(serde::Deserialize, Debug)]
+use tedge_lib::config::Address;
+use tedge_lib::config::OneOrMany;
+
+#[derive(serde::Deserialize, Debug, tedge_api::Config)]
 pub struct SysStatConfig {
     pub(crate) memory: Option<MemoryConfig>,
     pub(crate) network: Option<NetworkConfig>,
@@ -10,18 +13,18 @@ pub struct SysStatConfig {
     pub(crate) process: Option<ProcessConfig>,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, tedge_api::Config)]
 pub struct BaseConfig {
-    send_to: Vec<String>,
+    send_to: OneOrMany<Address>,
     interval_ms: std::num::NonZeroU64,
 }
 
 pub trait HasBaseConfig {
-    fn send_to(&self) -> &[String];
+    fn send_to(&self) -> &OneOrMany<Address>;
     fn interval_ms(&self) -> std::num::NonZeroU64;
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, tedge_api::Config)]
 pub struct MemoryConfig {
     #[serde(flatten)]
     base: BaseConfig,
@@ -130,7 +133,7 @@ fn used_swap_name_default() -> String {
 }
 
 impl HasBaseConfig for MemoryConfig {
-    fn send_to(&self) -> &[String] {
+    fn send_to(&self) -> &OneOrMany<Address> {
         &self.base.send_to
     }
 
@@ -139,7 +142,7 @@ impl HasBaseConfig for MemoryConfig {
     }
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, tedge_api::Config)]
 pub struct NetworkConfig {
     #[serde(flatten)]
     base: BaseConfig,
@@ -151,7 +154,7 @@ pub struct NetworkConfig {
     pub(crate) by_name: HashMap<String, NetworkStatConfig>,
 }
 
-#[derive(serde::Deserialize, Clone, Debug)]
+#[derive(serde::Deserialize, Clone, Debug, tedge_api::Config)]
 pub struct AllNetworkStatConfig {
     pub(crate) enable: bool,
 
@@ -159,7 +162,7 @@ pub struct AllNetworkStatConfig {
     pub(crate) config: NetworkStatConfig,
 }
 
-#[derive(serde::Deserialize, Clone, Debug)]
+#[derive(serde::Deserialize, Clone, Debug, tedge_api::Config)]
 pub struct NetworkStatConfig {
     /// Enable to report the "received" measurement
     pub(crate) received: bool,
@@ -342,7 +345,7 @@ fn total_errors_on_received_name_default() -> String {
 }
 
 impl HasBaseConfig for NetworkConfig {
-    fn send_to(&self) -> &[String] {
+    fn send_to(&self) -> &OneOrMany<Address> {
         &self.base.send_to
     }
 
@@ -351,7 +354,7 @@ impl HasBaseConfig for NetworkConfig {
     }
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, tedge_api::Config)]
 pub struct CpuConfig {
     #[serde(flatten)]
     base: BaseConfig,
@@ -405,7 +408,7 @@ fn physical_core_count_name_default() -> String {
     "physical_core_count".to_string()
 }
 
-#[derive(serde::Deserialize, Clone, Debug)]
+#[derive(serde::Deserialize, Clone, Debug, tedge_api::Config)]
 pub struct ProcessorInfoConfig {
     /// Enable reporting this stat
     pub(crate) enable: bool,
@@ -491,13 +494,13 @@ fn brand_default_name() -> String {
     "brand".to_string()
 }
 
-#[derive(serde::Deserialize, Clone, Debug)]
+#[derive(serde::Deserialize, Clone, Debug, tedge_api::Config)]
 pub struct PhysicalCoreCountConfig {
     pub(crate) enable: bool,
 }
 
 impl HasBaseConfig for CpuConfig {
-    fn send_to(&self) -> &[String] {
+    fn send_to(&self) -> &OneOrMany<Address> {
         &self.base.send_to
     }
 
@@ -506,14 +509,14 @@ impl HasBaseConfig for CpuConfig {
     }
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, tedge_api::Config)]
 pub struct DiskUsageConfig {
     #[serde(flatten)]
     base: BaseConfig,
 }
 
 impl HasBaseConfig for DiskUsageConfig {
-    fn send_to(&self) -> &[String] {
+    fn send_to(&self) -> &OneOrMany<Address> {
         &self.base.send_to
     }
 
@@ -522,14 +525,14 @@ impl HasBaseConfig for DiskUsageConfig {
     }
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, tedge_api::Config)]
 pub struct LoadConfig {
     #[serde(flatten)]
     base: BaseConfig,
 }
 
 impl HasBaseConfig for LoadConfig {
-    fn send_to(&self) -> &[String] {
+    fn send_to(&self) -> &OneOrMany<Address> {
         &self.base.send_to
     }
 
@@ -538,7 +541,7 @@ impl HasBaseConfig for LoadConfig {
     }
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, tedge_api::Config)]
 pub struct ProcessConfig {
     #[serde(flatten)]
     base: BaseConfig,
@@ -547,7 +550,7 @@ pub struct ProcessConfig {
     pub(crate) by_name: HashMap<String, ProcessStatConfig>,
 }
 
-#[derive(serde::Deserialize, Clone, Debug)]
+#[derive(serde::Deserialize, Clone, Debug, tedge_api::Config)]
 pub struct AllProcessConfig {
     /// Report stats for all processes
     /// This automatically disables the "by_name" process reporting
@@ -557,7 +560,7 @@ pub struct AllProcessConfig {
     pub(crate) config: ProcessStatConfig,
 }
 
-#[derive(serde::Deserialize, Clone, Debug)]
+#[derive(serde::Deserialize, Clone, Debug, tedge_api::Config)]
 pub struct ProcessStatConfig {
     pub(crate) cmd: bool,
     pub(crate) cwd: bool,
@@ -579,7 +582,7 @@ pub struct ProcessStatConfig {
 }
 
 impl HasBaseConfig for ProcessConfig {
-    fn send_to(&self) -> &[String] {
+    fn send_to(&self) -> &OneOrMany<Address> {
         &self.base.send_to
     }
 
