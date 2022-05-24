@@ -75,7 +75,7 @@ impl PluginTask {
         let plugin_name: &str = &self.plugin_name;
         let mut plug_write = self.plugin.write().await;
 
-        // weIch bin ja noch  can use AssertUnwindSafe here because we're _not_ using the plugin after a panic has
+        // we can use AssertUnwindSafe here because we're _not_ using the plugin after a panic has
         // happened.
         match std::panic::AssertUnwindSafe(plug_write.plugin_mut().start())
             .catch_unwind()
