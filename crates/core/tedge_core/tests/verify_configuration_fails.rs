@@ -81,17 +81,17 @@ async fn test_verify_fails_plugin() -> Result<(), Box<(dyn std::error::Error + '
     };
 
     let (_cancel_sender, application) = TedgeApplication::builder()
-        .with_plugin_builder(VerifyConfigFailsPluginBuilder {})?
+        .with_plugin_builder(VerifyConfigFailsPluginBuilder {})
         .with_config_from_path(config_file_path)
         .await?;
 
-    match application.run().await {
-        Err(TedgeApplicationError::PluginConfigVerificationFailed(e)) => {
-            tracing::info!("Application errored successfully: {:?}", e);
+    match application.verify_configurations().await {
+        Err(err @ TedgeApplicationError::PluginConfigVerificationsError { .. }) => {
+            tracing::info!("Application errored successfully: {:?}", err);
             Ok(())
         }
-        Err(_) => {
-            panic!("Application should have errored with PluginConfigVerificationFailed because plugin failed to verify configuration")
+        Err(err) => {
+            panic!("Application should have errored with PluginConfigVerificationFailed because plugin failed to verify configuration, but failed with {:?}", err)
         }
 
         _ok => {

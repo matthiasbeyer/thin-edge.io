@@ -188,8 +188,8 @@ async fn test_verify_concurrent_messages() -> miette::Result<()> {
     let (sender, mut recv) = tokio::sync::mpsc::channel(200);
 
     let (_cancel_sender, application) = TedgeApplication::builder()
-        .with_plugin_builder(SpammyPluginBuilder {})?
-        .with_plugin_builder(SpammedPluginBuilder { sender })?
+        .with_plugin_builder(SpammyPluginBuilder {})
+        .with_plugin_builder(SpammedPluginBuilder { sender })
         .with_config_from_path(config_file_path)
         .await?;
 

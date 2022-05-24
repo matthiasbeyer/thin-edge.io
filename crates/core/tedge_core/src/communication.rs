@@ -1,13 +1,14 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use itertools::Itertools;
 use tedge_api::address::MessageSender;
 use tedge_api::error::DirectoryError;
 use tedge_api::message::MessageType;
 use tedge_api::plugin::PluginDirectory as ApiPluginDirectory;
 use tedge_api::Address;
 
-use crate::errors::TedgeApplicationError;
+use crate::errors::{PluginInstantiationError, TedgeApplicationError};
 
 /// Type for taking care of addresses
 ///
@@ -22,10 +23,16 @@ pub struct CorePluginDirectory {
 impl CorePluginDirectory {
     pub(crate) fn collect_from<I>(iter: I) -> Result<Self, TedgeApplicationError>
     where
-        I: std::iter::IntoIterator<Item = Result<(String, PluginInfo), TedgeApplicationError>>,
+        I: std::iter::IntoIterator<Item = Result<(String, PluginInfo), PluginInstantiationError>>,
     {
+        let (oks, errors): (_, Vec<_>) = iter.into_iter().partition_result();
+
+        if !errors.is_empty() {
+            return Err(TedgeApplicationError::PluginInstantiationsError { errors });
+        }
+
         Ok(CorePluginDirectory {
-            plugins: iter.into_iter().collect::<Result<HashMap<_, _>, _>>()?,
+            plugins: oks,
             core_communicator: MessageSender::new(Default::default()),
         })
     }
@@ -287,9 +294,8 @@ mod tests {
         );
 
         let channel_size = 1;
-        let tedge_builder = crate::TedgeApplication::builder()
-            .with_plugin_builder(testplugin::Builder {})
-            .unwrap();
+        let tedge_builder =
+            crate::TedgeApplication::builder().with_plugin_builder(testplugin::Builder {});
 
         let config: TedgeConfiguration = toml::de::from_str(&conf).unwrap();
         let directory_iter = config.plugins().iter().map(|(pname, pconfig)| {
@@ -303,9 +309,7 @@ mod tests {
                         .cloned()
                         .collect::<Vec<MessageType>>()
                 })
-                .ok_or_else(|| {
-                    TedgeApplicationError::UnknownPluginKind(pconfig.kind().as_ref().to_string())
-                })?;
+                .ok_or_else(|| panic!())?;
 
             Ok((
                 pname.to_string(),

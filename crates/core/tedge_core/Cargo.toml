@@ -17,6 +17,7 @@ toml = "0.5.8"
 tracing = "0.1"
 
 tedge_api = { path = "../tedge_api" }
+itertools = "0.10.3"
 
 [features]
 tracing-off = ["tracing/release_max_level_off"]

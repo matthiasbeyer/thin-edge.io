@@ -4,11 +4,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use miette::IntoDiagnostic;
 use tedge_api::PluginBuilder;
 use tracing::debug;
 
-use crate::communication::PluginDirectory;
-use crate::errors::TedgeApplicationError;
+use crate::{communication::PluginDirectory, errors::PluginConfigurationError};
 
 #[derive(serde::Deserialize, Debug)]
 pub struct TedgeConfiguration {
@@ -76,39 +76,37 @@ impl InstanceConfiguration {
         &self,
         builder: &Box<dyn PluginBuilder<PluginDirectory>>,
         root_config_path: &Path,
-    ) -> crate::errors::Result<toml::Value> {
+    ) -> Result<toml::Value, miette::Error> {
         match self {
             InstanceConfiguration::Config(cfg) => builder
                 .verify_configuration(&cfg)
                 .await
-                .map_err(TedgeApplicationError::PluginConfigVerificationFailed)
                 .map(|_| cfg.to_owned()),
             InstanceConfiguration::ConfigFilePath(path) => {
                 async fn inner(
                     builder: &Box<dyn PluginBuilder<PluginDirectory>>,
                     root_config_path: &Path,
                     path: &Path,
-                ) -> crate::errors::Result<toml::Value> {
+                ) -> Result<toml::Value, miette::Error> {
                     let file_path = root_config_path
                         .parent()
-                        .ok_or_else(|| {
-                            TedgeApplicationError::PathNotAFilePath(root_config_path.to_path_buf())
+                        .ok_or_else(|| PluginConfigurationError::PathNotAFilePath {
+                            path: root_config_path.to_path_buf(),
                         })?
                         .join(path);
 
                     debug!("Reading config file: {}", file_path.display());
                     let file_contents =
-                        tokio::fs::read_to_string(file_path).await.map_err(|_| {
-                            TedgeApplicationError::PluginConfigReadFailed(path.to_path_buf())
+                        tokio::fs::read_to_string(file_path).await.map_err(|e| {
+                            PluginConfigurationError::PathNotReadable {
+                                path: path.to_path_buf(),
+                                error: e,
+                            }
                         })?;
 
-                    let cfg = toml::from_str(&file_contents)?;
+                    let cfg = toml::from_str(&file_contents).into_diagnostic()?;
 
-                    builder
-                        .verify_configuration(&cfg)
-                        .await
-                        .map_err(TedgeApplicationError::PluginConfigVerificationFailed)
-                        .map(|_| cfg)
+                    builder.verify_configuration(&cfg).await.map(|_| cfg)
                 }
 
                 inner(builder, root_config_path, &path).await

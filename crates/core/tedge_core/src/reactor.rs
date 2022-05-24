@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use futures::StreamExt;
 
+use itertools::Itertools;
 use tedge_api::message::MessageType;
 use tedge_api::plugin::BuiltPlugin;
 use tedge_api::PluginExt;
@@ -25,7 +26,12 @@ use crate::configuration::PluginInstanceConfiguration;
 use crate::configuration::PluginKind;
 use crate::core_task::CoreInternalMessage;
 use crate::core_task::CorePlugin;
-use crate::errors::Result;
+use crate::errors::PluginBuilderInstantiationError;
+use crate::errors::PluginConfigVerificationError;
+use crate::errors::PluginConfigurationNotFoundError;
+use crate::errors::PluginInstantiationError;
+use crate::errors::PluginKindUnknownError;
+
 use crate::errors::TedgeApplicationError;
 use crate::plugin_task::PluginTask;
 use crate::TedgeApplication;
@@ -57,7 +63,7 @@ impl Reactor {
     /// This function implements running the application. That includes the complete lifecycle of
     /// the application, the plugins that need to be started and stopped accordingly as well as
     /// crash safety concerns.
-    pub async fn run(self) -> Result<()> {
+    pub async fn run(self) -> Result<(), TedgeApplicationError> {
         let channel_size = self.0.config().communication_buffer_size().get();
 
         // find all PluginBuilder objects that are registered and specified in the configuration to
@@ -81,9 +87,10 @@ impl Reactor {
                             .collect::<Vec<MessageType>>()
                     })
                     .ok_or_else(|| {
-                        TedgeApplicationError::UnknownPluginKind(
-                            pconfig.kind().as_ref().to_string(),
-                        )
+                        PluginInstantiationError::KindNotFound(PluginKindUnknownError {
+                            name: pconfig.kind().as_ref().to_string(),
+                            alternatives: None,
+                        })
                     })?;
 
                 Ok((
@@ -121,28 +128,35 @@ impl Reactor {
         let directory = Arc::new(directory);
 
         // ... and then instantiate the plugins requested by the user
-        let mut instantiated_plugins: Vec<PluginTaskPrep> = plugin_instantiation_prep
-            .into_iter()
-            .map(|(pname, pconfig, communicator)| {
-                {
-                    self.instantiate_plugin(
-                        pname,
-                        self.0.config_path(),
-                        pconfig,
-                        directory.clone(),
-                        communicator,
-                        self.0.cancellation_token().child_token(),
-                    )
-                }
-                .instrument(info_span!("plugin.instantiate", name = %pname))
-            })
-            .collect::<futures::stream::FuturesUnordered<_>>()
-            .collect::<Vec<Result<_>>>()
-            .instrument(tracing::debug_span!("core.plugin_instantiation"))
-            .await
-            .into_iter()
-            .collect::<Result<Vec<_>>>()?;
+        let (mut instantiated_plugins, failed_instantiations): (Vec<PluginTaskPrep>, Vec<_>) =
+            plugin_instantiation_prep
+                .into_iter()
+                .map(|(pname, pconfig, communicator)| {
+                    {
+                        self.instantiate_plugin(
+                            pname,
+                            self.0.config_path(),
+                            pconfig,
+                            directory.clone(),
+                            communicator,
+                            self.0.cancellation_token().child_token(),
+                        )
+                    }
+                    .instrument(info_span!("plugin.instantiate", name = %pname))
+                })
+                .collect::<futures::stream::FuturesUnordered<_>>()
+                .collect::<Vec<Result<_, _>>>()
+                .instrument(tracing::debug_span!("core.plugin_instantiation"))
+                .await
+                .into_iter()
+                .partition_result();
         trace!("Plugins instantiated");
+
+        if !failed_instantiations.is_empty() {
+            return Err(TedgeApplicationError::PluginInstantiationsError {
+                errors: failed_instantiations,
+            });
+        }
 
         // Now we need to make sure we start the "CoreTask", which is responsible for handling the
         // communication within the core itself.
@@ -185,7 +199,7 @@ impl Reactor {
                 plugin_task.run_start().instrument(span)
             })
             .collect::<futures::stream::FuturesOrdered<_>>()
-            .collect::<Vec<Result<()>>>()
+            .collect::<Vec<Result<(), _>>>()
             .instrument(tracing::info_span!("core.mainloop.plugins.start"))
             .await;
 
@@ -198,7 +212,7 @@ impl Reactor {
                 plugin_task.enable_communications().instrument(span)
             })
             .collect::<futures::stream::FuturesOrdered<_>>()
-            .collect::<Vec<Result<()>>>()
+            .collect::<Vec<Result<(), _>>>()
             .instrument(tracing::info_span!(
                 "core.mainloop.plugins.enable-communications"
             ))
@@ -213,7 +227,7 @@ impl Reactor {
                 plugin_task.run_main().instrument(span)
             })
             .collect::<futures::stream::FuturesOrdered<_>>()
-            .collect::<Vec<Result<()>>>()
+            .collect::<Vec<Result<(), _>>>()
             .instrument(tracing::info_span!("core.mainloop.plugins.main"))
             .await;
 
@@ -255,7 +269,7 @@ impl Reactor {
                 plugin_task.disable_communications().instrument(span)
             })
             .collect::<futures::stream::FuturesOrdered<_>>()
-            .collect::<Vec<Result<()>>>()
+            .collect::<Vec<Result<(), _>>>()
             .instrument(tracing::info_span!(
                 "core.mainloop.plugins.disable-communications"
             ))
@@ -270,7 +284,7 @@ impl Reactor {
                 plugin_task.run_shutdown().instrument(span)
             })
             .collect::<futures::stream::FuturesOrdered<_>>()
-            .collect::<Vec<Result<()>>>()
+            .collect::<Vec<Result<(), _>>>()
             .instrument(tracing::info_span!("core.mainloop.plugins.shutdown"))
             .await;
 
@@ -311,18 +325,25 @@ impl Reactor {
         directory: Arc<CorePluginDirectory>,
         plugin_msg_comms: tedge_api::address::MessageSender,
         cancellation_token: CancellationToken,
-    ) -> Result<PluginTaskPrep> {
+    ) -> Result<PluginTaskPrep, PluginInstantiationError> {
         let builder = self
             .find_plugin_builder(plugin_config.kind())
             .ok_or_else(|| {
                 let kind_name = plugin_config.kind().as_ref().to_string();
-                TedgeApplicationError::UnknownPluginKind(kind_name)
+                PluginInstantiationError::KindNotFound(PluginKindUnknownError {
+                    name: kind_name,
+                    alternatives: None,
+                })
             })?;
 
-        let config = self.get_config_for_plugin(plugin_name).ok_or_else(|| {
-            let pname = plugin_name.to_string();
-            TedgeApplicationError::PluginConfigMissing(pname)
-        })?;
+        let config = self.get_config_for_plugin(plugin_name).ok_or_else(
+            || -> PluginInstantiationError {
+                let pname = plugin_name.to_string();
+                PluginInstantiationError::ConfigurationNotFound(PluginConfigurationNotFoundError {
+                    name: pname,
+                })
+            },
+        )?;
 
         let config = match config
             .verify_with_builder(builder, root_config_path)
@@ -334,7 +355,12 @@ impl Reactor {
                     "Verification of configuration failed for plugin '{}'",
                     plugin_name
                 );
-                return Err(e);
+                return Err(PluginInstantiationError::ConfigurationVerificationFailed(
+                    PluginConfigVerificationError {
+                        name: plugin_name.to_string(),
+                        error: e,
+                    },
+                ));
             }
             Ok(cfg) => cfg,
         };
@@ -353,7 +379,6 @@ impl Reactor {
                 kind = plugin_config.kind().as_ref(),
             ))
             .await
-            .map_err(TedgeApplicationError::PluginInstantiationFailed)
             .map(|plugin| {
                 trace!(plugin.name = ?plugin_name, "Instantiation of plugin successfull");
 
@@ -366,6 +391,12 @@ impl Reactor {
                     plugin_msg_comms,
                     cancellation_token,
                 }
+            })
+            .map_err(|e| {
+                PluginInstantiationError::BuilderInstantiation(PluginBuilderInstantiationError {
+                    name: plugin_name.to_string(),
+                    error: e,
+                })
             })
     }
 }

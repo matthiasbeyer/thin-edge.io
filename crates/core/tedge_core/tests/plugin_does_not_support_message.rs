@@ -155,8 +155,8 @@ async fn test_not_supported_message() -> Result<(), Box<(dyn std::error::Error +
     };
 
     let (cancel_sender, application) = TedgeApplication::builder()
-        .with_plugin_builder(crate::not_supported::NotSupportedPluginBuilder {})?
-        .with_plugin_builder(crate::sending::SendingPluginBuilder {})?
+        .with_plugin_builder(crate::not_supported::NotSupportedPluginBuilder {})
+        .with_plugin_builder(crate::sending::SendingPluginBuilder {})
         .with_config_from_path(config_file_path)
         .await?;
 
@@ -175,7 +175,7 @@ async fn test_not_supported_message() -> Result<(), Box<(dyn std::error::Error +
             tracing::info!("application.run() returned");
             match app_res {
                 Ok(_) => panic!("Application exited successfully. It should return an error though"),
-                Err(TedgeApplicationError::PluginInstantiationFailed(_)) => {
+                Err(TedgeApplicationError::PluginInstantiationsError { .. }) => {
                     // TODO Check whether correct error kind is returned
                     Ok(())
                 }

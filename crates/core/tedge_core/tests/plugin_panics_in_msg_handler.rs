@@ -113,7 +113,7 @@ fn test_handler_panic() -> Result<(), Box<(dyn std::error::Error + 'static)>> {
         };
 
         let (cancel_sender, application) = TedgeApplication::builder()
-            .with_plugin_builder(HandlePanicPluginBuilder {})?
+            .with_plugin_builder(HandlePanicPluginBuilder {})
             .with_config_from_path(config_file_path)
             .await?;
 
