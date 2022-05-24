@@ -114,7 +114,7 @@ fn test_setup_panic_plugin() -> Result<(), Box<(dyn std::error::Error + 'static)
         };
 
         let (cancel_sender, application) = TedgeApplication::builder()
-            .with_plugin_builder(PanicPluginBuilder {})?
+            .with_plugin_builder(PanicPluginBuilder {})
             .with_config_from_path(config_file_path)
             .await?;
 

@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use miette::IntoDiagnostic;
 use tokio_util::sync::CancellationToken;
 
 use tedge_api::plugin::BuiltPlugin;
@@ -40,11 +41,11 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for NotificationPluginBuilder {
         &self,
         config: &PluginConfiguration,
     ) -> Result<(), tedge_api::error::PluginError> {
-        config
+        Ok(config
             .clone()
             .try_into::<Config>()
-            .map_err(|_| miette::miette!("Failed to parse measurement threshold configuration"))
             .map(|_| ())
+            .into_diagnostic()?)
     }
 
     async fn instantiate(
@@ -53,9 +54,7 @@ impl<PD: PluginDirectory> PluginBuilder<PD> for NotificationPluginBuilder {
         _cancellation_token: CancellationToken,
         plugin_dir: &PD,
     ) -> Result<BuiltPlugin, PluginError> {
-        let config = config
-            .try_into::<Config>()
-            .map_err(|_| miette::miette!("Failed to parse measurement threshold configuration"))?;
+        let config = config.try_into::<Config>().into_diagnostic()?;
 
         let forward_addr = config.forward_to.build(plugin_dir)?;
         let notify_addr = config.notify.build(plugin_dir)?;

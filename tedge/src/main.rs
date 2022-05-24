@@ -65,7 +65,7 @@ macro_rules! register_plugin {
                 }));
 
                 Registry {
-                    app_builder: registry.app_builder.with_plugin_builder($pbinstance)?,
+                    app_builder: registry.app_builder.with_plugin_builder($pbinstance),
                     plugin_kinds: registry.plugin_kinds,
                     doc_printers: registry.doc_printers,
                 }
@@ -170,7 +170,7 @@ async fn main() -> miette::Result<()> {
             info!("Application built");
 
             debug!("Verifying the configuration");
-            validate_config(&application).await?;
+            application.verify_configurations().await?;
 
             debug!("Going to run the application");
             run(cancel_sender, application).await
@@ -180,7 +180,7 @@ async fn main() -> miette::Result<()> {
             info!("Application built");
 
             debug!("Only going to validate the configuration");
-            validate_config(&application).await?;
+            application.verify_configurations().await?;
             info!("Configuration validated");
             Ok(())
         }
@@ -228,7 +228,7 @@ async fn run(
 
     let res = tokio::select! {
         res = &mut run_fut => {
-            res.into_diagnostic()
+            res
         },
 
         _int = tokio::signal::ctrl_c() => {
@@ -236,36 +236,15 @@ async fn run(
                 info!("Shutting down...");
                 cancel_sender.cancel_app();
                 tokio::select! {
-                    res = &mut run_fut => res.into_diagnostic(),
-                    _ = tokio::signal::ctrl_c() => kill_app(run_fut),
+                    res = &mut run_fut => res,
+                    _ = tokio::signal::ctrl_c() => return kill_app(run_fut),
                 }
             } else {
-                kill_app(run_fut)
+                return kill_app(run_fut);
             }
         },
     };
 
     info!("Bye");
-    res
-}
-
-async fn validate_config(application: &TedgeApplication) -> miette::Result<()> {
-    let mut any_err = false;
-    for (plugin_name, res) in application.verify_configurations().await {
-        match res {
-            Err(e) => {
-                error!(%plugin_name, ?e, "Error in Plugin configuration");
-                any_err = true;
-            }
-            Ok(_) => {
-                info!(%plugin_name, "Plugin configured correctly");
-            }
-        }
-    }
-
-    if any_err {
-        Err(miette::miette!("Plugin configuration error"))
-    } else {
-        Ok(())
-    }
+    Ok(res?)
 }

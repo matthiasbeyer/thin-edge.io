@@ -187,7 +187,7 @@ async fn main_inotify(
                     Some(Err(err)) => {
                         debug!(?err, "Received inotify event");
                         if state.fail_on_err {
-                            return Err(err).into_diagnostic()
+                            return Err(miette::miette!(err))?;
                         }
                     },
 

@@ -200,8 +200,8 @@ async fn start_application(
     };
 
     let (cancel_sender, application) = TedgeApplication::builder()
-        .with_plugin_builder(ProducerPluginBuilder(Mutex::new(Some(receiver))))?
-        .with_plugin_builder(ReceiverPluginBuilder(sender))?
+        .with_plugin_builder(ProducerPluginBuilder(Mutex::new(Some(receiver))))
+        .with_plugin_builder(ReceiverPluginBuilder(sender))
         .with_config_from_path(config_file_path)
         .await?;
 

@@ -88,7 +88,7 @@ fn test_no_shutdown_plugin() -> Result<(), Box<(dyn std::error::Error + 'static)
             filepath
         };
         let (cancel_sender, application) = TedgeApplication::builder()
-            .with_plugin_builder(NoShutdownPluginBuilder {})?
+            .with_plugin_builder(NoShutdownPluginBuilder {})
             .with_config_from_path(config_file_path)
             .await?;
 

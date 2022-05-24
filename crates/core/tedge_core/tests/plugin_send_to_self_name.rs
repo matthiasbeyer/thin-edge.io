@@ -84,7 +84,7 @@ impl tedge_api::plugin::Handle<Msg> for SelfSendPlugin {
         &self,
         _: Msg,
         _: tedge_api::address::ReplySenderFor<Msg>,
-    ) -> Result<(), miette::Error> {
+    ) -> Result<(), PluginError> {
         unimplemented!() // will never be called in this test
     }
 }
@@ -117,7 +117,7 @@ fn test_send_to_self_via_name_does_work() -> Result<(), Box<(dyn std::error::Err
         };
 
         let (cancel_sender, application) = TedgeApplication::builder()
-            .with_plugin_builder(SelfSendPluginBuilder {})?
+            .with_plugin_builder(SelfSendPluginBuilder {})
             .with_config_from_path(config_file_path)
             .await?;
 
