@@ -23,6 +23,16 @@ pub struct Registry {
     pub doc_printers: HashMap<String, Box<dyn FnOnce() -> Result<(), miette::Error>>>,
 }
 
+impl Registry {
+    pub fn new() -> Self {
+        Registry {
+            app_builder: tedge_core::TedgeApplication::builder(),
+            plugin_kinds: HashSet::new(),
+            doc_printers: HashMap::new(),
+        }
+    }
+}
+
 #[macro_export]
 macro_rules! register_plugin {
     ($registry:ident, $cfg:tt, $pluginbuilder:ty, $pbinstance:expr) => {{

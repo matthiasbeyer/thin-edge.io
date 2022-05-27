@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-use std::collections::HashSet;
 use std::io::Write;
 
 use clap::Parser;
@@ -24,11 +22,7 @@ async fn main() -> miette::Result<()> {
     info!("Tedge booting...");
     debug!(?args, "Tedge CLI");
 
-    let registry = tedge_cli::Registry {
-        app_builder: tedge_core::TedgeApplication::builder(),
-        plugin_kinds: HashSet::new(),
-        doc_printers: HashMap::new(),
-    };
+    let registry = tedge_cli::Registry::new();
     info!("Building application");
 
     let registry = {
