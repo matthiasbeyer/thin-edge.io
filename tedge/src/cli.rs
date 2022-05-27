@@ -6,7 +6,7 @@ use std::path::PathBuf;
     version = clap::crate_version!(),
     about = clap::crate_description!()
 )]
-pub(crate) struct Cli {
+pub struct Cli {
     /// Enable logging
     ///
     /// If not specified, only WARN and ERROR messages will be logged.
@@ -14,26 +14,26 @@ pub(crate) struct Cli {
     ///
     /// This setting overwrites the logging specification set via the RUST_LOG env variable.
     #[clap(short, long, arg_enum)]
-    pub(crate) logging: Option<LoggingSpec>,
+    pub logging: Option<LoggingSpec>,
 
     /// Enable chrome compatible tracing output
     ///
     /// If set, chrome-compatible tracing output will be written to the file specified.
     #[clap(long)]
-    pub(crate) chrome_logging: Option<PathBuf>,
+    pub chrome_logging: Option<PathBuf>,
 
     /// Enable tracy compatible tracing output
     ///
     /// If set, "tracy" compatible tracing output will be produced
     #[clap(long)]
-    pub(crate) tracy_logging: bool,
+    pub tracy_logging: bool,
 
     #[clap(subcommand)]
-    pub(crate) command: CliCommand,
+    pub command: CliCommand,
 }
 
 #[derive(Copy, Clone, Debug, clap::ArgEnum)]
-pub(crate) enum LoggingSpec {
+pub enum LoggingSpec {
     False,
     Off,
     Trace,
@@ -44,7 +44,7 @@ pub(crate) enum LoggingSpec {
 }
 
 #[derive(Debug, clap::Subcommand)]
-pub(crate) enum CliCommand {
+pub enum CliCommand {
     /// Run thin-edge with the passed configuration
     #[clap(name = "run")]
     Run { config: PathBuf },

@@ -7,7 +7,7 @@ use tracing_subscriber::Layer;
 
 use crate::cli::LoggingSpec;
 
-pub(crate) fn setup_logging(
+pub fn setup_logging(
     spec: Option<LoggingSpec>,
     chrome_logging: Option<&PathBuf>,
     tracy_logging: bool,
