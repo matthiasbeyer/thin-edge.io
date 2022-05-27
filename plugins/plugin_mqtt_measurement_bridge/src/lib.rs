@@ -145,7 +145,7 @@ impl Handle<tedge_lib::measurement::Measurement> for MqttMeasurementBridgePlugin
             Ok(_) => trace!("Message forwarded to MQTT plugin"),
             Err(_) => {
                 trace!("Message not send");
-                return Err(Error::FailedToSendMessage).into_diagnostic();
+                Err(Error::FailedToSendMessage).into_diagnostic()?;
             }
         }
         Ok(())
