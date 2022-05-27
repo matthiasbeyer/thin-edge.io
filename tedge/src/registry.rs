@@ -22,10 +22,11 @@ impl Registry {
 
 #[macro_export]
 macro_rules! register_plugin {
-    (in registry: $registry:ident,
-     if feature enabled: $cfg:tt,
-     with builder type: $pluginbuilder:ty,
-     with builder instance: $pbinstance:expr) => {{
+    (if feature $cfg:tt is enabled then
+     register on $registry:ident
+     builder of type $pluginbuilder:ty,
+     with instance $pbinstance:expr
+    ) => {{
         cfg_if::cfg_if! {
             if #[cfg(feature = $cfg)] {
                 let kind_name: &'static str = <$pluginbuilder as tedge_api::PluginBuilder<tedge_core::PluginDirectory>>::kind_name();
