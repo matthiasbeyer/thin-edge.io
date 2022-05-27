@@ -232,9 +232,10 @@ impl Handle<OutgoingMessage> for MqttPlugin {
                 .into_diagnostic()?;
 
             debug!("Publishing message succeeded");
-            Ok(())
         } else {
-            return Err(crate::error::Error::NoClient).into_diagnostic();
-        }
+            Err(crate::error::Error::NoClient).into_diagnostic()?;
+        };
+
+        Ok(())
     }
 }
