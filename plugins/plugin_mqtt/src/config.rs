@@ -80,7 +80,10 @@ impl TryFrom<i32> for QoS {
             paho_mqtt::QOS_0 => Ok(QoS::AtMostOnce),
             paho_mqtt::QOS_1 => Ok(QoS::AtLeastOnce),
             paho_mqtt::QOS_2 => Ok(QoS::ExactlyOnce),
-            _ => Err(miette::miette!("Failed to interpret '{}' as QOS", i)),
+            _ => Err(tedge_api::PluginError::from(miette::miette!(
+                "Failed to interpret '{}' as QOS",
+                i
+            ))),
         }
     }
 }
