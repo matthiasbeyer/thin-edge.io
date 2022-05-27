@@ -1,8 +1,4 @@
-use std::io::Write;
-
 use clap::Parser;
-use miette::IntoDiagnostic;
-use pretty::Arena;
 use tracing::debug;
 use tracing::info;
 

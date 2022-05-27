@@ -37,6 +37,10 @@ macro_rules! register_plugin {
 
                 let kind_name_str = kind_name.to_string();
                 registry.doc_printers.insert(kind_name.to_string(), Box::new(move || {
+                    use std::io::Write;
+                    use miette::IntoDiagnostic;
+                    use pretty::Arena;
+
                     let mut stdout = std::io::stdout();
                     if let Some(config_desc) = <$pluginbuilder as tedge_api::PluginBuilder<tedge_core::PluginDirectory>>::kind_configuration() {
                         let terminal_width = term_size::dimensions().map(|(w, _)| w).unwrap_or(80);
