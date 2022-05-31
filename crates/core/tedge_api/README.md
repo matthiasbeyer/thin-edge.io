@@ -85,7 +85,10 @@ others.
 For example:
 
 ```rust
-#[derive(Debug)]
+use tedge_api::{Message, TypeUuid};
+
+#[derive(Debug, TypeUuid)]
+#[uuid = "b60dd50c-ccef-4204-b370-18bbbb68d6e2"]
 struct Value(f64);
 
 impl Message for Value {}
