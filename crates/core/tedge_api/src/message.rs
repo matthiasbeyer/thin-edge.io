@@ -1,6 +1,35 @@
+use downcast_rs::{impl_downcast, DowncastSync};
 use serde::Serialize;
+use type_uuid::{TypeUuid, TypeUuidDynamic};
 
-use crate::{address::AnyMessageBox, plugin::Message};
+use crate::address::AnyMessageBox;
+
+/// An object that can be sent between [`Plugin`]s
+///
+/// This trait is a marker trait for all types that can be used as messages which can be sent
+/// between plugins in thin-edge.
+pub trait Message:
+    Send + std::fmt::Debug + DynMessage + DowncastSync + TypeUuidDynamic + 'static
+{
+}
+
+impl_downcast!(sync Message);
+
+/// A bag of messages making it easier to work with dynamic messages
+pub trait DynMessage {
+    /// Get the type name of this message
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
+}
+
+impl<M: 'static> DynMessage for M {}
+
+/// Register that the [`Message`] can receive replies of kind `R`: [`Message`]
+pub trait AcceptsReplies: Message {
+    /// The reply type that can be sent to implementing messages as replies
+    type Reply: Message;
+}
 
 /// A message that can contain any other message
 ///
@@ -8,7 +37,8 @@ use crate::{address::AnyMessageBox, plugin::Message};
 /// otherwise.
 ///
 /// To construct it, you will need to have a message and call [`AnyMessage::from_message`]
-#[derive(Debug)]
+#[derive(Debug, TypeUuid)]
+#[uuid = "e7e5c87b-2022-4687-8650-DEADBEEEEEEF"]
 pub struct AnyMessage(pub(crate) AnyMessageBox);
 
 impl std::ops::Deref for AnyMessage {
@@ -50,11 +80,14 @@ pub struct MessageType {
     kind: MessageKind,
 }
 
+#[derive(Clone, PartialEq, Debug)]
+struct Uuid([u8; 16]);
+
 #[derive(Debug, Clone, Serialize)]
 enum MessageKind {
     Wildcard,
     #[serde(skip)]
-    Typed(std::any::TypeId),
+    Typed(Uuid),
 }
 
 impl MessageType {
@@ -79,26 +112,26 @@ impl MessageType {
 
     /// Get the [`MessageType`] for a `M`:[`Message`]
     #[must_use]
-    pub fn for_message<M: Message>() -> Self {
-        let id = std::any::TypeId::of::<M>();
+    pub fn for_message<M: Message + TypeUuid>() -> Self {
+        let id = M::UUID;
         MessageType {
             name: std::any::type_name::<M>(),
-            kind: if id == std::any::TypeId::of::<AnyMessage>() {
+            kind: if id == AnyMessage::UUID {
                 MessageKind::Wildcard
             } else {
-                MessageKind::Typed(id)
+                MessageKind::Typed(Uuid(id))
             },
         }
     }
 
     pub(crate) fn from_message(msg: &dyn Message) -> Self {
-        let id = msg.type_id();
+        let id = msg.uuid();
         MessageType {
             name: msg.type_name(),
-            kind: if id == std::any::TypeId::of::<AnyMessage>() {
+            kind: if id == AnyMessage::UUID {
                 MessageKind::Wildcard
             } else {
-                MessageKind::Typed(id)
+                MessageKind::Typed(Uuid(id))
             },
         }
     }
@@ -111,7 +144,8 @@ impl MessageType {
 }
 
 /// A message to tell the core to stop thin-edge
-#[derive(Debug)]
+#[derive(Debug, TypeUuid)]
+#[uuid = "812b7235-671f-4722-b01a-333578b2a4ea"]
 pub struct StopCore;
 
 impl Message for StopCore {}
@@ -120,16 +154,20 @@ crate::make_receiver_bundle!(pub struct CoreMessages(StopCore));
 
 #[cfg(test)]
 mod tests {
+    use type_uuid::TypeUuid;
+
     use crate::Message;
 
     use super::{AnyMessage, MessageType};
 
-    #[derive(Debug)]
+    #[derive(Debug, TypeUuid)]
+    #[uuid = "0c2ed228-5ff0-4ba5-a0d3-3648f7eb6558"]
     struct Bar;
 
     impl Message for Bar {}
 
-    #[derive(Debug)]
+    #[derive(Debug, TypeUuid)]
+    #[uuid = "8c3beacb-327d-422d-a914-47006d521ba5"]
     struct Foo;
 
     impl Message for Foo {}

@@ -18,6 +18,7 @@ tokio = { version = "1", features = [] }
 tokio-util = "0.7.0"
 tracing = "0.1"
 toml = "0.5"
+type-uuid = "0.1.2"
 
 tedge_api = { path = "../../crates/core/tedge_api" }
 tedge_lib = { path = "../../crates/core/tedge_lib" }

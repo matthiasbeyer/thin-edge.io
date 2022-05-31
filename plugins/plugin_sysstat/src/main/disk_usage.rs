@@ -10,8 +10,8 @@ use tedge_lib::iter::SendAllResult;
 use tokio::sync::Mutex;
 use tracing::Instrument;
 
-use tedge_api::plugin::Message;
 use tedge_api::Address;
+use tedge_api::Message;
 use tedge_api::PluginError;
 use tedge_lib::address::AddressGroup;
 use tedge_lib::iter::IntoSendAll;

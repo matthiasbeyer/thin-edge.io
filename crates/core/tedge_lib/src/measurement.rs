@@ -1,6 +1,8 @@
 use std::collections::HashMap;
+use type_uuid::TypeUuid;
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, TypeUuid)]
+#[uuid = "daad7462-0298-40e0-97b5-1a7b0c2da297"]
 pub struct Measurement {
     name: String,
     value: MeasurementValue,
@@ -22,7 +24,7 @@ impl Measurement {
     }
 }
 
-impl tedge_api::plugin::Message for Measurement {}
+impl tedge_api::Message for Measurement {}
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[non_exhaustive]
