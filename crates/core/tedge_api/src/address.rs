@@ -4,10 +4,7 @@ use futures::future::BoxFuture;
 use tokio::sync::RwLock;
 use tracing::{instrument, trace};
 
-use crate::{
-    message::MessageType,
-    plugin::{AcceptsReplies, Message},
-};
+use crate::message::{AcceptsReplies, Message, MessageType};
 
 #[doc(hidden)]
 pub type AnyMessageBox = Box<dyn Message>;
@@ -363,13 +360,16 @@ pub trait Contains<M: Message> {}
 ///
 /// ```rust
 /// # use tedge_api::{Message, make_receiver_bundle};
+/// # use type_uuid::TypeUuid;
 ///
-/// #[derive(Debug)]
+/// #[derive(Debug, TypeUuid)]
+/// #[uuid = "b4e62630-0404-4d39-b435-95d777029887"]
 /// struct IntMessage(u8);
 ///
 /// impl Message for IntMessage { }
 ///
-/// #[derive(Debug)]
+/// #[derive(Debug, TypeUuid)]
+/// #[uuid = "92734ceb-7b65-499a-95cd-17164f1b3729"]
 /// struct StatusMessage(String);
 ///
 /// impl Message for StatusMessage { }
@@ -406,15 +406,17 @@ mod tests {
 
     use static_assertions::{assert_impl_all, assert_not_impl_any};
     use tokio::sync::RwLock;
+    use type_uuid::TypeUuid;
 
     use crate::{
         address::{InnerMessageSender, ReplyReceiverFor, ReplySenderFor},
         make_receiver_bundle,
-        plugin::{AcceptsReplies, Message},
+        message::{AcceptsReplies, Message},
         Address,
     };
 
-    #[derive(Debug)]
+    #[derive(Debug, TypeUuid)]
+    #[uuid = "df2b8bb3-8c15-49bb-8d11-cc14d7f3b000"] 
     struct Foo;
 
     impl Message for Foo {}
@@ -422,12 +424,14 @@ mod tests {
         type Reply = Bar;
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, TypeUuid)]
+    #[uuid = "953a243d-333a-4870-8297-272fff6262b5"] 
     struct Bar;
 
     impl Message for Bar {}
 
-    #[derive(Debug)]
+    #[derive(Debug, TypeUuid)]
+    #[uuid = "fe98650c-b067-47f4-8fd8-2f3ed04fdc21"] 
     struct Blub;
 
     impl Message for Blub {}

@@ -4,19 +4,22 @@ use async_trait::async_trait;
 use futures::FutureExt;
 use tedge_api::{
     address::ReplySenderFor,
-    message::{AnyMessage, MessageType},
-    plugin::{AnyMessages, BuiltPlugin, Handle, Message, PluginDeclaration, PluginExt},
+    message::{AnyMessage, Message, MessageType},
+    plugin::{AnyMessages, BuiltPlugin, Handle, PluginDeclaration, PluginExt},
     Address, CancellationToken, Plugin, PluginBuilder, PluginConfiguration, PluginDirectory,
     PluginError,
 };
 use tokio::sync::RwLock;
+use type_uuid::TypeUuid;
 
 /// A message that represents a heartbeat that gets sent to plugins
-#[derive(Debug)]
+#[derive(Debug, TypeUuid)]
+#[uuid = "1f807f7b-888f-4881-a1b5-16380e32f8c2"] 
 struct Heartbeat;
 impl Message for Heartbeat {}
 
-#[derive(Debug)]
+#[derive(Debug, TypeUuid)]
+#[uuid = "346e233f-c24a-47e0-a15b-3ec0d1e19019"] 
 struct RandomData;
 impl Message for RandomData {}
 

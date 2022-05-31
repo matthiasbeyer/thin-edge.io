@@ -6,6 +6,7 @@
 
 use futures::future::BoxFuture;
 use std::any::Any;
+use type_uuid::TypeUuid;
 
 use downcast_rs::{impl_downcast, DowncastSync};
 
@@ -15,7 +16,7 @@ use crate::{
     address::{InternalMessage, ReceiverBundle, ReplySenderFor},
     config::ConfigDescription,
     error::{DirectoryError, PluginError},
-    message::{CoreMessages, MessageType},
+    message::{CoreMessages, Message, MessageType},
     Address,
 };
 
@@ -96,10 +97,12 @@ pub trait PluginBuilder<PD: PluginDirectory>: Sync + Send + 'static {
     ///
     /// ```no_run
     /// # use tedge_api::{Plugin, plugin::BuiltPlugin, PluginError, PluginExt, PluginDirectory, PluginBuilder, PluginConfiguration};
+    /// # use type_uuid::TypeUuid;
     ///
-    /// #[derive(Debug)]
+    /// #[derive(Debug, TypeUuid)]
+    /// #[uuid = "46f5d318-4158-4726-83dd-9b310cae3328"]
     /// struct MyMessage;
-    /// impl tedge_api::plugin::Message for MyMessage { }
+    /// impl tedge_api::Message for MyMessage { }
     ///
     /// struct MyPluginBuilder;
     /// struct MyPlugin; // + some impl Plugin for MyPlugin
@@ -217,10 +220,12 @@ pub trait PluginBuilder<PD: PluginDirectory>: Sync + Send + 'static {
     /// # use tedge_api::PluginBuilder;
     /// # use tedge_api::PluginDirectory;
     /// # use tedge_api::PluginExt;
+    /// # use type_uuid::TypeUuid;
     ///
-    /// #[derive(Debug)]
+    /// #[derive(Debug, TypeUuid)]
+    /// #[uuid = "39046e3e-05ad-4b16-bbf1-8c2d2da5b668"]
     /// struct MyMessage;
-    /// impl tedge_api::plugin::Message for MyMessage { }
+    /// impl tedge_api::Message for MyMessage { }
     ///
     ///
     /// struct MyPluginBuilder;
@@ -383,11 +388,13 @@ impl HandleTypes {
     /// # use tedge_api::address::ReplySenderFor;
     /// # use tedge_api::PluginError;
     /// # use tedge_api::PluginExt;
+    /// # use type_uuid::TypeUuid;
     ///
-    /// #[derive(Debug)]
+    /// #[derive(Debug, TypeUuid)]
+    /// #[uuid = "1276aa9c-5e04-4ab3-a987-61d89765ab33"]
     /// struct Heartbeat;
     ///
-    /// impl tedge_api::plugin::Message for Heartbeat { }
+    /// impl tedge_api::Message for Heartbeat { }
     ///
     /// struct HeartbeatPlugin;
     ///
@@ -414,19 +421,19 @@ impl HandleTypes {
     /// #     type HandledMessages = (Heartbeat,);
     /// # }
     ///
-    /// println!("{:#?}", HeartbeatPlugin::get_handled_types());
+    /// println!("{:#x?}", HeartbeatPlugin::get_handled_types());
     /// // This will print something akin to:
     /// //
-    /// // HandleTypes(
-    /// //  [
-    /// //      (
-    /// //          "rust_out::main::_doctest_main_src_plugin_rs_102_0::Heartbeat",
-    /// //          TypeId {
-    /// //              t: 15512189350087767644,
-    /// //          },
-    /// //      ),
-    /// //  ],
-    /// // )
+    /// //   HandleTypes(
+    /// //       [
+    /// //           MessageType {
+    /// //               name: "rust_out::main::_doctest_main_src_plugin_rs_373_0::Heartbeat",
+    /// //               kind: Typed(
+    /// //                   Uuid([ 0x12, 0x76, 0xaa, 0x9c, 0x5e, 0x4, 0x4a, 0xb3, 0xa9, 0x87, 0x61, 0xd8, 0x97, 0x65, 0xab, 0x33, ])
+    /// //               ),
+    /// //           },
+    /// //       ],
+    /// //   )
     /// ```
     pub fn declare_handlers_for<P: PluginDeclaration>() -> HandleTypes
     where
@@ -434,30 +441,6 @@ impl HandleTypes {
     {
         HandleTypes(P::HandledMessages::get_ids())
     }
-}
-
-/// An object that can be sent between [`Plugin`]s
-///
-/// This trait is a marker trait for all types that can be used as messages which can be sent
-/// between plugins in thin-edge.
-pub trait Message: Send + std::fmt::Debug + DynMessage + DowncastSync + 'static {}
-
-impl_downcast!(sync Message);
-
-/// A bag of messages making it easier to work with dynamic messages
-pub trait DynMessage {
-    /// Get the type name of this message
-    fn type_name(&self) -> &'static str {
-        std::any::type_name::<Self>()
-    }
-}
-
-impl<M: 'static> DynMessage for M {}
-
-/// Register that the [`Message`] can receive replies of kind `R`: [`Message`]
-pub trait AcceptsReplies: Message {
-    /// The reply type that can be sent to implementing messages as replies
-    type Reply: Message;
 }
 
 /// A bundle of messages
@@ -552,7 +535,7 @@ pub trait DoesHandle<M: MessageBundle> {
 macro_rules! impl_does_handle_tuple {
     () => {};
     ($cur:ident $($rest:tt)*) => {
-        impl<$cur: Message, $($rest: Message,)* PLUG: Plugin + Handle<$cur> $(+ Handle<$rest>)*> DoesHandle<($cur, $($rest),*)> for PLUG {
+        impl<$cur: Message + TypeUuid, $($rest: Message + TypeUuid,)* PLUG: Plugin + Handle<$cur> $(+ Handle<$rest>)*> DoesHandle<($cur, $($rest),*)> for PLUG {
             fn into_built_plugin(self) -> BuiltPlugin {
                 fn handle_message<'a, $cur: Message, $($rest: Message,)* PLUG: Plugin + Handle<$cur> $(+ Handle<$rest>)*>(
                     plugin: &'a dyn Any,
@@ -601,6 +584,8 @@ macro_rules! impl_does_handle_tuple {
         impl_does_handle_tuple!($($rest)*);
     };
 }
+
+impl_does_handle_tuple!(M10 M9 M8 M7 M6 M5 M4 M3 M2 M1);
 
 impl MessageBundle for () {
     fn get_ids() -> Vec<MessageType> {
@@ -673,7 +658,7 @@ macro_rules! impl_msg_bundle_tuple {
         ($cur, impl_msg_bundle_tuple!(@rec_tuple $($rest)*))
     };
     ($cur:ident $($rest:tt)*) => {
-        impl<$cur: Message, $($rest: Message),*> MessageBundle for ($cur,$($rest),*) {
+        impl<$cur: Message + TypeUuid, $($rest: Message + TypeUuid),*> MessageBundle for ($cur,$($rest),*) {
             fn get_ids() -> Vec<MessageType> {
                 vec![
                     MessageType::for_message::<$cur>(),
@@ -687,20 +672,21 @@ macro_rules! impl_msg_bundle_tuple {
 }
 
 impl_msg_bundle_tuple!(M10 M9 M8 M7 M6 M5 M4 M3 M2 M1);
-impl_does_handle_tuple!(M10 M9 M8 M7 M6 M5 M4 M3 M2 M1);
 
 #[cfg(test)]
 mod tests {
-    use crate::{plugin::DynMessage, Message};
+    use crate::{message::DynMessage, Message};
 
     use super::{Plugin, PluginBuilder};
     use static_assertions::assert_obj_safe;
+    use type_uuid::TypeUuid;
 
     // Object Safety
     assert_obj_safe!(PluginBuilder<()>);
     assert_obj_safe!(Plugin);
 
-    #[derive(Debug)]
+    #[derive(Debug, TypeUuid)]
+    #[uuid = "44d61fba-0055-4333-86bf-e96e06f7aea8"]
     struct Blub;
 
     impl Message for Blub {}
