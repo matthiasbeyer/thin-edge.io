@@ -73,22 +73,14 @@ impl Plugin for ProducerPlugin {
         let addr = self.1.clone();
         let mut count = 0;
         tokio::spawn(async move {
-            loop {
-                tokio::select! {
-                    num = rec.recv() => {
-                        if let Some(num) = num {
-                            count += 1;
-                            //println!("Sending msg #{}", count);
-                            addr.send_and_wait(Measurement(num)).await
-                                .unwrap_or_else(|_| {
-                                    println!("Could not send in sender for msg num #{}", count);
-                                    panic!();
-                                });
-                        } else {
-                            break
-                        }
-                    }
-                }
+            while let Some(num) = rec.recv().await {
+                count += 1;
+                //println!("Sending msg #{}", count);
+                addr.send_and_wait(Measurement(num)).await
+                    .unwrap_or_else(|_| {
+                        println!("Could not send in sender for msg num #{}", count);
+                        panic!();
+                    });
             }
         });
 
