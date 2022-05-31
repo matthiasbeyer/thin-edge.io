@@ -3552,6 +3552,7 @@ dependencies = [
  "toml",
  "tracing",
  "tracing-subscriber 0.3.11",
+ "type-uuid",
 ]
 
 [[package]]

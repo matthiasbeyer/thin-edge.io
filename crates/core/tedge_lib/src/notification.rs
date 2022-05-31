@@ -1,4 +1,5 @@
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, type_uuid::TypeUuid)]
+#[uuid = "54b0bde3-64e7-493f-83f5-db2caa0cd585"]
 #[non_exhaustive]
 pub enum Notification {
     Info { message: String },
