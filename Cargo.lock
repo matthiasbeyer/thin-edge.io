@@ -2337,6 +2337,7 @@ dependencies = [
  "tokio-util 0.7.2",
  "toml",
  "tracing",
+ "type-uuid",
 ]
 
 [[package]]

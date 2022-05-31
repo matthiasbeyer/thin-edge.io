@@ -3,7 +3,8 @@
 use tedge_api::PluginError;
 
 // A message that was received over MQTT by this plugin and is to be send to another plugin
-#[derive(Debug)]
+#[derive(Debug, type_uuid::TypeUuid)]
+#[uuid = "61d5df16-7f0c-4d3d-8a90-e8a7cd6f5545"]
 pub struct IncomingMessage {
     pub(crate) payload: Vec<u8>,
     pub(crate) qos: i32,
@@ -37,7 +38,8 @@ impl tedge_api::Message for IncomingMessage {}
 
 tedge_api::make_receiver_bundle!(pub struct MqttMessageReceiver(IncomingMessage));
 
-#[derive(Debug)]
+#[derive(Debug, type_uuid::TypeUuid)]
+#[uuid = "b71dd332-1e67-4be1-8824-a4b6cf547d5f"]
 pub struct OutgoingMessage {
     pub(crate) payload: Vec<u8>,
     pub(crate) topic: String,
