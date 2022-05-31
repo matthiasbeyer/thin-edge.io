@@ -22,7 +22,7 @@ impl Measurement {
     }
 }
 
-impl tedge_api::plugin::Message for Measurement {}
+impl tedge_api::Message for Measurement {}
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[non_exhaustive]

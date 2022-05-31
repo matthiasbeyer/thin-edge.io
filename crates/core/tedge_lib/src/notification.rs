@@ -20,4 +20,4 @@ impl Notification {
     }
 }
 
-impl tedge_api::plugin::Message for Notification {}
+impl tedge_api::Message for Notification {}
