@@ -31,33 +31,33 @@ pub enum FileError {
 }
 
 pub fn create_directory_with_user_group(
-    dir: &str,
+    dir: impl AsRef<Path>,
     user: &str,
     group: &str,
     mode: u32,
 ) -> Result<(), FileError> {
     let perm_entry = PermissionEntry::new(Some(user.into()), Some(group.into()), Some(mode));
-    perm_entry.create_directory(Path::new(dir))
+    perm_entry.create_directory(dir.as_ref())
 }
 
-pub fn create_directory_with_mode(dir: &str, mode: u32) -> Result<(), FileError> {
+pub fn create_directory_with_mode(dir: impl AsRef<Path>, mode: u32) -> Result<(), FileError> {
     let perm_entry = PermissionEntry::new(None, None, Some(mode));
-    perm_entry.create_directory(Path::new(dir))
+    perm_entry.create_directory(dir.as_ref())
 }
 
 pub fn create_file_with_user_group(
-    file: &str,
+    file: impl AsRef<Path>,
     user: &str,
     group: &str,
     mode: u32,
 ) -> Result<(), FileError> {
     let perm_entry = PermissionEntry::new(Some(user.into()), Some(group.into()), Some(mode));
-    perm_entry.create_file(Path::new(file))
+    perm_entry.create_file(file.as_ref())
 }
 
-pub fn create_file_with_mode(file: &str, mode: u32) -> Result<(), FileError> {
+pub fn create_file_with_mode(file: impl AsRef<Path>, mode: u32) -> Result<(), FileError> {
     let perm_entry = PermissionEntry::new(None, None, Some(mode));
-    perm_entry.create_file(Path::new(file))
+    perm_entry.create_file(file.as_ref())
 }
 
 #[derive(Debug, PartialEq, Eq, Default, Clone)]
