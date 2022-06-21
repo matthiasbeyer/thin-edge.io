@@ -37,14 +37,12 @@ pub fn create_directory_with_user_group(
     mode: u32,
 ) -> Result<(), FileError> {
     let perm_entry = PermissionEntry::new(Some(user.into()), Some(group.into()), Some(mode));
-    let () = perm_entry.create_directory(Path::new(dir))?;
-    Ok(())
+    perm_entry.create_directory(Path::new(dir))
 }
 
 pub fn create_directory_with_mode(dir: &str, mode: u32) -> Result<(), FileError> {
     let perm_entry = PermissionEntry::new(None, None, Some(mode));
-    let () = perm_entry.create_directory(Path::new(dir))?;
-    Ok(())
+    perm_entry.create_directory(Path::new(dir))
 }
 
 pub fn create_file_with_user_group(
@@ -54,14 +52,12 @@ pub fn create_file_with_user_group(
     mode: u32,
 ) -> Result<(), FileError> {
     let perm_entry = PermissionEntry::new(Some(user.into()), Some(group.into()), Some(mode));
-    let () = perm_entry.create_file(Path::new(file))?;
-    Ok(())
+    perm_entry.create_file(Path::new(file))
 }
 
 pub fn create_file_with_mode(file: &str, mode: u32) -> Result<(), FileError> {
     let perm_entry = PermissionEntry::new(None, None, Some(mode));
-    let () = perm_entry.create_file(Path::new(file))?;
-    Ok(())
+    perm_entry.create_file(Path::new(file))
 }
 
 #[derive(Debug, PartialEq, Eq, Default, Clone)]
@@ -99,10 +95,7 @@ impl PermissionEntry {
 
     fn create_directory(&self, dir: &Path) -> Result<(), FileError> {
         match fs::create_dir(dir) {
-            Ok(_) => {
-                let () = self.apply(dir)?;
-                Ok(())
-            }
+            Ok(_) => self.apply(dir),
             Err(e) if e.kind() == io::ErrorKind::AlreadyExists => Ok(()),
             Err(e) => Err(FileError::DirectoryCreateFailed {
                 dir: dir.display().to_string(),
@@ -113,10 +106,7 @@ impl PermissionEntry {
 
     fn create_file(&self, file: &Path) -> Result<(), FileError> {
         match File::create(file) {
-            Ok(_) => {
-                let () = self.apply(file)?;
-                Ok(())
-            }
+            Ok(_) => self.apply(file),
             Err(e) if e.kind() == io::ErrorKind::AlreadyExists => Ok(()),
             Err(e) => Err(FileError::FileCreateFailed {
                 file: file.display().to_string(),
