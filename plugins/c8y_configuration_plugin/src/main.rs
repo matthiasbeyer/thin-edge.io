@@ -203,9 +203,9 @@ fn init(cfg_dir: PathBuf) -> Result<(), anyhow::Error> {
 }
 
 fn create_operation_files(config_dir: &str) -> Result<(), anyhow::Error> {
-    create_directory_with_user_group(&format!("{config_dir}/c8y"), "root", "root", 0o775)?;
+    create_directory_with_user_group(format!("{config_dir}/c8y"), "root", "root", 0o775)?;
     create_file_with_user_group(
-        &format!("{config_dir}/c8y/c8y-configuration-plugin.toml"),
+        format!("{config_dir}/c8y/c8y-configuration-plugin.toml"),
         "root",
         "root",
         0o644,

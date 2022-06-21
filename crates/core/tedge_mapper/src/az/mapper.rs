@@ -32,7 +32,7 @@ impl TEdgeComponent for AzureMapper {
         info!("Initialize tedge mapper az");
         let config_dir = cfg_dir.display().to_string();
         create_directory_with_user_group(
-            &format!("{config_dir}/operations/az"),
+            format!("{config_dir}/operations/az"),
             "tedge",
             "tedge",
             0o775,

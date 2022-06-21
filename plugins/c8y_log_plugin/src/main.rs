@@ -222,30 +222,30 @@ fn create_init_logs_directories_and_files(
     logs_dir: &str,
 ) -> Result<(), anyhow::Error> {
     // creating logs_dir
-    create_directory_with_user_group(&format!("{logs_dir}/tedge"), "tedge", "tedge", 0o755)?;
-    create_directory_with_user_group(&format!("{logs_dir}/tedge/agent"), "tedge", "tedge", 0o755)?;
+    create_directory_with_user_group(format!("{logs_dir}/tedge"), "tedge", "tedge", 0o755)?;
+    create_directory_with_user_group(format!("{logs_dir}/tedge/agent"), "tedge", "tedge", 0o755)?;
     // creating /operations/c8y directories
-    create_directory_with_user_group(&format!("{config_dir}/operations"), "tedge", "tedge", 0o755)?;
+    create_directory_with_user_group(format!("{config_dir}/operations"), "tedge", "tedge", 0o755)?;
     create_directory_with_user_group(
-        &format!("{config_dir}/operations/c8y"),
+        format!("{config_dir}/operations/c8y"),
         "tedge",
         "tedge",
         0o755,
     )?;
     // creating c8y_LogfileRequest operation file
     create_file_with_user_group(
-        &format!("{config_dir}/operations/c8y/c8y_LogfileRequest"),
+        format!("{config_dir}/operations/c8y/c8y_LogfileRequest"),
         "tedge",
         "tedge",
         0o755,
     )?;
     // creating c8y directory
-    create_directory_with_user_group(&format!("{config_dir}/c8y"), "tedge", "tedge", 0o755)?;
+    create_directory_with_user_group(format!("{config_dir}/c8y"), "tedge", "tedge", 0o755)?;
     // creating c8y-log-plugin.toml
 
     // NOTE: file needs 775 permission or inotify can not watch for changes inside the file
     create_file_with_user_group(
-        &format!("{config_dir}/{DEFAULT_PLUGIN_CONFIG_FILE}"),
+        format!("{config_dir}/{DEFAULT_PLUGIN_CONFIG_FILE}"),
         "tedge",
         "tedge",
         0o775,

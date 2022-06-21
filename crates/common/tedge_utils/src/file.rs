@@ -248,7 +248,7 @@ mod tests {
         let dir_path = temp_dir.path().join("dir").display().to_string();
 
         let user = whoami::username();
-        let _ = create_directory_with_user_group(dir_path.as_str(), &user, &user, 0o775).unwrap();
+        let _ = create_directory_with_user_group(&dir_path, &user, &user, 0o775).unwrap();
 
         assert!(Path::new(dir_path.as_str()).exists());
         let meta = fs::metadata(dir_path.as_str()).unwrap();
@@ -264,8 +264,7 @@ mod tests {
 
         let user = whoami::username();
 
-        let err =
-            create_directory_with_user_group(dir_path.as_str(), "test", &user, 0o775).unwrap_err();
+        let err = create_directory_with_user_group(dir_path, "test", &user, 0o775).unwrap_err();
 
         assert!(err.to_string().contains("User not found"));
     }
@@ -277,8 +276,7 @@ mod tests {
 
         let user = whoami::username();
 
-        let err =
-            create_directory_with_user_group(dir_path.as_str(), &user, "test", 0o775).unwrap_err();
+        let err = create_directory_with_user_group(dir_path, &user, "test", 0o775).unwrap_err();
 
         assert!(err.to_string().contains("Group not found"));
     }
