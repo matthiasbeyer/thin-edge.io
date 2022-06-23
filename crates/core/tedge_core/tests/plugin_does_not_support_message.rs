@@ -126,9 +126,10 @@ mod sending {
         }
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, bevy_reflect::TypeUuid)]
+    #[uuid = "2cafb4ce-f1b0-4562-9071-0091cafb95b8"]
     pub struct SendingMessage;
-    impl tedge_api::plugin::Message for SendingMessage {}
+    impl tedge_api::message::Message for SendingMessage {}
 
     tedge_api::make_receiver_bundle!(pub struct SendingMessages(SendingMessage));
 }

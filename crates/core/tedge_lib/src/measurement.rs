@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use type_uuid::TypeUuid;
+use bevy_reflect::TypeUuid;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, TypeUuid)]
 #[uuid = "daad7462-0298-40e0-97b5-1a7b0c2da297"]

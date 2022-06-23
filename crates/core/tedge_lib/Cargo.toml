@@ -18,7 +18,7 @@ humantime-serde = "1"
 indoc = "1.0.6"
 itertools = "0.10"
 miette = "4.4"
-type-uuid = "0.1.2"
+bevy_reflect = "0.7.0"
 
 tedge_api = { path = "../tedge_api" }
 

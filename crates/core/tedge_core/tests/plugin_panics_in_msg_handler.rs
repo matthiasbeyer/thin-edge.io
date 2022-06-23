@@ -1,15 +1,15 @@
 use async_trait::async_trait;
 use futures::future::FutureExt;
-use tedge_api::address::ReplySenderFor;
-use tedge_api::plugin::Handle;
-use tedge_api::plugin::Message;
-use tedge_api::plugin::PluginExt;
 use tedge_api::Address;
 use tedge_api::Plugin;
 use tedge_api::PluginBuilder;
 use tedge_api::PluginConfiguration;
 use tedge_api::PluginDirectory;
 use tedge_api::PluginError;
+use tedge_api::address::ReplySenderFor;
+use tedge_api::message::Message;
+use tedge_api::plugin::Handle;
+use tedge_api::plugin::PluginExt;
 use tedge_core::TedgeApplication;
 
 pub struct HandlePanicPluginBuilder;
@@ -69,7 +69,8 @@ impl Plugin for HandlePanicPlugin {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, bevy_reflect::TypeUuid)]
+#[uuid = "108e9206-c2a5-46bf-b521-7c02eb23e278"]
 struct DoPanic;
 
 impl Message for DoPanic {}
