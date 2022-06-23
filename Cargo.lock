@@ -3627,6 +3627,7 @@ name = "tedge_lib"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "bevy_reflect",
  "futures",
  "humantime-serde",
  "indoc",
@@ -3641,7 +3642,6 @@ dependencies = [
  "toml",
  "tracing",
  "tracing-subscriber 0.3.11",
- "type-uuid",
 ]
 
 [[package]]
