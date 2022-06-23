@@ -2412,6 +2412,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "backoff 0.4.0",
+ "bevy_reflect",
  "futures",
  "log",
  "miette",
@@ -2424,7 +2425,6 @@ dependencies = [
  "tokio-util 0.7.3",
  "toml",
  "tracing",
- "type-uuid",
 ]
 
 [[package]]
@@ -4221,26 +4221,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59b11b2b5241ba34be09c3cc85a36e56e48f9888862e19cedf23336d35316ed1"
 dependencies = [
  "memchr",
-]
-
-[[package]]
-name = "type-uuid"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15043bca41f43205c9b0055d365a405d81b8e4a8ff99c36b263cf79ad1f4c051"
-dependencies = [
- "type-uuid-derive",
-]
-
-[[package]]
-name = "type-uuid-derive"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e090ee857961c746ecf7fb596022493ffaad54d189061df49f7a0cf17796dc1"
-dependencies = [
- "quote 1.0.20",
- "syn 1.0.98",
- "uuid",
 ]
 
 [[package]]
