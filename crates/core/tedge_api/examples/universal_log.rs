@@ -1,6 +1,7 @@
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
+use bevy_reflect::TypeUuid;
 use futures::FutureExt;
 use tedge_api::{
     address::ReplySenderFor,
@@ -10,16 +11,15 @@ use tedge_api::{
     PluginError,
 };
 use tokio::sync::RwLock;
-use type_uuid::TypeUuid;
 
 /// A message that represents a heartbeat that gets sent to plugins
 #[derive(Debug, TypeUuid)]
-#[uuid = "1f807f7b-888f-4881-a1b5-16380e32f8c2"] 
+#[uuid = "1f807f7b-888f-4881-a1b5-16380e32f8c2"]
 struct Heartbeat;
 impl Message for Heartbeat {}
 
 #[derive(Debug, TypeUuid)]
-#[uuid = "346e233f-c24a-47e0-a15b-3ec0d1e19019"] 
+#[uuid = "346e233f-c24a-47e0-a15b-3ec0d1e19019"]
 struct RandomData;
 impl Message for RandomData {}
 
