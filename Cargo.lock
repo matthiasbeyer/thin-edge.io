@@ -3596,6 +3596,7 @@ name = "tedge_core"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "bevy_reflect",
  "criterion",
  "env_logger 0.9.0",
  "futures",

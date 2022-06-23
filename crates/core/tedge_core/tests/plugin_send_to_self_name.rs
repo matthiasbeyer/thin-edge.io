@@ -13,7 +13,8 @@ use tedge_core::TedgeApplication;
 
 pub struct SelfSendPluginBuilder;
 
-#[derive(Debug)]
+#[derive(Debug, bevy_reflect::TypeUuid)]
+#[uuid = "f62719d4-e4d1-463b-b3c8-6bf2be0b8527"]
 struct Msg;
 
 impl tedge_api::Message for Msg {}

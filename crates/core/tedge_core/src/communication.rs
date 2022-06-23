@@ -222,7 +222,8 @@ mod tests {
 
         struct Plug;
 
-        #[derive(Debug)]
+        #[derive(Debug, bevy_reflect::TypeUuid)]
+        #[uuid = "1904d5dd-b3fb-40c0-ac3c-98c25415106c"]
         pub struct SupportedMessage;
 
         impl tedge_api::Message for SupportedMessage {}
@@ -256,12 +257,14 @@ mod tests {
         }
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, bevy_reflect::TypeUuid)]
+    #[uuid = "8a6330ee-0c0e-4eea-bbc9-7e0aad2dbb2a"]
     struct UnsupportedMessage;
 
     impl tedge_api::Message for UnsupportedMessage {}
 
-    #[derive(Debug)]
+    #[derive(Debug, bevy_reflect::TypeUuid)]
+    #[uuid = "8a66ae89-0eac-4298-bebe-32c4d378b96d"]
     struct OtherUnsupportedMessage;
 
     impl tedge_api::Message for OtherUnsupportedMessage {}

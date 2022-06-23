@@ -21,7 +21,8 @@ use tracing::debug;
 
 const MESSAGE_COUNT: usize = 500;
 
-#[derive(Debug)]
+#[derive(Debug, bevy_reflect::TypeUuid)]
+#[uuid = "d39e0802-eebd-4eb6-ad62-e3f6bc1fce02"]
 struct Spam;
 
 impl Message for Spam {}
