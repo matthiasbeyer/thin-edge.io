@@ -4,9 +4,9 @@
 //!     - Its purpose is to simply instantiate your plugins as needed with custom logic if required
 //! 2. Create your plugin struct that implements `Plugin`
 
+use bevy_reflect::TypeUuid;
 use futures::future::BoxFuture;
 use std::any::Any;
-use type_uuid::TypeUuid;
 
 use downcast_rs::{impl_downcast, DowncastSync};
 
@@ -96,8 +96,8 @@ pub trait PluginBuilder<PD: PluginDirectory>: Sync + Send + 'static {
     /// # Example
     ///
     /// ```no_run
+    /// # use bevy_reflect::TypeUuid;
     /// # use tedge_api::{Plugin, plugin::BuiltPlugin, PluginError, PluginExt, PluginDirectory, PluginBuilder, PluginConfiguration};
-    /// # use type_uuid::TypeUuid;
     ///
     /// #[derive(Debug, TypeUuid)]
     /// #[uuid = "46f5d318-4158-4726-83dd-9b310cae3328"]
@@ -214,13 +214,13 @@ pub trait PluginBuilder<PD: PluginDirectory>: Sync + Send + 'static {
     /// # Example
     ///
     /// ```no_run
+    /// # use bevy_reflect::TypeUuid;
     /// # use tedge_api::plugin::BuiltPlugin;
     /// # use tedge_api::PluginConfiguration;
     /// # use tedge_api::Plugin;
     /// # use tedge_api::PluginBuilder;
     /// # use tedge_api::PluginDirectory;
     /// # use tedge_api::PluginExt;
-    /// # use type_uuid::TypeUuid;
     ///
     /// #[derive(Debug, TypeUuid)]
     /// #[uuid = "39046e3e-05ad-4b16-bbf1-8c2d2da5b668"]
@@ -384,11 +384,11 @@ impl HandleTypes {
     ///
     /// ```rust
     /// # use async_trait::async_trait;
+    /// # use bevy_reflect::TypeUuid;
     /// # use tedge_api::plugin::{Handle, HandleTypes};
     /// # use tedge_api::address::ReplySenderFor;
     /// # use tedge_api::PluginError;
     /// # use tedge_api::PluginExt;
-    /// # use type_uuid::TypeUuid;
     ///
     /// #[derive(Debug, TypeUuid)]
     /// #[uuid = "1276aa9c-5e04-4ab3-a987-61d89765ab33"]
@@ -677,9 +677,9 @@ impl_msg_bundle_tuple!(M10 M9 M8 M7 M6 M5 M4 M3 M2 M1);
 mod tests {
     use crate::{message::DynMessage, Message};
 
+    use bevy_reflect::TypeUuid;
     use super::{Plugin, PluginBuilder};
     use static_assertions::assert_obj_safe;
-    use type_uuid::TypeUuid;
 
     // Object Safety
     assert_obj_safe!(PluginBuilder<()>);

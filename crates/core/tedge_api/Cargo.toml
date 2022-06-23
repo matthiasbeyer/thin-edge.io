@@ -21,7 +21,7 @@ termimad = "0.20.1"
 nu-ansi-term = "0.45.1"
 tedge_config_derive = { version = "0.1.0", path = "tedge_config_derive" }
 tracing = "0.1"
-type-uuid = "0.1.2"
+bevy_reflect = "0.7.0"
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"
