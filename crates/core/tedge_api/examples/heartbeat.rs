@@ -1,6 +1,7 @@
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
+use bevy_reflect::TypeUuid;
 use futures::FutureExt;
 use tedge_api::{
     address::ReplySenderFor,
@@ -10,7 +11,6 @@ use tedge_api::{
     PluginError,
 };
 use tokio::sync::RwLock;
-use type_uuid::TypeUuid;
 
 #[derive(Debug, TypeUuid)]
 #[uuid = "94916be9-17ba-4bca-a3a0-408d33136fed"]

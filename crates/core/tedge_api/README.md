@@ -85,9 +85,9 @@ others.
 For example:
 
 ```rust
-use tedge_api::{Message, TypeUuid};
+use tedge_api::Message;
 
-#[derive(Debug, TypeUuid)]
+#[derive(Debug, bevy_reflect::TypeUuid)]
 #[uuid = "b60dd50c-ccef-4204-b370-18bbbb68d6e2"]
 struct Value(f64);
 

@@ -359,8 +359,8 @@ pub trait Contains<M: Message> {}
 /// ## Example
 ///
 /// ```rust
+/// # use bevy_reflect::TypeUuid;
 /// # use tedge_api::{Message, make_receiver_bundle};
-/// # use type_uuid::TypeUuid;
 ///
 /// #[derive(Debug, TypeUuid)]
 /// #[uuid = "b4e62630-0404-4d39-b435-95d777029887"]
@@ -404,9 +404,9 @@ macro_rules! make_receiver_bundle {
 mod tests {
     use std::sync::Arc;
 
+    use bevy_reflect::TypeUuid;
     use static_assertions::{assert_impl_all, assert_not_impl_any};
     use tokio::sync::RwLock;
-    use type_uuid::TypeUuid;
 
     use crate::{
         address::{InnerMessageSender, ReplyReceiverFor, ReplySenderFor},

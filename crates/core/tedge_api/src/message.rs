@@ -1,6 +1,6 @@
 use downcast_rs::{impl_downcast, DowncastSync};
+use bevy_reflect::{TypeUuid, TypeUuidDynamic};
 use serde::Serialize;
-use type_uuid::{TypeUuid, TypeUuidDynamic};
 
 use crate::address::AnyMessageBox;
 
@@ -81,7 +81,7 @@ pub struct MessageType {
 }
 
 #[derive(Clone, PartialEq, Debug)]
-struct Uuid([u8; 16]);
+struct Uuid(bevy_reflect::Uuid);
 
 #[derive(Debug, Clone, Serialize)]
 enum MessageKind {
@@ -113,10 +113,10 @@ impl MessageType {
     /// Get the [`MessageType`] for a `M`:[`Message`]
     #[must_use]
     pub fn for_message<M: Message + TypeUuid>() -> Self {
-        let id = M::UUID;
+        let id = M::TYPE_UUID;
         MessageType {
             name: std::any::type_name::<M>(),
-            kind: if id == AnyMessage::UUID {
+            kind: if id == AnyMessage::TYPE_UUID {
                 MessageKind::Wildcard
             } else {
                 MessageKind::Typed(Uuid(id))
@@ -125,10 +125,10 @@ impl MessageType {
     }
 
     pub(crate) fn from_message(msg: &dyn Message) -> Self {
-        let id = msg.uuid();
+        let id = msg.type_uuid();
         MessageType {
-            name: msg.type_name(),
-            kind: if id == AnyMessage::UUID {
+            name: TypeUuidDynamic::type_name(msg),
+            kind: if id == AnyMessage::TYPE_UUID {
                 MessageKind::Wildcard
             } else {
                 MessageKind::Typed(Uuid(id))
@@ -154,7 +154,7 @@ crate::make_receiver_bundle!(pub struct CoreMessages(StopCore));
 
 #[cfg(test)]
 mod tests {
-    use type_uuid::TypeUuid;
+    use bevy_reflect::TypeUuid;
 
     use crate::Message;
 
