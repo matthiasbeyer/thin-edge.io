@@ -52,7 +52,7 @@ impl std::fmt::Debug for Reactor {
 struct PluginTaskPrep {
     name: String,
     plugin: BuiltPlugin,
-    channel_size: usize,
+    max_concurrency: usize,
     plugin_msg_comms: tedge_api::address::MessageSender,
     cancellation_token: CancellationToken,
 }
@@ -64,7 +64,7 @@ impl Reactor {
     /// the application, the plugins that need to be started and stopped accordingly as well as
     /// crash safety concerns.
     pub async fn run(self) -> Result<(), TedgeApplicationError> {
-        let channel_size = self.0.config().communication_buffer_size().get();
+        let max_concurrency = self.0.config().max_concurrency().get();
 
         // find all PluginBuilder objects that are registered and specified in the configuration to
         // be used to build Plugin instances with.
@@ -95,7 +95,7 @@ impl Reactor {
 
                 Ok((
                     pname.to_string(),
-                    PluginInfo::new(handle_types, channel_size),
+                    PluginInfo::new(handle_types, max_concurrency),
                 ))
             });
 
@@ -165,7 +165,7 @@ impl Reactor {
         instantiated_plugins.push(PluginTaskPrep {
             name: "core".to_string(),
             plugin: core_plugin.finish(),
-            channel_size: 10,
+            max_concurrency: 10,
             plugin_msg_comms: directory.get_core_communicator(),
             cancellation_token: self.0.cancellation_token.clone(),
         });
@@ -180,7 +180,7 @@ impl Reactor {
                 PluginTask::new(
                     prep.name,
                     plugin,
-                    prep.channel_size,
+                    prep.max_concurrency,
                     prep.plugin_msg_comms,
                     prep.cancellation_token,
                     timeout,
@@ -377,12 +377,12 @@ impl Reactor {
             .map(|plugin| {
                 trace!(plugin.name = ?plugin_name, "Instantiation of plugin successfull");
 
-                let channel_size = self.0.config().communication_buffer_size().get();
+                let max_concurrency = self.0.config().max_concurrency().get();
 
                 PluginTaskPrep {
                     name: plugin_name.to_string(),
                     plugin,
-                    channel_size,
+                    max_concurrency,
                     plugin_msg_comms,
                     cancellation_token,
                 }

@@ -109,7 +109,7 @@ pub(crate) struct PluginInfo {
     pub(crate) types: Vec<MessageType>,
 
     /// How many concurrent handlers are allowed to be spawned
-    pub(crate) channel_size: usize,
+    pub(crate) max_concurrency: usize,
 
     /// A sender to send messages to the plugin
     pub(crate) communicator: MessageSender,
@@ -119,16 +119,16 @@ impl std::fmt::Debug for PluginInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PluginInfo")
             .field("types", &self.types)
-            .field("channel_size", &self.channel_size)
+            .field("max_concurrency", &self.max_concurrency)
             .finish_non_exhaustive()
     }
 }
 
 impl PluginInfo {
-    pub(crate) fn new(types: Vec<MessageType>, channel_size: usize) -> Self {
+    pub(crate) fn new(types: Vec<MessageType>, max_concurrency: usize) -> Self {
         Self {
             types,
-            channel_size,
+            max_concurrency,
             communicator: MessageSender::new(Default::default()),
         }
     }
@@ -284,7 +284,7 @@ mod tests {
 
         let conf = format!(
             r#"
-            communication_buffer_size = 10
+            max_concurrency = 10
 
             plugin_shutdown_timeout_ms = 2000
 
@@ -296,7 +296,7 @@ mod tests {
             plugin_name = testplugin::TEST_PLUGIN_NAME
         );
 
-        let channel_size = 1;
+        let max_concurrency = 1;
         let tedge_builder =
             crate::TedgeApplication::builder().with_plugin_builder(testplugin::Builder {});
 
@@ -316,7 +316,7 @@ mod tests {
 
             Ok((
                 pname.to_string(),
-                PluginInfo::new(handle_types, channel_size),
+                PluginInfo::new(handle_types, max_concurrency),
             ))
         });
 

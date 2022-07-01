@@ -15,7 +15,7 @@ use crate::{
 
 #[derive(serde::Deserialize, Debug)]
 pub struct TedgeConfiguration {
-    communication_buffer_size: NonZeroUsize,
+    max_concurrency: NonZeroUsize,
     plugin_shutdown_timeout_ms: NonZeroU64,
     plugins: HashMap<String, PluginInstanceConfiguration>,
 }
@@ -50,8 +50,8 @@ impl AsRef<str> for PluginKind {
 }
 
 impl TedgeConfiguration {
-    pub fn communication_buffer_size(&self) -> std::num::NonZeroUsize {
-        self.communication_buffer_size
+    pub fn max_concurrency(&self) -> std::num::NonZeroUsize {
+        self.max_concurrency
     }
 
     /// Get the tedge configuration's plugin shutdown timeout.
