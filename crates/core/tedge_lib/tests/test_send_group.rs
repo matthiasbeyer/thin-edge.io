@@ -2,7 +2,8 @@ use futures::FutureExt;
 use tedge_core::TedgeApplication;
 
 mod msg {
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, bevy_reflect::TypeUuid)]
+    #[uuid = "4e131f31-7056-4bb9-b0a6-aa2ca398facd"]
     pub struct Usize(pub usize);
     impl tedge_api::Message for Usize {}
 }
