@@ -40,9 +40,9 @@ pub trait PluginDirectory: Send + Sync {
     /// ## Also see
     ///
     /// - [`make_receiver_bundle`](crate::make_receiver_bundle) On how to define your own named message bundle
-    fn get_address_for<RB: ReceiverBundle>(
+    fn get_address_for<RB: ReceiverBundle, Name: AsRef<str>>(
         &self,
-        name: &str,
+        name: Name,
     ) -> Result<Address<RB>, DirectoryError>;
 
     /// Request an `Address` to the core itself. It will only accept messages from the
