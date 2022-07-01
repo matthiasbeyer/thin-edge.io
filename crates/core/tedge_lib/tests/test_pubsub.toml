@@ -1,0 +1,15 @@
+communication_buffer_size = 10
+
+plugin_shutdown_timeout_ms = 2000
+
+[plugins]
+
+[plugins.p]
+kind = "pub"
+[plugins.p.configuration]
+
+[plugins.s]
+kind = "sub"
+[plugins.s.configuration]
+target = [ "p" ]
+
