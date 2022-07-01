@@ -89,7 +89,7 @@ mod send {
 
     #[async_trait]
     impl Plugin for SendPlugin {
-        async fn start(&mut self) -> Result<(), PluginError> {
+        async fn main(&self) -> Result<(), PluginError> {
             self.addrs
                 .send_and_wait(crate::msg::Usize(1))
                 .collect::<Vec<Result<_, _>>>()
