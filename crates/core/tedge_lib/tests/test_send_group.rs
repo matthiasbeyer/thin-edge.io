@@ -222,8 +222,8 @@ fn test_send_group() -> Result<(), Box<(dyn std::error::Error + 'static)>> {
             filepath
         };
         let (cancel_sender, application) = TedgeApplication::builder()
-            .with_plugin_builder(crate::send::SendPluginBuilder {})?
-            .with_plugin_builder(crate::recv::RecvPluginBuilder {})?
+            .with_plugin_builder(crate::send::SendPluginBuilder {})
+            .with_plugin_builder(crate::recv::RecvPluginBuilder {})
             .with_config_from_path(config_file_path)
             .await?;
 
