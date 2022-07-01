@@ -271,7 +271,7 @@ impl Reactor {
             .collect::<futures::stream::FuturesUnordered<_>>()
             .collect::<Vec<Result<(), _>>>()
             .instrument(tracing::info_span!(
-                "core.mainloop.plugins.disable-communications"
+                "core.mainloop.plugins.disable_communication"
             ))
             .await;
 
