@@ -92,7 +92,6 @@ mod send {
         async fn start(&mut self) -> Result<(), PluginError> {
             self.addrs
                 .send_and_wait(crate::msg::Usize(1))
-                .collect::<futures::stream::FuturesUnordered<_>>()
                 .collect::<Vec<Result<_, _>>>()
                 .await
                 .into_iter()
