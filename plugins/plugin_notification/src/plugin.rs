@@ -41,16 +41,7 @@ impl NotificationPlugin {
 }
 
 #[async_trait]
-impl Plugin for NotificationPlugin {
-    async fn start(&mut self) -> Result<(), PluginError> {
-        Ok(())
-    }
-
-    async fn shutdown(&mut self) -> Result<(), PluginError> {
-        trace!("Shutdown");
-        Ok(())
-    }
-}
+impl Plugin for NotificationPlugin {}
 
 #[async_trait]
 impl Handle<Measurement> for NotificationPlugin {
