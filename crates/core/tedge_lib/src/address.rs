@@ -87,6 +87,7 @@ where
     ///
     /// The caller of this function can, using the returned stream, decide whether the messages
     /// should be sent out concurrently or in sequence.
+    #[must_use = "Streams must be consumed to actually perform work"]
     pub fn try_send<M>(
         &self,
         msg: M,
