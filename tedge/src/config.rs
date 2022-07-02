@@ -11,7 +11,7 @@ use tedge_api::config::ConfigEnumKind;
 use tedge_api::config::ConfigKind;
 use tedge_api::config::EnumVariantRepresentation;
 
-/// Get a [`RcDoc`](pretty::RcDoc) which can be used to write the documentation of this
+/// Get a [`RefDoc`](pretty::RefDoc) which can be used to write the documentation of this
 pub fn as_terminal_doc<'a>(desc: &'a ConfigDescription, arena: &'a Arena<'a>) -> RefDoc<'a> {
     let mut doc = arena.nil();
 
