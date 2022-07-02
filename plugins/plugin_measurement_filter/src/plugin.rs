@@ -43,17 +43,7 @@ impl tedge_api::plugin::PluginDeclaration for MeasurementFilterPlugin {
 }
 
 #[async_trait]
-impl Plugin for MeasurementFilterPlugin {
-    async fn start(&mut self) -> Result<(), PluginError> {
-        debug!("Setting up filter plugin");
-        Ok(())
-    }
-
-    async fn shutdown(&mut self) -> Result<(), PluginError> {
-        debug!("Shutting down filter plugin!");
-        Ok(())
-    }
-}
+impl Plugin for MeasurementFilterPlugin {}
 
 #[async_trait]
 impl Handle<Measurement> for MeasurementFilterPlugin {
