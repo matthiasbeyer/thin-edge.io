@@ -111,17 +111,7 @@ impl tedge_api::plugin::PluginDeclaration for MqttMeasurementBridgePlugin {
 }
 
 #[async_trait]
-impl Plugin for MqttMeasurementBridgePlugin {
-    async fn start(&mut self) -> Result<(), PluginError> {
-        debug!("Setting up mqtt-measurement-bridge plugin!");
-        Ok(())
-    }
-
-    async fn shutdown(&mut self) -> Result<(), PluginError> {
-        debug!("Shutting down mqtt-measurement-bridge plugin!");
-        Ok(())
-    }
-}
+impl Plugin for MqttMeasurementBridgePlugin {}
 
 #[async_trait]
 impl Handle<tedge_lib::measurement::Measurement> for MqttMeasurementBridgePlugin {
