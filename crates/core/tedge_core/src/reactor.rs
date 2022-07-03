@@ -226,7 +226,7 @@ impl Reactor {
                     tracing::debug_span!("plugin.main", plugin.name = %plugin_task.plugin_name());
                 plugin_task.run_main().instrument(span)
             })
-            .collect::<futures::stream::FuturesOrdered<_>>()
+            .collect::<futures::stream::FuturesUnordered<_>>()
             .collect::<Vec<Result<(), _>>>()
             .instrument(tracing::info_span!("core.mainloop.plugins.main"))
             .await;
