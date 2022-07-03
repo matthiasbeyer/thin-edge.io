@@ -13,7 +13,6 @@ use tedge_api::PluginConfiguration;
 use tedge_api::PluginDirectory;
 use tedge_api::PluginError;
 use tokio_util::sync::CancellationToken;
-use tracing::debug;
 use tracing::trace;
 
 pub struct MqttMeasurementBridgePluginBuilder;
