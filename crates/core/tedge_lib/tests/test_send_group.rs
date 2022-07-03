@@ -2,7 +2,8 @@ use futures::FutureExt;
 use tedge_core::TedgeApplication;
 
 mod msg {
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, bevy_reflect::TypeUuid)]
+    #[uuid = "4e131f31-7056-4bb9-b0a6-aa2ca398facd"]
     pub struct Usize(pub usize);
     impl tedge_api::Message for Usize {}
 }
@@ -88,10 +89,9 @@ mod send {
 
     #[async_trait]
     impl Plugin for SendPlugin {
-        async fn start(&mut self) -> Result<(), PluginError> {
+        async fn main(&self) -> Result<(), PluginError> {
             self.addrs
                 .send_and_wait(crate::msg::Usize(1))
-                .collect::<futures::stream::FuturesUnordered<_>>()
                 .collect::<Vec<Result<_, _>>>()
                 .await
                 .into_iter()
@@ -222,8 +222,8 @@ fn test_send_group() -> Result<(), Box<(dyn std::error::Error + 'static)>> {
             filepath
         };
         let (cancel_sender, application) = TedgeApplication::builder()
-            .with_plugin_builder(crate::send::SendPluginBuilder {})?
-            .with_plugin_builder(crate::recv::RecvPluginBuilder {})?
+            .with_plugin_builder(crate::send::SendPluginBuilder {})
+            .with_plugin_builder(crate::recv::RecvPluginBuilder {})
             .with_config_from_path(config_file_path)
             .await?;
 
