@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use tracing::debug;
 
 use tedge_api::address::Address;
 use tedge_api::address::ReplySenderFor;
