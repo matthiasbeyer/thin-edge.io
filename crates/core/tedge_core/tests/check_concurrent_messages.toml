@@ -1,4 +1,4 @@
-communication_buffer_size = 100
+max_concurrency = 100
 plugin_shutdown_timeout_ms = 2000
 
 [plugins.spammer]
