@@ -154,11 +154,11 @@ pub struct PluginDirectory {
 
 impl ApiPluginDirectory for PluginDirectory {
     /// Forwarded to the corresponding `CorePluginDirectory` function
-    fn get_address_for<RB: tedge_api::address::ReceiverBundle, Name: AsRef<str>>(
+    fn get_address_for<RB: tedge_api::address::ReceiverBundle>(
         &self,
-        name: Name,
+        name: &str,
     ) -> Result<Address<RB>, DirectoryError> {
-        self.core.get_address_for::<RB>(name.as_ref())
+        self.core.get_address_for::<RB>(name)
     }
 
     /// Forwarded to the corresponding `CorePluginDirectory` function
