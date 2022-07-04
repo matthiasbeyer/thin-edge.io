@@ -1,4 +1,6 @@
 /// An address of a plugin
+///
+/// This type is a helper type for specifying a plugin address in the configuration.
 #[derive(Debug, Eq, PartialEq, Hash, serde::Deserialize, tedge_api::Config)]
 #[serde(transparent)]
 pub struct Address(String);
@@ -10,6 +12,8 @@ impl AsRef<str> for Address {
 }
 
 impl Address {
+    /// Build the config helper [Address](crate::config::Address) object into a usable API
+    /// [Address](tedge_api::Address), that can be used to send messages to.
     pub fn build<RB, PD>(
         &self,
         pd: &PD,
