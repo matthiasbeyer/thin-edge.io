@@ -22,15 +22,7 @@ pub enum CoreInternalMessage {
 }
 
 #[async_trait]
-impl Plugin for CorePlugin {
-    async fn start(&mut self) -> std::result::Result<(), PluginError> {
-        Ok(())
-    }
-
-    async fn shutdown(&mut self) -> std::result::Result<(), PluginError> {
-        Ok(())
-    }
-}
+impl Plugin for CorePlugin {}
 
 #[async_trait]
 impl Handle<StopCore> for CorePlugin {
