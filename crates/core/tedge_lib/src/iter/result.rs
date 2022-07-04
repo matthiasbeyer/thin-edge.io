@@ -2,7 +2,8 @@
 ///
 /// ```no_run
 /// # async {
-/// #     #[derive(Clone, Debug)]
+/// #     #[derive(Clone, Debug, bevy_reflect::TypeUuid)]
+/// #     #[uuid = "e9457c98-e956-4403-89ff-33635bf18ee3"]
 /// #     struct M;
 /// #     impl tedge_api::Message for M {}
 /// #     tedge_api::make_receiver_bundle!(struct MessageReceiver(M));
