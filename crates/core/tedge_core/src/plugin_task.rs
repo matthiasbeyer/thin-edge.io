@@ -28,7 +28,7 @@ use crate::message_handler::make_message_handler;
 pub struct PluginTask {
     plugin_name: String,
     plugin: Arc<RwLock<BuiltPlugin>>,
-    channel_size: usize,
+    max_concurrency: usize,
     plugin_msg_communications: MessageSender,
     panic_channel: (Sender<()>, Receiver<()>),
     _task_cancel_token: CancellationToken,
@@ -47,7 +47,7 @@ impl PluginTask {
     pub fn new(
         plugin_name: String,
         plugin: Arc<RwLock<BuiltPlugin>>,
-        channel_size: usize,
+        max_concurrency: usize,
         plugin_msg_communications: MessageSender,
         task_cancel_token: CancellationToken,
         shutdown_timeout: std::time::Duration,
@@ -56,7 +56,7 @@ impl PluginTask {
         Self {
             plugin_name,
             plugin,
-            channel_size,
+            max_concurrency,
             plugin_msg_communications,
             panic_channel,
             _task_cancel_token: task_cancel_token,
@@ -116,10 +116,10 @@ impl PluginTask {
     }
 
     pub async fn enable_communications(&self) -> Result<(), PluginLifecycleError> {
-        trace!(channel_size = ?self.channel_size, "enabling communications");
+        trace!(max_concurrency = ?self.max_concurrency, "enabling communications");
         self.plugin_msg_communications
             .init_with(make_message_handler(
-                Arc::new(Semaphore::new(self.channel_size)),
+                Arc::new(Semaphore::new(self.max_concurrency)),
                 self.plugin.clone(),
                 self.panic_channel.0.clone(),
             ))
