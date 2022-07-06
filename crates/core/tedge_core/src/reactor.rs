@@ -296,6 +296,7 @@ impl Reactor {
             .map(|cfg| cfg.configuration())
     }
 
+    #[allow(clippy::borrowed_box)]
     fn find_plugin_builder<'a>(
         &'a self,
         plugin_kind: &PluginKind,
