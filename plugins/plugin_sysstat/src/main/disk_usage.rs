@@ -124,5 +124,5 @@ fn measure_to_message(disk: &sysinfo::Disk) -> Result<Measurement, PluginError> 
         MeasurementValue::Bool(disk_removable),
     );
     let value = MeasurementValue::Map(hm);
-    Ok(Measurement::new(disk_name.to_string(), value))
+    Ok(Measurement::new(disk_name, value))
 }
