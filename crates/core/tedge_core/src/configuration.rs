@@ -4,7 +4,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-
 use tedge_api::PluginBuilder;
 use tracing::debug;
 
@@ -83,7 +82,7 @@ impl InstanceConfiguration {
     ) -> Result<toml::Value, PluginConfigurationError> {
         match self {
             InstanceConfiguration::Config(cfg) => builder
-                .verify_configuration(&cfg)
+                .verify_configuration(cfg)
                 .await
                 .map_err(|e| {
                     PluginConfigurationError::Verification(PluginConfigVerificationError {
