@@ -64,7 +64,7 @@ pub async fn main_load(state: Arc<Mutex<LoadState>>) -> Result<(), PluginError> 
             MeasurementValue::Float(load.fifteen),
         );
         let value = MeasurementValue::Map(hm);
-        Measurement::new("load".to_string(), value.clone())
+        Measurement::new("load".to_string(), value)
     };
 
     state
