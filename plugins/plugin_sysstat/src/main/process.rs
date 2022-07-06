@@ -88,8 +88,7 @@ pub async fn main_process(state: Arc<Mutex<ProcessState>>) -> Result<(), PluginE
                 || state
                     .by_name
                     .keys()
-                    .find(|name| *name == process.name())
-                    .is_some()
+                    .any(|name| *name == process.name())
         })
         .map(|(_pid, process)| get_measurement(state, process))
         .map(|value| Measurement::new("processes".to_string(), value))
