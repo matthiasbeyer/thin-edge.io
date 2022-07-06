@@ -226,7 +226,7 @@ pub fn derive_config(input: TS) -> TS {
                     .named
                     .iter()
                     .map(|f| ConfigField {
-                        ident: &f.ident.as_ref().unwrap(),
+                        ident: f.ident.as_ref().unwrap(),
                         ty: &f.ty,
                         docs: extract_docs_from_attributes(f.attrs.iter()),
                     })
@@ -320,7 +320,7 @@ pub fn derive_config(input: TS) -> TS {
                                 .named
                                 .iter()
                                 .map(|f| ConfigField {
-                                    ident: &f.ident.as_ref().unwrap(),
+                                    ident: f.ident.as_ref().unwrap(),
                                     ty: &f.ty,
                                     docs: extract_docs_from_attributes(f.attrs.iter()),
                                 })
