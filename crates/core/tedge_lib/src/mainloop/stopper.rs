@@ -1,9 +1,8 @@
 pub struct MainloopStopper(pub(super) tedge_api::CancellationToken);
 
 impl MainloopStopper {
-    pub fn stop(self) -> Result<(), ()> {
+    pub fn stop(self) {
         self.0.cancel();
-        Ok(())
     }
 }
 
