@@ -134,7 +134,7 @@ impl InstanceConfiguration {
                         })
                 }
 
-                inner(plugin_name, builder, root_config_path, &path).await
+                inner(plugin_name, builder, root_config_path, path).await
             }
         }
     }
