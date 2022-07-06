@@ -1,4 +1,5 @@
 #[derive(Debug, miette::Diagnostic, thiserror::Error)]
+#[allow(clippy::enum_variant_names)]
 pub(crate) enum Error {
     #[error("Failed to parse configuration")]
     ConfigParseFailed(toml::de::Error),
