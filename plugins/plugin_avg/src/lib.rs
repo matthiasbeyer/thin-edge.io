@@ -37,9 +37,6 @@ struct AvgConfig {
 enum Error {
     #[error("Failed to parse configuration")]
     ConfigParseFailed(#[from] toml::de::Error),
-
-    #[error("Failed to stop main loop")]
-    FailedToStopMainloop,
 }
 
 #[async_trait]
@@ -142,7 +139,7 @@ impl Plugin for AvgPlugin {
     #[tracing::instrument(name = "plugin.avg.shutdown")]
     async fn shutdown(&mut self) -> Result<(), PluginError> {
         if let Some(stopper) = self.stopper.take() {
-            stopper.stop().map_err(|()| Error::FailedToStopMainloop)?;
+            stopper.stop();
         }
         Ok(())
     }
