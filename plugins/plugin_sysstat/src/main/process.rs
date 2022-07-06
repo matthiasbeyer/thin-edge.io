@@ -91,7 +91,7 @@ pub async fn main_process(state: Arc<Mutex<ProcessState>>) -> Result<(), PluginE
                     .find(|name| *name == process.name())
                     .is_some()
         })
-        .map(|(_pid, process)| get_measurement(&state, process))
+        .map(|(_pid, process)| get_measurement(state, process))
         .map(|value| Measurement::new("processes".to_string(), value))
         .collect::<Vec<_>>();
 
