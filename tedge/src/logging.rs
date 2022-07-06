@@ -59,7 +59,7 @@ pub fn setup_logging(
         .map(|(layer, guard)| (Some(layer), Some(guard)))
         .unwrap_or_default();
 
-    let opt_tracy_layer = tracy_logging.then(|| tracing_tracy::TracyLayer::new());
+    let opt_tracy_layer = tracy_logging.then(tracing_tracy::TracyLayer::new);
 
     let stdout_log = env_filter.map(|f| tracing_subscriber::fmt::layer().with_filter(f));
 
