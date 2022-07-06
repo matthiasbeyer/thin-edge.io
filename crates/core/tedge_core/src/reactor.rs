@@ -340,7 +340,7 @@ impl Reactor {
         )?;
 
         let config = match config
-            .verify_with_builder(plugin_name, builder, root_config_path)
+            .verify_with_builder(plugin_name, &**builder, root_config_path)
             .instrument(trace_span!("core.config_verification"))
             .await
         {

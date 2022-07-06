@@ -77,7 +77,7 @@ impl InstanceConfiguration {
     pub async fn verify_with_builder(
         &self,
         plugin_name: &str,
-        builder: &Box<dyn PluginBuilder<PluginDirectory>>,
+        builder: &dyn PluginBuilder<PluginDirectory>,
         root_config_path: &Path,
     ) -> Result<toml::Value, PluginConfigurationError> {
         match self {
@@ -94,7 +94,7 @@ impl InstanceConfiguration {
             InstanceConfiguration::ConfigFilePath(path) => {
                 async fn inner(
                     plugin_name: &str,
-                    builder: &Box<dyn PluginBuilder<PluginDirectory>>,
+                    builder: &dyn PluginBuilder<PluginDirectory>,
                     root_config_path: &Path,
                     path: &Path,
                 ) -> Result<toml::Value, PluginConfigurationError> {
