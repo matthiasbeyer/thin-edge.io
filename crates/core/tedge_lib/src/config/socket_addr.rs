@@ -7,9 +7,9 @@
 )]
 pub struct SocketAddr(std::net::SocketAddr);
 
-impl Into<std::net::SocketAddr> for SocketAddr {
-    fn into(self) -> std::net::SocketAddr {
-        self.0
+impl From<SocketAddr> for std::net::SocketAddr {
+    fn from(sa: SocketAddr) -> Self {
+        sa.0
     }
 }
 
