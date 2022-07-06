@@ -23,8 +23,8 @@ pub struct LogPluginBuilder<MB: MessageBundle> {
     _pd: PhantomData<MB>,
 }
 
-impl<MB: MessageBundle> LogPluginBuilder<MB> {
-    pub fn new() -> Self {
+impl<MB: MessageBundle> Default for LogPluginBuilder<MB> {
+    fn default() -> Self {
         LogPluginBuilder { _pd: PhantomData }
     }
 }
