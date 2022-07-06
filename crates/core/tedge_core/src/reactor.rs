@@ -82,7 +82,7 @@ impl Reactor {
                     .map(|(handle_types, _)| {
                         handle_types
                             .get_types()
-                            .into_iter()
+                            .iter()
                             .cloned()
                             .collect::<Vec<MessageType>>()
                     })
