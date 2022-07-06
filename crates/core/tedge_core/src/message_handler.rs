@@ -47,7 +47,7 @@ pub fn make_message_handler(
                             Ok(permit) => Some(permit),
                             Err(_acquire_err) => {
                                 error!("Semaphore closed in CoreTask unexpectedly");
-                                return None;
+                                None
                             }
                         }
                     })
