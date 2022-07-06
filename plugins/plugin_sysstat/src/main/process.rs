@@ -57,13 +57,12 @@ impl StateFromConfig for ProcessState {
                     } else {
                         pr
                     };
-                    let pr = if config.all_processes.config.disk_usage {
+
+                    if config.all_processes.config.disk_usage {
                         pr.with_disk_usage()
                     } else {
                         pr
-                    };
-
-                    pr
+                    }
                 })
             }),
 
