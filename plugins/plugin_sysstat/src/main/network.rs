@@ -68,9 +68,7 @@ pub async fn main_network(state: Arc<Mutex<NetworkState>>) -> Result<(), PluginE
         .sys
         .networks()
         .into_iter()
-        .filter(|(name, _)| {
-            state.all_networks.enable || state.by_name.keys().find(|n| n == name).is_some()
-        })
+        .filter(|(name, _)| state.all_networks.enable || state.by_name.keys().any(|n| n == *name))
         .map(|(name, network)| {
             let config = if state.all_networks.enable {
                 &state.all_networks.config
