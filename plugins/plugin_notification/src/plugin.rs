@@ -55,11 +55,7 @@ impl Handle<Measurement> for NotificationPlugin {
         trace!(?message, "Sending notification for measurement");
         let _ = self
             .notify_addr
-            .send_and_wait(
-                self.raise
-                    .clone()
-                    .into_notification(self.raise_msg.to_string()),
-            )
+            .send_and_wait(self.raise.into_notification(self.raise_msg.to_string()))
             .await;
 
         trace!(?message, "Forwarding measurement");
