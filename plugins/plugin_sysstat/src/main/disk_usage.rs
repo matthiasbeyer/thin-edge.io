@@ -62,7 +62,7 @@ pub async fn main_disk_usage(state: Arc<Mutex<DiskUsageState>>) -> Result<(), Pl
         .deref()
         .sys
         .disks()
-        .into_iter()
+        .iter()
         .map(|disk| measure_to_message(disk).map(|msg| lock.send_to.send_and_wait(msg)))
         .collect::<Result<Vec<_>, PluginError>>()?;
 
