@@ -15,8 +15,8 @@ mod request {
         pd: std::marker::PhantomData<M>,
     }
 
-    impl<M: Message> SubscribeRequest<M> {
-        pub fn new() -> Self {
+    impl<M: Message> Default for SubscribeRequest<M> {
+        fn default() -> Self {
             Self {
                 pd: std::marker::PhantomData,
             }
