@@ -69,10 +69,7 @@ where
         plugin_dir: &PD,
     ) -> Result<tedge_api::plugin::BuiltPlugin, tedge_api::PluginError> {
         debug!("Instantiating HttpStopPlugin");
-        let config = config
-            .clone()
-            .try_into::<HttpStopConfig>()
-            .map_err(Error::from)?;
+        let config = config.try_into::<HttpStopConfig>().map_err(Error::from)?;
 
         let plugin = HttpStopPlugin {
             cancellation_token,
