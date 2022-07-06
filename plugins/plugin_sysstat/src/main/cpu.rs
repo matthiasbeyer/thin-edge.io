@@ -98,10 +98,7 @@ pub async fn main_cpu(state: Arc<Mutex<CPUState>>) -> Result<(), PluginError> {
         let fut = state
             .addrs
             .send_and_wait({
-                Measurement::new(
-                    state.global_processor_info_name.to_string(),
-                    measurement.clone(),
-                )
+                Measurement::new(state.global_processor_info_name.to_string(), measurement)
             })
             .collect::<SendAllResult<Measurement>>();
         sending.push(fut);
