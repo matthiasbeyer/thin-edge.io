@@ -124,7 +124,7 @@ impl TedgeApplication {
                         } else {
                             Err(PluginConfigurationError::UnknownKind(
                                 PluginKindUnknownError {
-                                    name: plugin_name.to_string(),
+                                    name: plugin_cfg.kind().as_ref().to_string(),
                                     alternatives: None,
                                 },
                             ))
