@@ -7,9 +7,9 @@
 #[serde(transparent)]
 pub struct Port(u16);
 
-impl Into<u16> for Port {
-    fn into(self) -> u16 {
-        self.0
+impl From<Port> for u16 {
+    fn from(p: Port) -> Self {
+        p.0
     }
 }
 
