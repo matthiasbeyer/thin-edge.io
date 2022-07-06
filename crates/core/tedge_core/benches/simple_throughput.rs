@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use criterion::BenchmarkId;
 use criterion::{criterion_group, criterion_main, Criterion};
-use criterion::{BenchmarkId};
 use tedge_api::plugin::{Handle, HandleTypes};
 use tedge_api::PluginConfiguration;
 use tedge_api::PluginDirectory;
@@ -77,7 +77,8 @@ impl Plugin for ProducerPlugin {
             while let Some(num) = rec.recv().await {
                 count += 1;
                 //println!("Sending msg #{}", count);
-                addr.send_and_wait(Measurement(num)).await
+                addr.send_and_wait(Measurement(num))
+                    .await
                     .unwrap_or_else(|_| {
                         println!("Could not send in sender for msg num #{}", count);
                         panic!();
