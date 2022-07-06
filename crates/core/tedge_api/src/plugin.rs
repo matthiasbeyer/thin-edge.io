@@ -601,10 +601,10 @@ impl MessageBundle for () {
 
 impl<P: Plugin> DoesHandle<()> for P {
     fn into_built_plugin(self) -> BuiltPlugin {
-        fn handle_message<'a, PLUG: Plugin>(
-            _plugin: &'a dyn Any,
+        fn handle_message<PLUG: Plugin>(
+            _plugin: &dyn Any,
             _message: InternalMessage,
-        ) -> BoxFuture<'a, Result<(), PluginError>> {
+        ) -> BoxFuture<Result<(), PluginError>> {
             unreachable!()
         }
         BuiltPlugin {
@@ -626,10 +626,10 @@ impl MessageBundle for AnyMessages {
 
 impl<P: Plugin + Handle<crate::message::AnyMessage>> DoesHandle<AnyMessages> for P {
     fn into_built_plugin(self) -> BuiltPlugin {
-        fn handle_message<'a, PLUG: Plugin + Handle<crate::message::AnyMessage>>(
-            plugin: &'a dyn Any,
+        fn handle_message<PLUG: Plugin + Handle<crate::message::AnyMessage>>(
+            plugin: &dyn Any,
             message: InternalMessage,
-        ) -> BoxFuture<'a, Result<(), PluginError>> {
+        ) -> BoxFuture<Result<(), PluginError>> {
             let plug = match plugin.downcast_ref::<PLUG>() {
                 Some(p) => p,
                 None => {
