@@ -13,7 +13,8 @@ use tedge_api::{Address, Message, Plugin};
 use tedge_core::TedgeApplication;
 use tokio::sync::{Mutex, Notify};
 
-#[derive(Debug)]
+#[derive(Debug, bevy_reflect::TypeUuid)]
+#[uuid = "ca1549aa-5bd1-4a72-a64a-00dc9809f67f"]
 struct Measurement(u64);
 
 impl Message for Measurement {}
