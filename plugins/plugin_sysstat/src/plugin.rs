@@ -112,9 +112,7 @@ impl Plugin for SysStatPlugin {
         debug!("Shutting down sysstat plugin!");
 
         while let Some(stopper) = self.stoppers.pop() {
-            stopper
-                .stop()
-                .map_err(|()| crate::error::Error::FailedToStopMainloop)?
+            stopper.stop();
         }
 
         Ok(())
