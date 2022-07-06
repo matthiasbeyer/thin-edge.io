@@ -10,8 +10,8 @@ pub struct Registry {
     pub doc_printers: HashMap<String, Box<dyn FnOnce() -> Result<(), miette::Error>>>,
 }
 
-impl Registry {
-    pub fn new() -> Self {
+impl Default for Registry {
+    fn default() -> Self {
         Registry {
             app_builder: tedge_core::TedgeApplication::builder(),
             plugin_kinds: HashSet::new(),
