@@ -97,7 +97,7 @@ impl CorePluginDirectory {
     /// plugin named `plugin_name`.
     pub fn for_plugin_named(self: Arc<Self>, plugin_name: &str) -> PluginDirectory {
         PluginDirectory {
-            core: self.clone(),
+            core: self,
             plugin_name: plugin_name.to_string(),
         }
     }
