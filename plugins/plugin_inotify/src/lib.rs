@@ -30,9 +30,6 @@ pub struct InotifyPluginBuilder;
 enum Error {
     #[error("Failed to parse configuration")]
     ConfigParseFailed(#[from] toml::de::Error),
-
-    #[error("Failed to stop Mainloop")]
-    FailedToStopMainloop,
 }
 
 tedge_api::make_receiver_bundle!(pub struct MeasurementReceiver(Measurement));
@@ -150,7 +147,7 @@ impl Plugin for InotifyPlugin {
     async fn shutdown(&mut self) -> Result<(), PluginError> {
         trace!("Shutdown");
         if let Some(stopper) = self.stopper.take() {
-            stopper.stop().map_err(|()| Error::FailedToStopMainloop)?
+            stopper.stop();
         }
         Ok(())
     }
