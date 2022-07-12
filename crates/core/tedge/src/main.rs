@@ -52,15 +52,15 @@ fn initialize_tedge(cfg_dir: &Path) -> anyhow::Result<()> {
     create_directory_with_user_group(&config_dir, "tedge", "tedge", 0o775)?;
     create_directory_with_user_group("/var/log/tedge", "tedge", "tedge", 0o775)?;
     create_directory_with_user_group(
-        &format!("{config_dir}/mosquitto-conf"),
+        format!("{config_dir}/mosquitto-conf"),
         "tedge",
         "tedge",
         0o775,
     )?;
-    create_directory_with_user_group(&format!("{config_dir}/operations"), "tedge", "tedge", 0o775)?;
-    create_directory_with_user_group(&format!("{config_dir}/plugins"), "tedge", "tedge", 0o775)?;
+    create_directory_with_user_group(format!("{config_dir}/operations"), "tedge", "tedge", 0o775)?;
+    create_directory_with_user_group(format!("{config_dir}/plugins"), "tedge", "tedge", 0o775)?;
     create_directory_with_user_group(
-        &format!("{config_dir}/device-certs"),
+        format!("{config_dir}/device-certs"),
         "mosquitto",
         "mosquitto",
         0o775,

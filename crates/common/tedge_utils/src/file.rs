@@ -34,29 +34,34 @@ pub enum FileError {
 }
 
 pub fn create_directory_with_user_group(
-    dir: &str,
+    dir: impl AsRef<Path>,
     user: &str,
     group: &str,
     mode: u32,
 ) -> Result<(), FileError> {
     let perm_entry = PermissionEntry::new(Some(user.into()), Some(group.into()), Some(mode));
-    perm_entry.create_directory(Path::new(dir))
+    perm_entry.create_directory(dir.as_ref())
 }
 
-pub fn create_directory_with_mode(dir: &str, mode: u32) -> Result<(), FileError> {
+pub fn create_directory_with_mode(dir: impl AsRef<Path>, mode: u32) -> Result<(), FileError> {
     let perm_entry = PermissionEntry::new(None, None, Some(mode));
-    perm_entry.create_directory(Path::new(dir))
+    perm_entry.create_directory(dir.as_ref())
 }
 
 pub fn create_file_with_user_group(
-    file: &str,
+    file: impl AsRef<Path>,
     user: &str,
     group: &str,
     mode: u32,
     default_content: Option<&str>,
 ) -> Result<(), FileError> {
     let perm_entry = PermissionEntry::new(Some(user.into()), Some(group.into()), Some(mode));
-    perm_entry.create_file(Path::new(file), default_content)
+    perm_entry.create_file(file.as_ref(), default_content)
+}
+
+pub fn create_file_with_mode(file: impl AsRef<Path>, mode: u32) -> Result<(), FileError> {
+    let perm_entry = PermissionEntry::new(None, None, Some(mode));
+    perm_entry.create_file(file.as_ref(), None)
 }
 
 #[derive(Debug, PartialEq, Eq, Default, Clone)]
@@ -94,10 +99,7 @@ impl PermissionEntry {
 
     fn create_directory(&self, dir: &Path) -> Result<(), FileError> {
         match fs::create_dir(dir) {
-            Ok(_) => {
-                let () = self.apply(dir)?;
-                Ok(())
-            }
+            Ok(_) => self.apply(dir),
             Err(e) if e.kind() == io::ErrorKind::AlreadyExists => Ok(()),
             Err(e) => Err(FileError::DirectoryCreateFailed {
                 dir: dir.display().to_string(),
@@ -130,7 +132,6 @@ impl PermissionEntry {
                 }
                 Ok(())
             }
-
             Err(e) if e.kind() == io::ErrorKind::AlreadyExists => Ok(()),
             Err(e) => Err(FileError::FileCreateFailed {
                 file: file.display().to_string(),
@@ -141,22 +142,18 @@ impl PermissionEntry {
 }
 
 fn change_user_and_group(file: &Path, user: &str, group: &str) -> Result<(), FileError> {
-    let ud = match get_user_by_name(user) {
-        Some(user) => user.uid(),
-        None => {
-            return Err(FileError::UserNotFound { user: user.into() });
-        }
-    };
+    let ud = get_user_by_name(user)
+        .map(|u| u.uid())
+        .ok_or_else(|| FileError::UserNotFound { user: user.into() })?;
+
     let uid = get_metadata(Path::new(file))?.st_uid();
 
-    let gd = match get_group_by_name(group) {
-        Some(group) => group.gid(),
-        None => {
-            return Err(FileError::GroupNotFound {
-                group: group.into(),
-            });
-        }
-    };
+    let gd = get_group_by_name(group)
+        .map(|g| g.gid())
+        .ok_or_else(|| FileError::GroupNotFound {
+            group: group.into(),
+        })?;
+
     let gid = get_metadata(Path::new(file))?.st_gid();
 
     // if user and group are same as existing, then do not change
@@ -168,12 +165,9 @@ fn change_user_and_group(file: &Path, user: &str, group: &str) -> Result<(), Fil
 }
 
 fn change_user(file: &Path, user: &str) -> Result<(), FileError> {
-    let ud = match get_user_by_name(user) {
-        Some(user) => user.uid(),
-        None => {
-            return Err(FileError::UserNotFound { user: user.into() });
-        }
-    };
+    let ud = get_user_by_name(user)
+        .map(|u| u.uid())
+        .ok_or_else(|| FileError::UserNotFound { user: user.into() })?;
 
     let uid = get_metadata(Path::new(file))?.st_uid();
 
@@ -186,14 +180,11 @@ fn change_user(file: &Path, user: &str) -> Result<(), FileError> {
 }
 
 fn change_group(file: &Path, group: &str) -> Result<(), FileError> {
-    let gd = match get_group_by_name(group) {
-        Some(group) => group.gid(),
-        None => {
-            return Err(FileError::GroupNotFound {
-                group: group.into(),
-            });
-        }
-    };
+    let gd = get_group_by_name(group)
+        .map(|g| g.gid())
+        .ok_or_else(|| FileError::GroupNotFound {
+            group: group.into(),
+        })?;
 
     let gid = get_metadata(Path::new(file))?.st_gid();
 
@@ -307,7 +298,7 @@ mod tests {
         let dir_path = temp_dir.path().join("dir").display().to_string();
 
         let user = whoami::username();
-        let _ = create_directory_with_user_group(dir_path.as_str(), &user, &user, 0o775).unwrap();
+        let _ = create_directory_with_user_group(&dir_path, &user, &user, 0o775).unwrap();
 
         assert!(Path::new(dir_path.as_str()).exists());
         let meta = fs::metadata(dir_path.as_str()).unwrap();
@@ -323,8 +314,7 @@ mod tests {
 
         let user = whoami::username();
 
-        let err =
-            create_directory_with_user_group(dir_path.as_str(), "test", &user, 0o775).unwrap_err();
+        let err = create_directory_with_user_group(dir_path, "test", &user, 0o775).unwrap_err();
 
         assert!(err.to_string().contains("User not found"));
     }
@@ -336,8 +326,7 @@ mod tests {
 
         let user = whoami::username();
 
-        let err =
-            create_directory_with_user_group(dir_path.as_str(), &user, "test", 0o775).unwrap_err();
+        let err = create_directory_with_user_group(dir_path, &user, "test", 0o775).unwrap_err();
 
         assert!(err.to_string().contains("Group not found"));
     }
