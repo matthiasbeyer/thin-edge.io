@@ -416,7 +416,7 @@ mod tests {
     };
 
     #[derive(Debug, TypeUuid)]
-    #[uuid = "df2b8bb3-8c15-49bb-8d11-cc14d7f3b000"] 
+    #[uuid = "df2b8bb3-8c15-49bb-8d11-cc14d7f3b000"]
     struct Foo;
 
     impl Message for Foo {}
@@ -425,13 +425,13 @@ mod tests {
     }
 
     #[derive(Debug, TypeUuid)]
-    #[uuid = "953a243d-333a-4870-8297-272fff6262b5"] 
+    #[uuid = "953a243d-333a-4870-8297-272fff6262b5"]
     struct Bar;
 
     impl Message for Bar {}
 
     #[derive(Debug, TypeUuid)]
-    #[uuid = "fe98650c-b067-47f4-8fd8-2f3ed04fdc21"] 
+    #[uuid = "fe98650c-b067-47f4-8fd8-2f3ed04fdc21"]
     struct Blub;
 
     impl Message for Blub {}
