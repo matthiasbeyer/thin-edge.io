@@ -22,6 +22,7 @@ pub struct Subscription {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, serde::Deserialize)]
+#[allow(clippy::enum_variant_names)]
 pub enum QoS {
     #[serde(rename = "at_most_once")]
     AtMostOnce,
