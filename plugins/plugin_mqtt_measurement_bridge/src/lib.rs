@@ -17,8 +17,8 @@ use tracing::trace;
 
 pub struct MqttMeasurementBridgePluginBuilder;
 
-impl MqttMeasurementBridgePluginBuilder {
-    pub fn new() -> Self {
+impl Default for MqttMeasurementBridgePluginBuilder {
+    fn default() -> Self {
         MqttMeasurementBridgePluginBuilder
     }
 }
