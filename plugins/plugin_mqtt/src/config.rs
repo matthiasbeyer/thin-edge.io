@@ -63,9 +63,9 @@ impl tedge_api::AsConfig for QoS {
     }
 }
 
-impl Into<i32> for QoS {
-    fn into(self) -> i32 {
-        match self {
+impl From<QoS> for i32 {
+    fn from(qos: QoS) -> i32 {
+        match qos {
             QoS::AtMostOnce => paho_mqtt::QOS_0,
             QoS::AtLeastOnce => paho_mqtt::QOS_1,
             QoS::ExactlyOnce => paho_mqtt::QOS_2,
