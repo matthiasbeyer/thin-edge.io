@@ -1,10 +1,10 @@
 use futures::FutureExt;
 
-use tedge_api::Message;
 use tedge_api::address::Address;
 use tedge_api::address::ReceiverBundle;
 use tedge_api::address::ReplyReceiverFor;
 use tedge_api::message::AcceptsReplies;
+use tedge_api::Message;
 
 pub trait IntoSendAll<'addr, M: Message, RB: ReceiverBundle>
 where
