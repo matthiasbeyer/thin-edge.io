@@ -9,9 +9,6 @@ pub(crate) enum Error {
     #[error("No client, cannot send messages")]
     NoClient,
 
-    #[error("Failed to stop MQTT mainloop")]
-    FailedToStopMqttMainloop,
-
     #[error("Failed to disconnect MQTT client")]
     FailedToDisconnectMqttClient(paho_mqtt::errors::Error),
 }

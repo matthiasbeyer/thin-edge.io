@@ -13,8 +13,8 @@ use crate::plugin::MqttPlugin;
 
 pub struct MqttPluginBuilder;
 
-impl MqttPluginBuilder {
-    pub fn new() -> Self {
+impl Default for MqttPluginBuilder {
+    fn default() -> Self {
         MqttPluginBuilder
     }
 }
