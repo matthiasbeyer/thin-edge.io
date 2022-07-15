@@ -106,7 +106,7 @@ impl Plugin for MqttPlugin {
                 .disconnect(None)
                 .instrument(tracing::debug_span!("plugin.mqtt.client.disconnect"))
                 .await
-                .map_err(|e| crate::error::Error::FailedToDisconnectMqttClient(e))?;
+                .map_err(crate::error::Error::FailedToDisconnectMqttClient)?;
         }
 
         Ok(())
