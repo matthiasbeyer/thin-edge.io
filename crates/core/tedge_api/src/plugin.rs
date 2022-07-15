@@ -683,8 +683,8 @@ impl_msg_bundle_tuple!(M10 M9 M8 M7 M6 M5 M4 M3 M2 M1);
 mod tests {
     use crate::{message::DynMessage, Message};
 
-    use bevy_reflect::TypeUuid;
     use super::{Plugin, PluginBuilder};
+    use bevy_reflect::TypeUuid;
     use static_assertions::assert_obj_safe;
 
     // Object Safety

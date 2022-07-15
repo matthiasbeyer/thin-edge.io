@@ -24,7 +24,7 @@ pub use error::PluginError;
 
 /// Predefined messages
 pub mod message;
-pub use message::{Message, CoreMessages};
+pub use message::{CoreMessages, Message};
 
 /// Cancellation token used by `tedge_api`
 ///

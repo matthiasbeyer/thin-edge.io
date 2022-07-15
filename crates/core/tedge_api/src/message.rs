@@ -1,5 +1,5 @@
-use downcast_rs::{impl_downcast, DowncastSync};
 use bevy_reflect::{TypeUuid, TypeUuidDynamic};
+use downcast_rs::{impl_downcast, DowncastSync};
 use serde::Serialize;
 
 use crate::address::AnyMessageBox;
