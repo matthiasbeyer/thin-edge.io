@@ -100,7 +100,7 @@ async fn main() -> miette::Result<()> {
         register on registry
         builder of type plugin_mqtt_measurement_bridge::MqttMeasurementBridgePluginBuilder,
         with instance {
-            plugin_mqtt_measurement_bridge::MqttMeasurementBridgePluginBuilder::new()
+            plugin_mqtt_measurement_bridge::MqttMeasurementBridgePluginBuilder::default()
         }
     );
     let registry = tedge_cli::register_plugin!(
