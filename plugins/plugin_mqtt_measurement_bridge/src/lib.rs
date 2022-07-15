@@ -17,8 +17,8 @@ use tracing::trace;
 
 pub struct MqttMeasurementBridgePluginBuilder;
 
-impl MqttMeasurementBridgePluginBuilder {
-    pub fn new() -> Self {
+impl Default for MqttMeasurementBridgePluginBuilder {
+    fn default() -> Self {
         MqttMeasurementBridgePluginBuilder
     }
 }
@@ -75,7 +75,7 @@ where
             .map_err(Error::ConfigParseFailed)?;
 
         let addr = config.mqtt_plugin_name.build(plugin_dir)?;
-        Ok(MqttMeasurementBridgePlugin::new(addr, config.topic.clone()).finish())
+        Ok(MqttMeasurementBridgePlugin::new(addr, config.topic).finish())
     }
 }
 
