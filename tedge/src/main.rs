@@ -92,7 +92,7 @@ async fn main() -> miette::Result<()> {
         register on registry
         builder of type plugin_mqtt::MqttPluginBuilder,
         with instance {
-            plugin_mqtt::MqttPluginBuilder::new()
+            plugin_mqtt::MqttPluginBuilder::default()
         }
     );
     let registry = tedge_cli::register_plugin!(
