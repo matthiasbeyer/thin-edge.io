@@ -18,7 +18,7 @@ async fn main() -> miette::Result<()> {
     info!("Tedge booting...");
     debug!(?args, "Tedge CLI");
 
-    let registry = tedge_cli::Registry::new();
+    let registry = tedge_cli::Registry::default();
     info!("Building application");
 
     let registry = {
@@ -29,7 +29,7 @@ async fn main() -> miette::Result<()> {
                     register on registry
                     builder of type plugin_log::LogPluginBuilder<(Measurement, Notification)>,
                     with instance {
-                        plugin_log::LogPluginBuilder::<(Measurement, Notification)>::new()
+                        plugin_log::LogPluginBuilder::<(Measurement, Notification)>::default()
                     }
                 )
             },

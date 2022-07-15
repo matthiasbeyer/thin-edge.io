@@ -57,13 +57,12 @@ impl StateFromConfig for ProcessState {
                     } else {
                         pr
                     };
-                    let pr = if config.all_processes.config.disk_usage {
+
+                    if config.all_processes.config.disk_usage {
                         pr.with_disk_usage()
                     } else {
                         pr
-                    };
-
-                    pr
+                    }
                 })
             }),
 
@@ -88,10 +87,9 @@ pub async fn main_process(state: Arc<Mutex<ProcessState>>) -> Result<(), PluginE
                 || state
                     .by_name
                     .keys()
-                    .find(|name| *name == process.name())
-                    .is_some()
+                    .any(|name| *name == process.name())
         })
-        .map(|(_pid, process)| get_measurement(&state, process))
+        .map(|(_pid, process)| get_measurement(state, process))
         .map(|value| Measurement::new("processes".to_string(), value))
         .collect::<Vec<_>>();
 

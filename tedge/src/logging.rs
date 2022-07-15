@@ -59,13 +59,9 @@ pub fn setup_logging(
         .map(|(layer, guard)| (Some(layer), Some(guard)))
         .unwrap_or_default();
 
-    let opt_tracy_layer = tracy_logging.then(|| tracing_tracy::TracyLayer::new());
+    let opt_tracy_layer = tracy_logging.then(tracing_tracy::TracyLayer::new);
 
-    let stdout_log = if let Some(env_filter) = env_filter {
-        Some(tracing_subscriber::fmt::layer().with_filter(env_filter))
-    } else {
-        None
-    };
+    let stdout_log = env_filter.map(|f| tracing_subscriber::fmt::layer().with_filter(f));
 
     let subscriber = tracing_subscriber::registry::Registry::default()
         .with(opt_chrome_layer)

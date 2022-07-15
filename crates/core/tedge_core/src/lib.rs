@@ -117,7 +117,7 @@ impl TedgeApplication {
                             debug!("Verifying {}", plugin_cfg.kind().as_ref());
                             let res = plugin_cfg
                                 .configuration()
-                                .verify_with_builder(&plugin_name, builder, self.config_path())
+                                .verify_with_builder(&plugin_name, &**builder, self.config_path())
                                 .await;
 
                             Ok(res?)

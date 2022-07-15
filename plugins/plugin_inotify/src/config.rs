@@ -24,6 +24,7 @@ fn fail_on_err_default() -> bool {
 #[derive(serde::Deserialize, Copy, Clone, Debug, tedge_api::Config)]
 #[config(untagged)]
 #[allow(non_camel_case_types)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum Watchmode {
     /// File was accessed
     /// When watching a directory, this event is only triggered for objects inside the directory,

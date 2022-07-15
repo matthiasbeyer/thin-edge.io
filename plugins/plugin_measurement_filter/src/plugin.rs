@@ -57,10 +57,8 @@ impl Handle<Measurement> for MeasurementFilterPlugin {
             trace!(plugin.filter = ?self.filter, ?value, "Applying filter");
             if value.apply_filter(&self.filter) {
                 let _ = self.target.send_and_wait(message).await;
-            } else {
-                if let Some(ftarget) = self.filtered_target.as_ref() {
-                    let _ = ftarget.send_and_wait(message).await;
-                }
+            } else if let Some(ftarget) = self.filtered_target.as_ref() {
+                let _ = ftarget.send_and_wait(message).await;
             }
         }
         Ok(())

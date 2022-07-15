@@ -98,10 +98,7 @@ pub async fn main_cpu(state: Arc<Mutex<CPUState>>) -> Result<(), PluginError> {
         let fut = state
             .addrs
             .send_and_wait({
-                Measurement::new(
-                    state.global_processor_info_name.to_string(),
-                    measurement.clone(),
-                )
+                Measurement::new(state.global_processor_info_name.to_string(), measurement)
             })
             .collect::<SendAllResult<Measurement>>();
         sending.push(fut);
@@ -142,10 +139,7 @@ pub async fn main_cpu(state: Arc<Mutex<CPUState>>) -> Result<(), PluginError> {
             let fut = state
                 .addrs
                 .send_and_wait({
-                    Measurement::new(
-                        state.physical_core_count_name.to_string(),
-                        measurement.clone(),
-                    )
+                    Measurement::new(state.physical_core_count_name.to_string(), measurement)
                 })
                 .collect::<SendAllResult<Measurement>>();
             sending.push(fut);
@@ -171,6 +165,9 @@ pub async fn main_cpu(state: Arc<Mutex<CPUState>>) -> Result<(), PluginError> {
         .map(|_| ())
 }
 
+// TODO: There might be some optimization opportunity here with the number of arguments for this
+// function
+#[allow(clippy::too_many_arguments)]
 fn get_processor_info_measurements(
     info: &sysinfo::Processor,
     frequency: bool,

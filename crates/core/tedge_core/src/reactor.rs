@@ -4,7 +4,6 @@ use std::sync::Arc;
 use futures::StreamExt;
 
 use itertools::Itertools;
-use tedge_api::message::MessageType;
 use tedge_api::plugin::BuiltPlugin;
 use tedge_api::PluginExt;
 use tokio::sync::mpsc::channel;
@@ -79,13 +78,7 @@ impl Reactor {
                     .0
                     .plugin_builders()
                     .get(pconfig.kind().as_ref())
-                    .map(|(handle_types, _)| {
-                        handle_types
-                            .get_types()
-                            .into_iter()
-                            .cloned()
-                            .collect::<Vec<MessageType>>()
-                    })
+                    .map(|(handle_types, _)| handle_types.get_types().to_vec())
                     .ok_or_else(|| {
                         PluginInstantiationError::KindNotFound(PluginKindUnknownError {
                             name: pconfig.kind().as_ref().to_string(),
@@ -303,6 +296,7 @@ impl Reactor {
             .map(|cfg| cfg.configuration())
     }
 
+    #[allow(clippy::borrowed_box)]
     fn find_plugin_builder<'a>(
         &'a self,
         plugin_kind: &PluginKind,
@@ -346,7 +340,7 @@ impl Reactor {
         )?;
 
         let config = match config
-            .verify_with_builder(plugin_name, builder, root_config_path)
+            .verify_with_builder(plugin_name, &**builder, root_config_path)
             .instrument(trace_span!("core.config_verification"))
             .await
         {

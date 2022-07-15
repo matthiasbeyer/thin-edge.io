@@ -41,7 +41,7 @@ pub fn as_terminal_doc<'a>(desc: &'a ConfigDescription, arena: &'a Arena<'a>) ->
     let render_markdown = |text: &str| {
         let rendered = skin.text(text, None).to_string();
         arena.intersperse(
-            rendered.split("\n").map(|t| {
+            rendered.split('\n').map(|t| {
                 arena.intersperse(
                     t.split(char::is_whitespace).map(|t| t.to_string()),
                     arena.softline(),
@@ -52,7 +52,7 @@ pub fn as_terminal_doc<'a>(desc: &'a ConfigDescription, arena: &'a Arena<'a>) ->
     };
 
     if let Some(conf_doc) = desc.doc() {
-        doc = doc.append(render_markdown(&conf_doc));
+        doc = doc.append(render_markdown(conf_doc));
     }
 
     match desc.kind() {
@@ -67,7 +67,7 @@ pub fn as_terminal_doc<'a>(desc: &'a ConfigDescription, arena: &'a Arena<'a>) ->
                         let mut doc = arena.nil();
 
                         if let Some(member_doc) = member_doc {
-                            doc = doc.append(render_markdown(&member_doc));
+                            doc = doc.append(render_markdown(member_doc));
                         }
                         doc.append(arena.text(Color::Blue.bold().paint(*member_name).to_string()))
                             .append(": ")
@@ -123,7 +123,7 @@ pub fn as_terminal_doc<'a>(desc: &'a ConfigDescription, arena: &'a Arena<'a>) ->
                                         .append(": ");
 
                                     if let Some(member_doc) = member_doc {
-                                        doc = doc.append(render_markdown(&member_doc));
+                                        doc = doc.append(render_markdown(member_doc));
                                     }
 
                                     doc.append(

@@ -99,7 +99,7 @@ where
     >;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let timeout = self.timeout.clone();
+        let timeout = self.timeout;
 
         self.inner.next().map(|(msg, address)| {
             async move {

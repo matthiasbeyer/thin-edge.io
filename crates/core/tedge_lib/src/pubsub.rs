@@ -15,8 +15,8 @@ mod request {
         pd: std::marker::PhantomData<M>,
     }
 
-    impl<M: Message> SubscribeRequest<M> {
-        pub fn new() -> Self {
+    impl<M: Message> Default for SubscribeRequest<M> {
+        fn default() -> Self {
             Self {
                 pd: std::marker::PhantomData,
             }
@@ -71,11 +71,11 @@ mod reply {
             tedge_api::util::generate_composite_uuid(SubscribeReplyUuid::TYPE_UUID, M::TYPE_UUID);
     }
 
-    impl<M: Message> Into<Result<tokio::sync::broadcast::Receiver<M>, PluginError>>
-        for SubscribeReply<M>
+    impl<M: Message> From<SubscribeReply<M>>
+        for Result<tokio::sync::broadcast::Receiver<M>, PluginError>
     {
-        fn into(self) -> Result<tokio::sync::broadcast::Receiver<M>, PluginError> {
-            self.0
+        fn from(sr: SubscribeReply<M>) -> Self {
+            sr.0
         }
     }
 
