@@ -4,9 +4,6 @@ pub(crate) enum Error {
     #[error("Failed to parse configuration")]
     ConfigParseFailed(toml::de::Error),
 
-    #[error("Failed to stop mainloop")]
-    FailedToStopMainloop,
-
     #[error("Failed to send measurement")]
     FailedToSendMeasurement,
 

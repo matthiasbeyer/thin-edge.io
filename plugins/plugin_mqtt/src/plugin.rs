@@ -97,9 +97,7 @@ impl Plugin for MqttPlugin {
 
         // try to shutdown internal mainloop
         if let Some(stopper) = self.stopper.take() {
-            stopper
-                .stop()
-                .map_err(|_| crate::error::Error::FailedToStopMqttMainloop)?;
+            stopper.stop();
         }
 
         // try to shutdown mqtt client
