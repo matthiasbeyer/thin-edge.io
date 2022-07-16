@@ -1,15 +1,15 @@
 use async_trait::async_trait;
 use futures::future::FutureExt;
+use tedge_api::address::ReplySenderFor;
+use tedge_api::message::Message;
+use tedge_api::plugin::Handle;
+use tedge_api::plugin::PluginExt;
 use tedge_api::Address;
 use tedge_api::Plugin;
 use tedge_api::PluginBuilder;
 use tedge_api::PluginConfiguration;
 use tedge_api::PluginDirectory;
 use tedge_api::PluginError;
-use tedge_api::address::ReplySenderFor;
-use tedge_api::message::Message;
-use tedge_api::plugin::Handle;
-use tedge_api::plugin::PluginExt;
 use tedge_core::TedgeApplication;
 
 pub struct HandlePanicPluginBuilder;
