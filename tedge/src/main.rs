@@ -40,7 +40,7 @@ async fn main() -> miette::Result<()> {
                     register on registry
                     builder of type plugin_log::LogPluginBuilder<(Measurement, Notification, plugin_mqtt::IncomingMessage)>,
                     with instance {
-                        plugin_log::LogPluginBuilder::<(Measurement, Notification, plugin_mqtt::IncomingMessage)>::new()
+                        plugin_log::LogPluginBuilder::<(Measurement, Notification, plugin_mqtt::IncomingMessage)>::default()
                     }
                 )
             },
